@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.di
 
+import android.app.AlarmManager
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -28,7 +29,7 @@ import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
-import io.github.klanary.jigeumchulbal.session.NoopAlarmScheduler
+import io.github.klanary.jigeumchulbal.session.AndroidAlarmScheduler
 import io.github.klanary.jigeumchulbal.session.NoopLauncher
 import io.github.klanary.jigeumchulbal.session.NoopNotifier
 import io.github.klanary.jigeumchulbal.session.SessionController
@@ -89,10 +90,10 @@ class AppContainer(context: Context) {
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)
 
-    // 통학 세션. 포트는 Task 4(알람)·5(알림)·7(대기 서비스)에서 실제 구현으로 바꾼다.
+    // 통학 세션. 알림 포트는 Task 5, 대기 서비스 포트는 Task 7에서 실제 구현으로 바꾼다.
     val sessionController = SessionController(
         store = SessionStore(appContext.sessionDataStore, json),
-        scheduler = NoopAlarmScheduler,
+        scheduler = AndroidAlarmScheduler(appContext, appContext.getSystemService(AlarmManager::class.java)),
         notifier = NoopNotifier,
         launcher = NoopLauncher,
         clock = System::currentTimeMillis,

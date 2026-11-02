@@ -18,6 +18,7 @@ class AppServices:
     clock: Callable[[], float]
     metrics: Metrics
     quotas: dict[str, QuotaGuard]
+    http: httpx.AsyncClient
 
 
 def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, QuotaGuard]:
@@ -35,11 +36,13 @@ def build_services(
     clock: Callable[[], float],
     transport: httpx.AsyncBaseTransport | None,
 ) -> AppServices:
+    """transport를 주면(테스트) 외부 호출이 그 transport로 간다."""
     return AppServices(
         settings=settings,
         clock=clock,
         metrics=Metrics(since=now_kst(clock)),
         quotas=build_quotas(settings, clock),
+        http=httpx.AsyncClient(transport=transport, timeout=settings.upstream_timeout_sec),
     )
 
 

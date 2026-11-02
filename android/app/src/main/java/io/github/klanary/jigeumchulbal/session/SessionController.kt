@@ -61,6 +61,9 @@ class SessionController(
         apply(event)
     }
 
+    /** AlarmReceiver가 부른다. */
+    suspend fun onAlarm(id: AlarmId) = dispatch(SessionEvent.AlarmFired(id))
+
     /** 처음 한 번 저장된 세션을 불러온다(앱 재시작 뒤 알람 수신기가 먼저 불러도 이어진다). */
     private suspend fun ensureLoaded() {
         if (loaded) return

@@ -91,7 +91,8 @@ class TtlCache[V]:
     def _on_fetch_done(self, key: str, task: asyncio.Task[V]) -> None:
         """호출이 끝나면 진행 중 표에서 빼고, 성공한 값만 저장한다.
 
-        완료 콜백은 shield로 기다리던 요청들이 깨어나기 전에 실행되므로, 깨어난 요청은 저장된 항목을 본다.
+        완료 콜백은 shield로 기다리던 요청들이 깨어나기 전에 실행되므로,
+        깨어난 요청은 저장된 항목을 본다.
         """
         if self._inflight.get(key) is task:
             del self._inflight[key]

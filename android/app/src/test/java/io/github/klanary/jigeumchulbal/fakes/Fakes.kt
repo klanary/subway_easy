@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.fakes
 
+import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
 import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
@@ -11,6 +12,7 @@ import io.github.klanary.jigeumchulbal.data.remote.PlaceDto
 import io.github.klanary.jigeumchulbal.data.remote.ReverseDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationDto
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
@@ -19,7 +21,9 @@ import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 // ViewModel 테스트용 가짜 저장소. 이후 작업이 필요한 가짜를 더한다.
 
@@ -27,15 +31,33 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeStationRepository : StationRepository {
     val searchCalls = mutableListOf<String>()
     var result: ApiResult<List<StationDto>>? = null
-    var arrivalsResult: ApiResult<ArrivalsDto>? = null
+    val arrivalCalls = mutableListOf<Triple<String, String?, String?>>()
+
+    /** 기본은 도착 정보가 없는 정상 응답. */
+    var arrivalsResult: ApiResult<ArrivalsDto> =
+        ApiResult.Ok(ArrivalsDto(stationId = "역", updatedAt = "2026-11-03T08:00:00+09:00", groups = emptyList()))
 
     override suspend fun search(q: String, limit: Int): ApiResult<List<StationDto>> {
         searchCalls += q
         return result ?: ApiResult.Ok(listOf(StationDto(q, q, listOf("2호선"), 37.5571, 126.9245)))
     }
 
-    override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> =
-        arrivalsResult ?: error("arrivalsResult를 먼저 정하세요")
+    override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> {
+        arrivalCalls += Triple(stationId, line, towards)
+        return arrivalsResult
+    }
+}
+
+class FakeFavoriteRepository(initial: Set<String> = emptySet()) : FavoriteRepository {
+    private val ids = MutableStateFlow(initial)
+    override val stations = MutableStateFlow<List<FavoriteStationEntity>>(emptyList())
+
+    override fun isFavorite(stationId: String): Flow<Boolean> = ids.map { stationId in it }
+
+    override suspend fun toggleStation(stationId: String) {
+        ids.value = if (stationId in ids.value) ids.value - stationId else ids.value + stationId
+        stations.value = ids.value.map { FavoriteStationEntity(stationId = it, createdAt = 0) }
+    }
 }
 
 /** 검색어 q에 대해 PlaceDto("$q 결과")를 돌려준다. [delays]로 검색어별 응답 지연을 줄 수 있다. */

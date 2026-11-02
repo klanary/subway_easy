@@ -17,6 +17,15 @@ sealed interface UiState<out T> {
     data object Offline : UiState<Nothing>
 }
 
+/** 내용만 바꾸고 나머지 상태는 그대로 둔다. */
+fun <T, R> UiState<T>.mapContent(transform: (T) -> R): UiState<R> = when (this) {
+    is UiState.Content -> UiState.Content(transform(data), stale)
+    UiState.Loading -> UiState.Loading
+    UiState.Empty -> UiState.Empty
+    is UiState.Error -> this
+    UiState.Offline -> UiState.Offline
+}
+
 fun <T> ApiResult<T>.toUiState(
     isEmpty: (T) -> Boolean = { false },
     isStale: (T) -> Boolean = { false },

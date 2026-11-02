@@ -21,6 +21,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
+import io.github.klanary.jigeumchulbal.ui.mappick.MapPickScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
@@ -44,7 +45,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
         composable<RouteDetailDest> { PlaceholderScreen("경로 상세") }
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
-    composable<MapPickDest> { PlaceholderScreen("지도에서 선택") }
+    composable<MapPickDest> { entry -> MapPickScreen(entry.toRoute<MapPickDest>().slot, navController) }
     composable<StationDest> { PlaceholderScreen("역 상세") }
     composable<SettingsDest> { PlaceholderScreen("설정") }
 }

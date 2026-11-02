@@ -26,6 +26,8 @@ import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
+import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
+import io.github.klanary.jigeumchulbal.location.LocationProvider
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -78,4 +80,6 @@ class AppContainer(context: Context) {
     val myPlaceRepository: MyPlaceRepository = DefaultMyPlaceRepository(database.myPlaceDao())
     val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteStationDao())
     val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
+
+    val locationProvider: LocationProvider = FusedLocationProvider(appContext)
 }

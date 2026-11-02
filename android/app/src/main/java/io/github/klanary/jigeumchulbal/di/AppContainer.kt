@@ -28,6 +28,11 @@ import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
+import io.github.klanary.jigeumchulbal.session.NoopAlarmScheduler
+import io.github.klanary.jigeumchulbal.session.NoopLauncher
+import io.github.klanary.jigeumchulbal.session.NoopNotifier
+import io.github.klanary.jigeumchulbal.session.SessionController
+import io.github.klanary.jigeumchulbal.session.SessionStore
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -37,6 +42,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
 /** 앱의 의존 객체를 손으로 연결한다(스펙 5.3). App.onCreate에서 한 번 만든다. */
 class AppContainer(context: Context) {
@@ -82,4 +88,13 @@ class AppContainer(context: Context) {
     val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)
+
+    // 통학 세션. 포트는 Task 4(알람)·5(알림)·7(대기 서비스)에서 실제 구현으로 바꾼다.
+    val sessionController = SessionController(
+        store = SessionStore(appContext.sessionDataStore, json),
+        scheduler = NoopAlarmScheduler,
+        notifier = NoopNotifier,
+        launcher = NoopLauncher,
+        clock = System::currentTimeMillis,
+    )
 }

@@ -78,6 +78,26 @@ object Copy {
     const val NOT_GRANTED = "허용 안 됨"
     const val OPEN_SETTINGS = "설정 열기"
     const val ABOUT = "정보"
+
+    // 통학 세션
+    const val SESSION_TITLE = "통학 알림"
+    const val START_ALIGHT_ALERT = "출발(하차 알림)"
+    const val SESSION_IN_PROGRESS = "통학 알림 진행 중"
+    const val NO_SESSION = "진행 중인 통학 알림이 없어요"
+    const val MAY_BE_LATE = "알림이 늦을 수 있어요"
+    const val IN_APP_ONLY = "알림 권한이 없어 이 화면에서만 안내해요"
+    const val ALIGHT_EXPECTED = "도착 예정"
+    const val TRANSFER = "환승"
+    const val VIA_POINT = "경유지"
+    const val FINAL_POINT = "도착"
+    const val INTRO_TITLE = "알림을 허용해 주세요"
+    const val INTRO_BODY = "출발할 시각과 내릴 역을 알림으로 알려드려요. 정확한 시각에 울리려면 '알람 및 리마인더' 권한도 필요해요."
+    const val CONTINUE = "계속"
+    const val EXACT_ALARM_ASK = "정확한 시각에 알리려면 '알람 및 리마인더'를 허용해 주세요"
+    const val LATER = "나중에"
+    const val REPLACE_SESSION_ASK = "진행 중인 통학 알림을 끝내고 새로 시작할까요?"
+    const val START_NEW = "새로 시작"
+    const val CANCEL = "취소"
     const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'와 " +
         "카카오의 지도·로컬·길찾기 API를 사용합니다."
 }

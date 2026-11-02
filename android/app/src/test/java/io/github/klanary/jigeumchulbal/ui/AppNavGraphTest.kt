@@ -52,6 +52,12 @@ class AppNavGraphTest {
         assertEquals(true, routeEdit.savedStateHandle.contains("pick_result"))
     }
 
+    @Test fun sessionScreenIsReachable() {
+        val nav = navController()
+        nav.navigate(SessionDest)
+        assertEquals(SessionDest::class.qualifiedName, nav.currentDestination!!.route)
+    }
+
     @Test fun routeFlowGraphStartsAtRouteEdit() {
         val nav = navController()
         nav.navigate(RouteFlowGraph(destMyPlaceId = 3))

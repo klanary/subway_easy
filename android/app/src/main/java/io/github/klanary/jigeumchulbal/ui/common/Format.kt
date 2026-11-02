@@ -1,6 +1,15 @@
 package io.github.klanary.jigeumchulbal.ui.common
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private val CLOCK = DateTimeFormatter.ofPattern("HH:mm", Locale.KOREA)
+
+/** 시각(예: 하차 예정 "08:42"). */
+fun formatClock(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    Instant.ofEpochMilli(epochMs).atZone(zone).format(CLOCK)
 
 /** 소요 시간. 분은 올림이고 최소 1분이다(예: 59초 → "1분", 3900초 → "1시간 5분"). */
 fun formatDuration(sec: Int): String {

@@ -7,7 +7,9 @@ import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.remote.TrainDto
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SessionMathTest {
@@ -88,6 +90,11 @@ class SessionMathTest {
         val outer = ArrivalGroupDto("2호선", "외선", "합정", emptyList())
         assertEquals(outer, pickGroup(listOf(inner, outer), WaitTarget("홍대입구", "홍대입구", "2호선", "합정", "외선")))
         assertEquals(inner, pickGroup(listOf(inner, outer), WaitTarget("홍대입구", "홍대입구", "2호선", "신촌", null)))
+    }
+
+    @Test fun hasTransitOnlyWhenThereIsARide() {
+        assertTrue(twoLines.hasTransit())
+        assertFalse(route(listOf(step(StepMode.WALK, 300))).hasTransit())
     }
 
     @Test fun withoutPathsDropsCoordinatesOnly() {

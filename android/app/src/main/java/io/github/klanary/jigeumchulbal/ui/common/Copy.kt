@@ -82,6 +82,8 @@ object Copy {
     // 통학 세션
     const val SESSION_TITLE = "통학 알림"
     const val START_ALIGHT_ALERT = "출발(하차 알림)"
+    const val PRE_BOARDING_ALERT = "승차 전 알림"
+    const val NO_REALTIME_FOR_ROUTE = "이 경로는 실시간 열차 정보를 쓸 수 없어요"
     const val SESSION_IN_PROGRESS = "통학 알림 진행 중"
     const val NO_SESSION = "진행 중인 통학 알림이 없어요"
     const val MAY_BE_LATE = "알림이 늦을 수 있어요"

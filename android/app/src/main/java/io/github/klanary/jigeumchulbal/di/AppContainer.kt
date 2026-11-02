@@ -31,7 +31,7 @@ import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.session.AlarmScheduler
 import io.github.klanary.jigeumchulbal.session.AndroidAlarmScheduler
-import io.github.klanary.jigeumchulbal.session.NoopLauncher
+import io.github.klanary.jigeumchulbal.session.AndroidServiceLauncher
 import io.github.klanary.jigeumchulbal.session.SessionController
 import io.github.klanary.jigeumchulbal.session.SessionNotifier
 import io.github.klanary.jigeumchulbal.session.SessionStore
@@ -91,7 +91,7 @@ class AppContainer(context: Context) {
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)
 
-    // 통학 세션. 대기 서비스 포트는 Task 7에서 실제 구현으로 바꾼다.
+    // 통학 세션: 알람·알림·대기 서비스를 안드로이드 구현으로 연결한다.
     val alarmScheduler: AlarmScheduler =
         AndroidAlarmScheduler(appContext, appContext.getSystemService(AlarmManager::class.java))
     val sessionNotifier = SessionNotifier(appContext, alarmScheduler)
@@ -99,7 +99,7 @@ class AppContainer(context: Context) {
         store = SessionStore(appContext.sessionDataStore, json),
         scheduler = alarmScheduler,
         notifier = sessionNotifier,
-        launcher = NoopLauncher,
+        launcher = AndroidServiceLauncher(appContext),
         clock = System::currentTimeMillis,
     )
 }

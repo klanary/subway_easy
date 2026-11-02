@@ -11,4 +11,15 @@ object Copy {
     const val MAP_FAILED = "지도를 불러오지 못했어요"
     const val NO_INFO = "정보 없음"
     const val ARRIVING = "곧 도착"
+    const val BACK = "뒤로"
+
+    // 통합 검색
+    const val SEARCH_HINT = "역, 장소 검색"
+    const val MY_PLACES = "내 장소"
+    const val RECENT_SEARCHES = "최근 검색"
+    const val STATIONS = "역"
+    const val PLACES = "장소"
+    const val REALTIME = "실시간"
+    const val PICK_ON_MAP = "지도에서 선택"
+    const val NO_RESULTS = "검색 결과가 없어요"
 }

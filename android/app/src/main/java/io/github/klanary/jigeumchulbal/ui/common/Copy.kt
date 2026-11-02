@@ -11,4 +11,31 @@ object Copy {
     const val MAP_FAILED = "지도를 불러오지 못했어요"
     const val NO_INFO = "정보 없음"
     const val ARRIVING = "곧 도착"
+    const val BACK = "뒤로"
+
+    // 통합 검색
+    const val SEARCH_HINT = "역, 장소 검색"
+    const val MY_PLACES = "내 장소"
+    const val RECENT_SEARCHES = "최근 검색"
+    const val STATIONS = "역"
+    const val PLACES = "장소"
+    const val REALTIME = "실시간"
+    const val PICK_ON_MAP = "지도에서 선택"
+    const val NO_RESULTS = "검색 결과가 없어요"
+
+    // 경로 편집
+    const val CURRENT_LOCATION = "현재 위치"
+    const val ORIGIN_HINT = "출발지를 검색하거나 현재 위치를 허용해 주세요"
+    const val ROUTE_EDIT_TITLE = "경로 찾기"
+    const val ORIGIN = "출발"
+    const val DEST = "도착"
+    const val DEST_HINT = "도착지를 검색하세요"
+    const val SWAP = "출발·도착 바꾸기"
+    const val SEARCH_ROUTES = "경로 검색"
+
+    // 지도 핀 선택
+    const val NO_ADDRESS = "주소 정보 없음"
+    const val NO_STATION_NEARBY = "근처 2km 안에 역이 없어요"
+    const val PIN_LABEL = "지도에서 선택한 위치"
+    const val USE_THIS_PLACE = "이 위치로 지정"
 }

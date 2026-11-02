@@ -1,0 +1,10 @@
+# android/local.properties로 복사해 값을 채운다. local.properties는 커밋하지 않는다.
+
+# Android SDK 위치. Android Studio가 자동으로 적는다. 없으면 ANDROID_HOME 환경 변수를 쓴다.
+# sdk.dir=C\:\\Users\\<사용자>\\AppData\\Local\\Android\\Sdk
+
+# 중계 서버 주소. 끝에 /를 붙인다. 에뮬레이터에서 PC의 로컬 서버는 http://10.0.2.2:8000/ 이다.
+server.baseUrl=http://10.0.2.2:8000/
+
+# 카카오 개발자 콘솔 > 내 애플리케이션 > 앱 키 > 네이티브 앱 키. 비워 두면 더미 값으로 빌드된다(지도는 표시되지 않음).
+kakao.nativeAppKey=

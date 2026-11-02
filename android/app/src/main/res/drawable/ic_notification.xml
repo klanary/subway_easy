@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상태 표시줄 알림 아이콘(열차). 시스템은 모양만 쓰므로 한 가지 색으로 그린다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M8,2H16A3,3 0,0 1,19 5V15A3,3 0,0 1,16 18H8A3,3 0,0 1,5 15V5A3,3 0,0 1,8 2Z M7,6V10H17V6Z M8.5,12.5A1.5,1.5 0,1 0,8.5 15.5A1.5,1.5 0,1 0,8.5 12.5Z M15.5,12.5A1.5,1.5 0,1 0,15.5 15.5A1.5,1.5 0,1 0,15.5 12.5Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7.5,18.5L5.5,22H7.6L9.6,18.5Z M16.5,18.5L18.5,22H16.4L14.4,18.5Z" />
+</vector>

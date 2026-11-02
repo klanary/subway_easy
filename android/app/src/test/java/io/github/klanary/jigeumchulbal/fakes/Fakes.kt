@@ -9,11 +9,14 @@ import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
 import io.github.klanary.jigeumchulbal.data.remote.PlaceDto
 import io.github.klanary.jigeumchulbal.data.remote.ReverseDto
+import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationDto
 import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
+import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
+import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,6 +85,18 @@ class FakeRecentSearchRepository(initial: List<RecentSearchEntity> = emptyList()
 
     override suspend fun record(endpoint: Endpoint) {
         recorded += endpoint
+    }
+}
+
+/** 기본으로 스펙 6.2 예시 경로 하나를 돌려준다. */
+class FakeRouteRepository : RouteRepository {
+    var result: ApiResult<RoutesDto> =
+        ApiResult.Ok(RoutesDto(updatedAt = "2026-11-03T08:00:00+09:00", routes = listOf(specRoute())))
+    val calls = mutableListOf<Triple<Endpoint, Endpoint, Endpoint?>>()
+
+    override suspend fun routes(origin: Endpoint, dest: Endpoint, via: Endpoint?): ApiResult<RoutesDto> {
+        calls += Triple(origin, dest, via)
+        return result
     }
 }
 

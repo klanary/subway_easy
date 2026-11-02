@@ -22,4 +22,14 @@ object Copy {
     const val REALTIME = "실시간"
     const val PICK_ON_MAP = "지도에서 선택"
     const val NO_RESULTS = "검색 결과가 없어요"
+
+    // 경로 편집
+    const val CURRENT_LOCATION = "현재 위치"
+    const val ORIGIN_HINT = "출발지를 검색하거나 현재 위치를 허용해 주세요"
+    const val ROUTE_EDIT_TITLE = "경로 찾기"
+    const val ORIGIN = "출발"
+    const val DEST = "도착"
+    const val DEST_HINT = "도착지를 검색하세요"
+    const val SWAP = "출발·도착 바꾸기"
+    const val SEARCH_ROUTES = "경로 검색"
 }

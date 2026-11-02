@@ -42,4 +42,10 @@ object Copy {
     // 경로 결과
     const val NO_ROUTES = "경로가 없어요"
     const val ROUTE_GONE = "경로 정보가 없어요. 경로를 다시 검색해 주세요."
+
+    // 역 상세
+    const val NO_ARRIVALS = "도착 정보가 없어요"
+    const val FAVORITE = "즐겨찾기"
+    const val EXPRESS = "급행"
+    const val LAST_TRAIN = "막차"
 }

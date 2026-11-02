@@ -27,6 +27,7 @@ import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.routes.RoutesScreen
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
+import io.github.klanary.jigeumchulbal.ui.station.StationScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController = rememberNavController()) {
@@ -56,7 +57,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
     composable<MapPickDest> { entry -> MapPickScreen(entry.toRoute<MapPickDest>().slot, navController) }
-    composable<StationDest> { PlaceholderScreen("역 상세") }
+    composable<StationDest> { entry -> StationScreen(entry.toRoute<StationDest>().stationId, navController) }
     composable<SettingsDest> { PlaceholderScreen("설정") }
 }
 

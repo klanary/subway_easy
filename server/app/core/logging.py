@@ -45,3 +45,6 @@ def configure_logging() -> None:
     root.setLevel(logging.INFO)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    # uvicorn 기본 접근 로그는 쿼리의 좌표를 그대로 남긴다(스펙 5.4 위반).
+    # 쿼리를 뺀 접근 로그는 app.access가 남긴다.
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

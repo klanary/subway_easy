@@ -4,6 +4,7 @@ server/.env
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+*.egg-info/
 
 # 안드로이드
 android/local.properties

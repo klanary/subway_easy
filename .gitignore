@@ -9,6 +9,7 @@ __pycache__/
 # 안드로이드
 android/local.properties
 android/.gradle/
+android/.kotlin/
 android/**/build/
 android/.idea/
 *.iml

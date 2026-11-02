@@ -1,6 +1,7 @@
 # 지금출발
 
 ![server](https://github.com/klanary/subway_easy/actions/workflows/server.yml/badge.svg)
+![android](https://github.com/klanary/subway_easy/actions/workflows/android.yml/badge.svg)
 
 지하철로 통학하는 사람을 위한 안드로이드 앱과 중계 서버. 역 실시간 도착, 길찾기와 지도, "지금 출발하면 탈 수 있는 열차" 알림과 하차 알림을 한곳에서 제공한다.
 

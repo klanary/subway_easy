@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,16 +39,21 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
+import io.github.klanary.jigeumchulbal.session.SessionState
 import io.github.klanary.jigeumchulbal.ui.RouteFlowGraph
+import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.SettingsDest
 import io.github.klanary.jigeumchulbal.ui.StationDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.common.formatRemaining
+import io.github.klanary.jigeumchulbal.ui.session.SessionViewModel
+import io.github.klanary.jigeumchulbal.ui.session.sessionHeadline
+import io.github.klanary.jigeumchulbal.ui.session.sessionViewModel
 import io.github.klanary.jigeumchulbal.ui.station.groupTitle
 
-/** 홈(스펙 4.2): 검색창, 내 장소 칩, 즐겨찾는 역의 실시간 도착. 자주 가는 경로와 세션 배너는 P4가 더한다. */
+/** 홈(스펙 4.2): 진행 중인 세션 배너, 검색창, 내 장소 칩, 즐겨찾는 역의 실시간 도착. 자주 가는 경로는 P4 Task 12가 더한다. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -55,8 +61,10 @@ fun HomeScreen(
     viewModel: HomeViewModel = appViewModel {
         HomeViewModel(it.myPlaceRepository, it.favoriteRepository, it.stationRepository, it.serverRepository)
     },
+    sessionViewModel: SessionViewModel = sessionViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val session by sessionViewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.runAutoRefresh() }
@@ -79,6 +87,9 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (session != SessionState.Idle) {
+                item { SessionBanner(sessionViewModel) { navController.navigate(SessionDest) } }
+            }
             item {
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth().clickable { navController.navigate(RouteFlowGraph()) },
@@ -97,6 +108,21 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** "통학 알림 진행 중 · …". 1초 시계는 이 배너만 다시 그린다. */
+@Composable
+private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val now by viewModel.now.collectAsStateWithLifecycle()
+    val headline = sessionHeadline(state, now) ?: return
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Text("${Copy.SESSION_IN_PROGRESS} · $headline", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
     }
 }
 

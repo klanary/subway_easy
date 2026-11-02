@@ -37,3 +37,7 @@ data class StationDest(val stationId: String)
 
 @Serializable
 object SettingsDest
+
+/** 통학 세션 화면. 알림이나 알람 아이콘을 눌러도 열린다(MainActivity). */
+@Serializable
+object SessionDest

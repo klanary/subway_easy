@@ -4,6 +4,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FormatTest {
+    @Test fun clockTime() {
+        val seoul = java.time.ZoneId.of("Asia/Seoul")
+        assertEquals("09:00", formatClock(0, seoul))
+        assertEquals("23:05", formatClock(14 * 3_600_000L + 5 * 60_000L + 59_000L, seoul))
+    }
+
     @Test fun duration() {
         assertEquals("33분", formatDuration(1980))
         assertEquals("1시간 5분", formatDuration(3900))

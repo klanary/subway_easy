@@ -230,8 +230,8 @@ class CommuteSession(
         is SessionEvent.AlarmFired -> when (val id = event.id) {
             is AlarmId.Alight -> {
                 val point = current.points.getOrNull(id.index)
-                if (point == null) {
-                    emptyList()
+                if (point == null || id.index < current.nextIndex) {
+                    emptyList() // 없는 지점이거나 이미 지난 지점(늦게 울린 알람, 복원과 겹친 알람)
                 } else {
                     val isLast = id.index == current.points.lastIndex
                     val endAt = if (isLast) clock() + END_AFTER_LAST_MS else current.endAt

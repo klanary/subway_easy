@@ -29,10 +29,11 @@ import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
+import io.github.klanary.jigeumchulbal.session.AlarmScheduler
 import io.github.klanary.jigeumchulbal.session.AndroidAlarmScheduler
 import io.github.klanary.jigeumchulbal.session.NoopLauncher
-import io.github.klanary.jigeumchulbal.session.NoopNotifier
 import io.github.klanary.jigeumchulbal.session.SessionController
+import io.github.klanary.jigeumchulbal.session.SessionNotifier
 import io.github.klanary.jigeumchulbal.session.SessionStore
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
@@ -90,11 +91,14 @@ class AppContainer(context: Context) {
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)
 
-    // 통학 세션. 알림 포트는 Task 5, 대기 서비스 포트는 Task 7에서 실제 구현으로 바꾼다.
+    // 통학 세션. 대기 서비스 포트는 Task 7에서 실제 구현으로 바꾼다.
+    val alarmScheduler: AlarmScheduler =
+        AndroidAlarmScheduler(appContext, appContext.getSystemService(AlarmManager::class.java))
+    val sessionNotifier = SessionNotifier(appContext, alarmScheduler)
     val sessionController = SessionController(
         store = SessionStore(appContext.sessionDataStore, json),
-        scheduler = AndroidAlarmScheduler(appContext, appContext.getSystemService(AlarmManager::class.java)),
-        notifier = NoopNotifier,
+        scheduler = alarmScheduler,
+        notifier = sessionNotifier,
         launcher = NoopLauncher,
         clock = System::currentTimeMillis,
     )

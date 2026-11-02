@@ -22,8 +22,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.mappick.MapPickScreen
+import io.github.klanary.jigeumchulbal.ui.routedetail.RouteDetailScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
+import io.github.klanary.jigeumchulbal.ui.routes.RoutesScreen
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
 
 @Composable
@@ -41,8 +43,16 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
             entry.OnPickResult(viewModel::apply)
             RouteEditScreen(viewModel, flow.toRoute<RouteFlowGraph>().destMyPlaceId, navController)
         }
-        composable<RoutesDest> { PlaceholderScreen("경로 결과") }
-        composable<RouteDetailDest> { PlaceholderScreen("경로 상세") }
+        composable<RoutesDest> { entry ->
+            RoutesScreen(routeFlowViewModel(routeFlowEntry(navController, entry)), navController)
+        }
+        composable<RouteDetailDest> { entry ->
+            RouteDetailScreen(
+                routeFlowViewModel(routeFlowEntry(navController, entry)),
+                entry.toRoute<RouteDetailDest>().routeId,
+                navController,
+            )
+        }
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
     composable<MapPickDest> { entry -> MapPickScreen(entry.toRoute<MapPickDest>().slot, navController) }

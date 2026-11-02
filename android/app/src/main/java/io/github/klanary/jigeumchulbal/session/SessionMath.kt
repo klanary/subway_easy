@@ -5,6 +5,7 @@ import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.remote.TrainDto
+import io.github.klanary.jigeumchulbal.session.CommuteSession.Companion.MINUTE_MS
 
 // 통학 세션의 계산 함수(스펙 8.2, 8.3). 안드로이드에 의존하지 않고 시각을 인자로 받아 단위 테스트한다.
 
@@ -84,6 +85,15 @@ fun alightPoints(route: RouteDto, boardedAt: Long, from: StartFrom, leadSec: Int
 }
 
 private fun StepDto.isTransit() = mode == StepMode.SUBWAY || mode == StepMode.BUS
+
+/** 하차 알림을 걸 대중교통 단계가 있는지. 도보만인 경로는 알릴 지점이 없다. */
+fun RouteDto.hasTransit(): Boolean = legs.any { leg -> leg.steps.any { it.isTransit() } }
+
+/** 진행 중 알림과 세션 화면이 보일 지점: 다음 지점, 다 지났으면 마지막 지점. */
+fun SessionState.Riding.currentPoint(): AlightPoint? = points.getOrNull(nextIndex) ?: points.lastOrNull()
+
+/** 남은 시간을 분으로 올린다(1초만 남아도 1분). */
+fun ceilMinutes(ms: Long): Long = (ms + MINUTE_MS - 1) / MINUTE_MS
 
 private fun StepDto.isStartOf(from: StartFrom) = when (from) {
     StartFrom.FIRST_SUBWAY -> mode == StepMode.SUBWAY

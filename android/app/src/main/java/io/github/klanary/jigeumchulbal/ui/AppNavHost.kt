@@ -8,6 +8,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,12 +29,22 @@ import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.routes.RoutesScreen
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
+import io.github.klanary.jigeumchulbal.ui.session.SessionScreen
 import io.github.klanary.jigeumchulbal.ui.settings.SettingsScreen
 import io.github.klanary.jigeumchulbal.ui.station.StationScreen
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
+/** [openSessionRequests]: 알림·알람 아이콘을 누를 때마다 통학 세션 화면으로 간다(스펙 8.5). */
 @Composable
-fun AppNavHost(navController: NavHostController = rememberNavController()) {
+fun AppNavHost(
+    navController: NavHostController = rememberNavController(),
+    openSessionRequests: Flow<Unit> = emptyFlow(),
+) {
     NavHost(navController = navController, startDestination = HomeDest) { appGraph(navController) }
+    LaunchedEffect(navController, openSessionRequests) {
+        openSessionRequests.collect { navController.navigate(SessionDest) { launchSingleTop = true } }
+    }
 }
 
 /** 앱의 모든 화면. 아직 만들지 않은 화면은 제목만 있는 자리 표시 화면이고, 각 작업이 바꾼다. */
@@ -61,6 +72,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     composable<MapPickDest> { entry -> MapPickScreen(entry.toRoute<MapPickDest>().slot, navController) }
     composable<StationDest> { entry -> StationScreen(entry.toRoute<StationDest>().stationId, navController) }
     composable<SettingsDest> { entry -> SettingsScreen(navController, entry) }
+    composable<SessionDest> { SessionScreen(navController) }
 }
 
 /** 경로 흐름(편집·결과·상세)이 공유하는 중첩 그래프의 back stack entry. */

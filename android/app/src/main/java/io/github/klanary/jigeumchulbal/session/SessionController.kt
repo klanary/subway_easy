@@ -64,6 +64,28 @@ class SessionController(
     /** AlarmReceiver가 부른다. */
     suspend fun onAlarm(id: AlarmId) = dispatch(SessionEvent.AlarmFired(id))
 
+    /**
+     * 저장된 세션을 이어 간다(스펙 8.7). 앱을 열 때(MainActivity)와 재부팅 뒤(BootReceiver) 부른다.
+     * App.onCreate에서는 부르지 않는다: 부팅·알람으로 프로세스가 깨어날 때 대기 서비스를 시작하면 안 된다.
+     */
+    suspend fun restore(onBoot: Boolean) = mutex.withLock {
+        ensureLoaded()
+        val (restored, effects) = planRestore(session.state, clock(), onBoot)
+        session = CommuteSession(clock, restored)
+        commit(effects)
+    }
+
+    /** 정확한 알람이 새로 허용되면 진행 중 세션의 알람을 정확한 방식으로 다시 예약한다(스펙 8.7). */
+    suspend fun rescheduleAll() = mutex.withLock {
+        ensureLoaded()
+        if (_inAppOnly.value || session.state == SessionState.Idle) return@withLock
+        scheduler.cancelAll()
+        planRestore(session.state, clock(), onBoot = false).second
+            .filterIsInstance<SessionEffect.Schedule>()
+            .forEach { scheduler.schedule(it.id, it.at) }
+        notifier.showOngoing(session.state, clock()) // "알림이 늦을 수 있어요"를 지운다
+    }
+
     /** 처음 한 번 저장된 세션을 불러온다(앱 재시작 뒤 알람 수신기가 먼저 불러도 이어진다). */
     private suspend fun ensureLoaded() {
         if (loaded) return
@@ -73,8 +95,10 @@ class SessionController(
         _state.value = saved
     }
 
-    private suspend fun apply(event: SessionEvent) {
-        val effects = session.handle(event)
+    private suspend fun apply(event: SessionEvent) = commit(session.handle(event))
+
+    /** 상태 머신이 바꾼 상태를 알리고 저장한 뒤 효과를 실행한다. 앱 안 모드에서는 저장·알람·알림·서비스를 쓰지 않는다. */
+    private suspend fun commit(effects: List<SessionEffect>) {
         val newState = session.state
         _state.value = newState
         val inApp = _inAppOnly.value

@@ -8,8 +8,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -18,6 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import io.github.klanary.jigeumchulbal.ui.common.appViewModel
+import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
+import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
 
 @Composable
@@ -29,7 +34,12 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
 fun NavGraphBuilder.appGraph(navController: NavController) {
     composable<HomeDest> { PlaceholderScreen("지금출발") }
     navigation<RouteFlowGraph>(startDestination = RouteEditDest) {
-        composable<RouteEditDest> { PlaceholderScreen("경로 편집") }
+        composable<RouteEditDest> { entry ->
+            val flow = routeFlowEntry(navController, entry)
+            val viewModel = routeFlowViewModel(flow)
+            entry.OnPickResult(viewModel::apply)
+            RouteEditScreen(viewModel, flow.toRoute<RouteFlowGraph>().destMyPlaceId, navController)
+        }
         composable<RoutesDest> { PlaceholderScreen("경로 결과") }
         composable<RouteDetailDest> { PlaceholderScreen("경로 상세") }
     }
@@ -38,6 +48,15 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     composable<StationDest> { PlaceholderScreen("역 상세") }
     composable<SettingsDest> { PlaceholderScreen("설정") }
 }
+
+/** 경로 흐름(편집·결과·상세)이 공유하는 중첩 그래프의 back stack entry. */
+@Composable
+private fun routeFlowEntry(navController: NavController, entry: NavBackStackEntry): NavBackStackEntry =
+    remember(entry) { navController.getBackStackEntry<RouteFlowGraph>() }
+
+@Composable
+private fun routeFlowViewModel(flow: NavBackStackEntry): RouteFlowViewModel =
+    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.myPlaceRepository, it.locationProvider) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

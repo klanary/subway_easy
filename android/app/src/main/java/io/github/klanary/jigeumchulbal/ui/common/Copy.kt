@@ -41,4 +41,5 @@ object Copy {
 
     // 경로 결과
     const val NO_ROUTES = "경로가 없어요"
+    const val ROUTE_GONE = "경로 정보가 없어요. 경로를 다시 검색해 주세요."
 }

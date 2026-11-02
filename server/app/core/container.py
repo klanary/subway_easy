@@ -6,13 +6,16 @@ from dataclasses import dataclass
 import httpx
 from fastapi import Request
 
+from app.core.clock import now_kst
 from app.core.config import Settings
+from app.core.metrics import Metrics
 
 
 @dataclass
 class AppServices:
     settings: Settings
     clock: Callable[[], float]
+    metrics: Metrics
 
 
 def build_services(
@@ -20,7 +23,7 @@ def build_services(
     clock: Callable[[], float],
     transport: httpx.AsyncBaseTransport | None,
 ) -> AppServices:
-    return AppServices(settings=settings, clock=clock)
+    return AppServices(settings=settings, clock=clock, metrics=Metrics(since=now_kst(clock)))
 
 
 def get_services(request: Request) -> AppServices:

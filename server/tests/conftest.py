@@ -40,3 +40,8 @@ async def client(app):
 @pytest.fixture
 def services(app):
     return app.state.services
+
+
+@pytest.fixture
+def metrics(services):
+    return services.metrics

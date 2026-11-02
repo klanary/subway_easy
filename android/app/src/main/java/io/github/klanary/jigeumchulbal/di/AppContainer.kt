@@ -1,16 +1,28 @@
 package io.github.klanary.jigeumchulbal.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.room.Room
 import io.github.klanary.jigeumchulbal.BuildConfig
+import io.github.klanary.jigeumchulbal.data.local.AppDatabase
+import io.github.klanary.jigeumchulbal.data.local.SettingsStore
 import io.github.klanary.jigeumchulbal.data.remote.ApiCaller
 import io.github.klanary.jigeumchulbal.data.remote.ApiService
 import io.github.klanary.jigeumchulbal.data.remote.ConnectivityNetworkMonitor
 import io.github.klanary.jigeumchulbal.data.remote.NetworkMonitor
+import io.github.klanary.jigeumchulbal.data.repository.DefaultFavoriteRepository
+import io.github.klanary.jigeumchulbal.data.repository.DefaultMyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultPlaceRepository
+import io.github.klanary.jigeumchulbal.data.repository.DefaultRecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultRouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultStationRepository
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
+import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
+import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
@@ -22,8 +34,12 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
+private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
 /** 앱의 의존 객체를 손으로 연결한다(스펙 5.3). App.onCreate에서 한 번 만든다. */
 class AppContainer(context: Context) {
+    private val appContext = context.applicationContext
+
     val json = Json { ignoreUnknownKeys = true }
 
     private val okHttp = OkHttpClient.Builder()
@@ -45,7 +61,7 @@ class AppContainer(context: Context) {
         .build()
         .create(ApiService::class.java)
 
-    val networkMonitor: NetworkMonitor = ConnectivityNetworkMonitor(context.applicationContext)
+    val networkMonitor: NetworkMonitor = ConnectivityNetworkMonitor(appContext)
 
     private val apiCaller = ApiCaller(json, networkMonitor)
 
@@ -53,4 +69,13 @@ class AppContainer(context: Context) {
     val placeRepository: PlaceRepository = DefaultPlaceRepository(api, apiCaller)
     val routeRepository: RouteRepository = DefaultRouteRepository(api, apiCaller)
     val serverRepository: ServerRepository = DefaultServerRepository(api, apiCaller)
+
+    // 기기 저장소: 내 장소·즐겨찾기·최근 검색은 기기에만 둔다(스펙 5.4).
+    val database: AppDatabase = Room.databaseBuilder(appContext, AppDatabase::class.java, "jigeumchulbal.db").build()
+
+    val settingsStore = SettingsStore(appContext.settingsDataStore)
+
+    val myPlaceRepository: MyPlaceRepository = DefaultMyPlaceRepository(database.myPlaceDao())
+    val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteStationDao())
+    val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
 }

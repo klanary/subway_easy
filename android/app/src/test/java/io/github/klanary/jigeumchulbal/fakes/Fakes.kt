@@ -17,6 +17,7 @@ import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
+import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.location.LocationProvider
@@ -42,21 +43,36 @@ class FakeStationRepository : StationRepository {
         return result ?: ApiResult.Ok(listOf(StationDto(q, q, listOf("2호선"), 37.5571, 126.9245)))
     }
 
+    /** 역별로 다른 응답을 줄 때. 없는 역은 [arrivalsResult]. */
+    var arrivalsByStation: Map<String, ApiResult<ArrivalsDto>> = emptyMap()
+
     override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> {
         arrivalCalls += Triple(stationId, line, towards)
-        return arrivalsResult
+        return arrivalsByStation[stationId] ?: arrivalsResult
     }
 }
 
-class FakeFavoriteRepository(initial: Set<String> = emptySet()) : FavoriteRepository {
-    private val ids = MutableStateFlow(initial)
-    override val stations = MutableStateFlow<List<FavoriteStationEntity>>(emptyList())
+class FakeFavoriteRepository(stations: List<FavoriteStationEntity> = emptyList()) : FavoriteRepository {
+    override val stations = MutableStateFlow(stations)
 
-    override fun isFavorite(stationId: String): Flow<Boolean> = ids.map { stationId in it }
+    override fun isFavorite(stationId: String): Flow<Boolean> = stations.map { list -> list.any { it.stationId == stationId } }
 
     override suspend fun toggleStation(stationId: String) {
-        ids.value = if (stationId in ids.value) ids.value - stationId else ids.value + stationId
-        stations.value = ids.value.map { FavoriteStationEntity(stationId = it, createdAt = 0) }
+        val list = stations.value
+        stations.value = if (list.any { it.stationId == stationId }) {
+            list.filterNot { it.stationId == stationId }
+        } else {
+            list + FavoriteStationEntity(stationId = stationId, createdAt = 0)
+        }
+    }
+}
+
+class FakeServerRepository : ServerRepository {
+    var wakeCalls = 0
+
+    override suspend fun wake(): Boolean {
+        wakeCalls++
+        return true
     }
 }
 

@@ -15,7 +15,7 @@ import org.robolectric.RobolectricTestRunner
 class AppNavGraphTest {
     private fun navController() = NavHostController(ApplicationProvider.getApplicationContext()).apply {
         navigatorProvider.addNavigator(ComposeNavigator())
-        graph = createGraph(startDestination = HomeDest) { appGraph() }
+        graph = createGraph(startDestination = HomeDest) { appGraph(this@apply) }
     }
 
     @Test fun nullableEnumSlotRoundTrips() {

@@ -45,3 +45,22 @@ def services(app):
 @pytest.fixture
 def metrics(services):
     return services.metrics
+
+
+@pytest.fixture
+def limited_app(test_settings, clock):
+    """IP별 요청 제한이 분당 3회인 앱."""
+    return create_app(test_settings.model_copy(update={"rate_limit_per_minute": 3}), clock=clock)
+
+
+@pytest.fixture
+async def limited_client(limited_app):
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=limited_app), base_url="http://test"
+    ) as c:
+        yield c
+
+
+@pytest.fixture
+def limited_services(limited_app):
+    return limited_app.state.services

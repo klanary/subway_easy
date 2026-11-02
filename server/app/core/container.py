@@ -10,6 +10,7 @@ from app.cache.quota_guard import QuotaGuard
 from app.core.clock import now_kst
 from app.core.config import Settings
 from app.core.metrics import Metrics
+from app.core.rate_limit import SlidingWindowRateLimiter
 
 
 @dataclass
@@ -19,6 +20,7 @@ class AppServices:
     metrics: Metrics
     quotas: dict[str, QuotaGuard]
     http: httpx.AsyncClient
+    rate_limiter: SlidingWindowRateLimiter
 
 
 def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, QuotaGuard]:
@@ -43,6 +45,7 @@ def build_services(
         metrics=Metrics(since=now_kst(clock)),
         quotas=build_quotas(settings, clock),
         http=httpx.AsyncClient(transport=transport, timeout=settings.upstream_timeout_sec),
+        rate_limiter=SlidingWindowRateLimiter(settings.rate_limit_per_minute),
     )
 
 

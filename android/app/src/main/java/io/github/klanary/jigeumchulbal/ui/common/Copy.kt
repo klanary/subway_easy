@@ -58,4 +58,26 @@ object Copy {
     const val SCHOOL = "학교"
     const val WORK = "회사"
     const val CUSTOM_PLACE = "직접 추가"
+
+    // 설정
+    const val ADD_CUSTOM_PLACE = "+ 직접 추가"
+    const val NOT_SET = "지정 안 됨"
+    const val SET_BY_SEARCH = "검색"
+    const val SET_ON_MAP = "지도"
+    const val DELETE = "삭제"
+    const val ALERT_TIMING = "알림 시점"
+    const val DEPART_MARGIN = "출발 여유 시간"
+    const val ALIGHT_LEAD = "하차·환승 알림"
+    const val STATION_LEAD = "역 상세 승차 전 알림"
+    const val MAX_WAIT = "최대 대기 시간"
+    const val PERMISSIONS = "권한"
+    const val PERMISSION_LOCATION = "위치"
+    const val PERMISSION_NOTIFICATIONS = "알림"
+    const val PERMISSION_EXACT_ALARM = "알람 및 리마인더"
+    const val GRANTED = "허용됨"
+    const val NOT_GRANTED = "허용 안 됨"
+    const val OPEN_SETTINGS = "설정 열기"
+    const val ABOUT = "정보"
+    const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'와 " +
+        "카카오의 지도·로컬·길찾기 API를 사용합니다."
 }

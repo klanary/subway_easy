@@ -1,6 +1,10 @@
 package io.github.klanary.jigeumchulbal.fakes
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
+import io.github.klanary.jigeumchulbal.data.local.SettingsStore
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
 import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
@@ -101,7 +105,11 @@ class FakeMyPlaceRepository(initial: List<MyPlaceEntity> = emptyList()) : MyPlac
     override val places = MutableStateFlow(initial)
     private var nextId = (initial.maxOfOrNull { it.id } ?: 0) + 1
 
+    /** save 호출 기록: (종류, 이름, 주소) */
+    val saved = mutableListOf<Triple<MyPlaceType, String, String?>>()
+
     override suspend fun save(type: MyPlaceType, label: String, endpoint: Endpoint, address: String?) {
+        saved += Triple(type, label, address)
         val kept = if (type == MyPlaceType.CUSTOM) places.value else places.value.filterNot { it.type == type }
         val entity = MyPlaceEntity(
             id = nextId++, type = type, label = label, lat = endpoint.point.lat, lng = endpoint.point.lng,
@@ -135,6 +143,24 @@ class FakeRouteRepository : RouteRepository {
     override suspend fun routes(origin: Endpoint, dest: Endpoint, via: Endpoint?): ApiResult<RoutesDto> {
         calls += Triple(origin, dest, via)
         return result
+    }
+}
+
+/**
+ * 메모리에만 저장하는 DataStore 위의 실제 SettingsStore.
+ * 파일 DataStore는 IO 스레드에서 늦게 값을 내보내, 테스트가 끝나 Main 디스패처를 되돌린 뒤
+ * ViewModel로 디스패치하다 다음 테스트를 실패시킨다. 파일 저장 자체는 SettingsStoreTest가 확인한다.
+ */
+fun fakeSettingsStore(): SettingsStore = SettingsStore(InMemoryPreferencesDataStore())
+
+class InMemoryPreferencesDataStore : DataStore<Preferences> {
+    private val state = MutableStateFlow(emptyPreferences())
+    override val data: Flow<Preferences> = state
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        val next = transform(state.value).toPreferences()
+        state.value = next
+        return next
     }
 }
 

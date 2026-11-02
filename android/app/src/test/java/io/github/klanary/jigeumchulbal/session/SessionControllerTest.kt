@@ -55,6 +55,36 @@ class SessionControllerTest {
         assertEquals(SessionState.Idle, testSessionStore(rawJson = "{망가진").load())
     }
 
+    @Test fun restoreReschedulesTheSavedRide() = runTest {
+        val store = testSessionStore()
+        store.save(SessionState.Riding(listOf(AlightPoint("당산", false, PointKind.FINAL, 600_000, 480_000, 2))))
+        val c = controller(store)
+        c.restore(onBoot = false)
+        assertEquals(mapOf<AlarmId, Long>(AlarmId.Alight(0) to 480_000), scheduler.scheduled.toMap())
+        assertTrue(c.state.value is SessionState.Riding)
+        assertTrue(notifier.ongoingShown > 0)
+    }
+
+    @Test fun restoreOnBootInterruptsWaiting() = runTest {
+        val store = testSessionStore()
+        controller(store).start(startWaiting, false)
+        val startsBefore = launcher.starts
+        val rebooted = controller(store)
+        rebooted.restore(onBoot = true)
+        assertEquals(SessionState.Idle, store.load())
+        assertEquals(startsBefore, launcher.starts)
+        assertEquals(listOf<AlertContent>(AlertContent.WaitingInterrupted), notifier.alerts.toList())
+    }
+
+    @Test fun rescheduleAllCancelsThenSchedulesAgain() = runTest {
+        val c = controller(testSessionStore())
+        c.start(SessionEvent.StartRiding(specRoute(), AppSettings()), false)
+        val before = scheduler.scheduled.toMap()
+        c.rescheduleAll()
+        assertEquals(1, scheduler.cancelAllCalls)
+        assertEquals(before, scheduler.scheduled.toMap())
+    }
+
     @Test fun savedSessionIsLoadedBeforeTheFirstEvent() = runTest {
         val store = testSessionStore()
         controller(store).start(startWaiting, false)

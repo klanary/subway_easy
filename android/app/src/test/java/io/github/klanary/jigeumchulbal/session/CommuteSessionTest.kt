@@ -21,6 +21,16 @@ class CommuteSessionTest {
         it.handle(SessionEvent.StartWaiting(target, WaitMode.DEPARTURE_TIMING, route, travelSec = 420, settings = settings))
     }
 
+    @Test fun staleAlightAlarmIsIgnored() {
+        val points = listOf(
+            AlightPoint("합정", false, PointKind.TRANSFER, 300_000, 180_000, 1, nextLine = "6호선"),
+            AlightPoint("당산", false, PointKind.FINAL, 900_000, 780_000, 2),
+        )
+        val s = CommuteSession({ now }, SessionState.Riding(points, nextIndex = 1))
+        assertEquals(emptyList<SessionEffect>(), s.handle(SessionEvent.AlarmFired(AlarmId.Alight(0))))
+        assertEquals(1, (s.state as SessionState.Riding).nextIndex)
+    }
+
     @Test fun startWaitingStartsServiceAndSetsDeadline() {
         val s = CommuteSession({ now })
         assertEquals(

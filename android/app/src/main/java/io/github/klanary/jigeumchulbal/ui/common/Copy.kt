@@ -48,4 +48,14 @@ object Copy {
     const val FAVORITE = "즐겨찾기"
     const val EXPRESS = "급행"
     const val LAST_TRAIN = "막차"
+
+    // 홈
+    const val APP_NAME = "지금출발"
+    const val SETTINGS = "설정"
+    const val SEARCH_BAR = "어디로 갈까요?"
+    const val FAVORITE_STATIONS = "즐겨찾는 역"
+    const val HOME = "집"
+    const val SCHOOL = "학교"
+    const val WORK = "회사"
+    const val CUSTOM_PLACE = "직접 추가"
 }

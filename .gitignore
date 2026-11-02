@@ -1,0 +1,23 @@
+# 서버
+server/.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# 안드로이드
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/.idea/
+*.iml
+
+# 서명·배포 파일
+*.jks
+*.keystore
+*.apk
+
+# 기타
+.DS_Store

@@ -25,7 +25,9 @@ import kotlinx.coroutines.launch
 /** 경로 편집 → 경로 결과 → 경로 상세가 함께 쓰는 상태. [results]가 null이면 아직 검색하지 않았다. */
 data class RouteFlowState(
     val origin: Endpoint? = null,
+    val via: Endpoint? = null,
     val dest: Endpoint? = null,
+    val viaVisible: Boolean = false,
     val originHint: String? = null,
     val results: UiState<RoutesDto>? = null,
     val receivedAt: Long? = null,
@@ -37,7 +39,7 @@ data class RouteFlowState(
         get() = (results as? UiState.Content)?.data?.routes?.find { it.id == selectedRouteId }
 }
 
-/** 중첩 그래프 RouteFlowGraph에 하나만 두고 세 화면이 공유한다. 경유지는 P4가 더한다. */
+/** 중첩 그래프 RouteFlowGraph에 하나만 두고 세 화면이 공유한다. */
 class RouteFlowViewModel(
     private val routes: RouteRepository,
     private val myPlaces: MyPlaceRepository,
@@ -72,11 +74,20 @@ class RouteFlowViewModel(
             when (pick.slot) {
                 Slot.ORIGIN -> it.copy(origin = pick.endpoint, originHint = null).withoutResults()
                 Slot.DEST -> it.copy(dest = pick.endpoint).withoutResults()
-                Slot.VIA, null -> it // 경유지는 P4
+                Slot.VIA -> it.copy(via = pick.endpoint, viaVisible = true).withoutResults()
+                null -> it
             }
         }
     }
 
+    /** "+ 경유지"를 누를 때만 칸이 펼쳐진다(4.2). 숨기면 경유지도 지운다. */
+    fun toggleVia() {
+        _state.update {
+            if (it.viaVisible) it.copy(via = null, viaVisible = false).withoutResults() else it.copy(viaVisible = true)
+        }
+    }
+
+    /** 경유지는 그대로 두고 출발과 도착만 바꾼다. */
     fun swap() {
         _state.update { it.copy(origin = it.dest, dest = it.origin).withoutResults() }
     }
@@ -88,7 +99,7 @@ class RouteFlowViewModel(
         searchJob?.cancel()
         _state.update { it.copy(results = UiState.Loading, selectedRouteId = null) }
         searchJob = viewModelScope.launch {
-            val result = routes.routes(origin, dest)
+            val result = routes.routes(origin, dest, current.via)
             _state.update {
                 it.copy(
                     results = result.toUiState(isEmpty = { dto -> dto.routes.isEmpty() }, isStale = { dto -> dto.stale }),

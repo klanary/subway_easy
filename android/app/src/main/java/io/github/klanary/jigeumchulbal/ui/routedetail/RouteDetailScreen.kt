@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,7 +95,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
         sheetContent = {
             // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
             if (route.hasTransit()) SessionButtons(route, startSession)
-            StepList(route)
+            StepList(route, viaLabel = state.via?.label)
         },
     ) { padding ->
         RouteMap(route, Modifier.padding(padding))
@@ -140,17 +141,26 @@ private fun RouteMap(route: RouteDto, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StepList(route: RouteDto) {
-    val steps = remember(route) { route.legs.flatMap { it.steps } }
+private fun StepList(route: RouteDto, viaLabel: String?) {
     LazyColumn(Modifier.padding(bottom = 16.dp)) {
-        itemsIndexed(steps) { _, step ->
-            ListItem(
-                leadingContent = {
-                    Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
-                },
-                headlineContent = { Text(stepTitle(step)) },
-                supportingContent = step.guidance.takeIf { it.isNotBlank() }?.let { { Text(it) } },
-            )
+        route.legs.forEachIndexed { legIndex, leg ->
+            // 경유지가 있으면 두 구간 사이에 구분선을 둔다.
+            if (legIndex > 0) {
+                item {
+                    HorizontalDivider()
+                    ListItem(headlineContent = { Text(listOfNotNull(Copy.VIA_POINT, viaLabel).joinToString(": ")) })
+                    HorizontalDivider()
+                }
+            }
+            itemsIndexed(leg.steps) { _, step ->
+                ListItem(
+                    leadingContent = {
+                        Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
+                    },
+                    headlineContent = { Text(stepTitle(step)) },
+                    supportingContent = step.guidance.takeIf { it.isNotBlank() }?.let { { Text(it) } },
+                )
+            }
         }
     }
 }

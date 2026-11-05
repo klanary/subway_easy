@@ -100,4 +100,25 @@ class RouteFlowViewModelTest {
         vm.select("r_3f9a")
         assertEquals("r_3f9a", vm.state.value.selectedRoute!!.id)
     }
+
+    @Test fun viaHiddenByDefaultAndToggles() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(null); advanceUntilIdle()
+        assertFalse(vm.state.value.viaVisible)
+        vm.toggleVia()
+        assertTrue(vm.state.value.viaVisible)
+    }
+
+    @Test fun searchSendsVia() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        val via = Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.STATION, "경복궁")
+        vm.apply(PickResult(Slot.VIA, via)); vm.search(); advanceUntilIdle()
+        assertEquals(via, routes.lastVia)
+    }
+
+    @Test fun hidingViaClearsIt() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(null); advanceUntilIdle()
+        vm.apply(PickResult(Slot.VIA, Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.PIN)))
+        vm.toggleVia()
+        assertNull(vm.state.value.via)
+    }
 }

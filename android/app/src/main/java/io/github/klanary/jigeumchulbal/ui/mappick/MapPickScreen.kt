@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 
 /**
  * 지도 핀 선택. 가운데 고정 핀을 움직여 맞추면 주소와 가장 가까운 역을 보여준다.
- * [slot]이 있으면 [출발] [도착], 없으면(설정의 내 장소) [이 위치로 지정]을 보여준다.
+ * [slot]이 있으면 [출발] [경유] [도착], 없으면(설정의 내 장소) [이 위치로 지정]을 보여준다.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,6 +118,7 @@ fun MapPickScreen(
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { pick(Slot.ORIGIN) }, modifier = Modifier.weight(1f)) { Text(Copy.ORIGIN) }
+                            Button(onClick = { pick(Slot.VIA) }, modifier = Modifier.weight(1f)) { Text(Copy.VIA) }
                             Button(onClick = { pick(Slot.DEST) }, modifier = Modifier.weight(1f)) { Text(Copy.DEST) }
                         }
                     }

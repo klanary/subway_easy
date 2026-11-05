@@ -39,4 +39,6 @@ class AlertTextTest {
         "대기 알림이 중단됐어요" to "기기가 다시 켜져 승차 전 알림을 멈췄어요. 필요하면 다시 시작해 주세요",
         alertText(AlertContent.WaitingInterrupted),
     )
+
+    @Test fun trainDetected() = assertEquals("마천행 열차에 탄 것으로 보여요", alertText(AlertContent.TrainDetected("마천")).first)
 }

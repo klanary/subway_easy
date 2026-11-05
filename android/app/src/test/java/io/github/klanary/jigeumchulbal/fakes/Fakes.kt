@@ -39,7 +39,7 @@ import io.github.klanary.jigeumchulbal.session.AlertContent
 import io.github.klanary.jigeumchulbal.session.SessionNotifierPort
 import io.github.klanary.jigeumchulbal.session.SessionState
 import io.github.klanary.jigeumchulbal.session.SessionStore
-import io.github.klanary.jigeumchulbal.session.WaitingServiceLauncher
+import io.github.klanary.jigeumchulbal.session.SessionServiceLauncher
 import androidx.datastore.preferences.core.preferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.serialization.json.Json
@@ -276,7 +276,7 @@ class FakeNotifier : SessionNotifierPort {
     }
 }
 
-class FakeLauncher : WaitingServiceLauncher {
+class FakeLauncher : SessionServiceLauncher {
     var starts = 0
     var stops = 0
 

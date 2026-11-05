@@ -8,6 +8,11 @@ fun alertText(content: AlertContent): Pair<String, String> = when (content) {
     is AlertContent.AlightSoon -> "곧 ${stopLabel(content.point)}이에요" to alightText(content.point)
     AlertContent.WaitingInterrupted ->
         "대기 알림이 중단됐어요" to "기기가 다시 켜져 승차 전 알림을 멈췄어요. 필요하면 다시 시작해 주세요"
+    // 위치 결합 스펙 7.1: 위치로 탑승을 알아냈을 때
+    is AlertContent.TrainDetected ->
+        (content.destination?.let { "${it}행 열차에 탄 것으로 보여요" } ?: "열차에 탄 것으로 보여요") to
+            "내릴 역 도착 시각을 실시간으로 맞춰 드려요"
+    AlertContent.PickTrain -> "어느 열차에 탔나요?" to "탄 열차를 고르면 내릴 역 도착 시각을 맞춰 드려요"
 }
 
 private fun trainText(minutes: Int, destination: String?): String =

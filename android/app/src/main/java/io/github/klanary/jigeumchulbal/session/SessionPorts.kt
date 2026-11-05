@@ -22,7 +22,8 @@ interface SessionNotifierPort {
     fun alert(content: AlertContent)
 }
 
-interface WaitingServiceLauncher {
+/** 세션 서비스(대기 조회, 탑승 중 열차 추적·탑승 감지)를 켜고 끈다(위치 결합 스펙 7.3). */
+interface SessionServiceLauncher {
     fun start()
 
     fun stop()
@@ -47,7 +48,7 @@ object NoopNotifier : SessionNotifierPort {
     override fun alert(content: AlertContent) = Unit
 }
 
-object NoopLauncher : WaitingServiceLauncher {
+object NoopLauncher : SessionServiceLauncher {
     override fun start() = Unit
 
     override fun stop() = Unit

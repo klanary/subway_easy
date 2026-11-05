@@ -27,7 +27,7 @@ class SessionController(
     private val store: SessionStore,
     private val scheduler: AlarmScheduler,
     private val notifier: SessionNotifierPort,
-    private val launcher: WaitingServiceLauncher,
+    private val launcher: SessionServiceLauncher,
     private val clock: () -> Long,
 ) {
     private val mutex = Mutex()
@@ -116,8 +116,8 @@ class SessionController(
                     if (inApp) _uiEvents.emit(SessionUiEvent.InAppAlert(effect.content)) else notices.alert(effect.content)
                 SessionEffect.UpdateOngoing -> notices.showOngoing(newState, clock())
                 SessionEffect.ClearOngoing -> notices.clearOngoing()
-                SessionEffect.StartWaitingService -> service.start()
-                SessionEffect.StopWaitingService -> service.stop()
+                SessionEffect.StartSessionService -> service.start()
+                SessionEffect.StopSessionService -> service.stop()
                 is SessionEffect.Finished -> _uiEvents.emit(SessionUiEvent.Finished(effect.reason))
             }
         }

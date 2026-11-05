@@ -73,6 +73,7 @@ fun alightPoints(route: RouteDto, boardedAt: Long, from: StartFrom, leadSec: Int
             else -> PointKind.TRANSFER
         }
         val next = transit.getOrNull(transit.indexOf(indexed) + 1)?.step
+        val subway = step.mode == StepMode.SUBWAY
         points += AlightPoint(
             name = step.stops?.lastOrNull() ?: step.lineName ?: step.routeName.orEmpty(),
             isBus = step.mode == StepMode.BUS,
@@ -81,6 +82,11 @@ fun alightPoints(route: RouteDto, boardedAt: Long, from: StartFrom, leadSec: Int
             alertAt = maxOf(boardedAt, alightAt - leadSec * SECOND_MS),
             stopsToGo = ((step.stops?.size ?: 1) - 1).coerceAtLeast(0),
             nextLine = if (kind == PointKind.TRANSFER) next?.let { it.lineName ?: it.routeName } else null,
+            // 탄 열차를 따라가는 데 쓰는 값(위치 결합 스펙 7.2). 버스 단계는 따라가지 않는다.
+            line = if (subway) step.lineName else null,
+            boardStationId = if (subway) step.boardStationId else null,
+            alightStationId = if (subway) step.alightStationId else null,
+            nextStop = if (subway) step.stops?.getOrNull(1) else null,
         )
     }
     return points

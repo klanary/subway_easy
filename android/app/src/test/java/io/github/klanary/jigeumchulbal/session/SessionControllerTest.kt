@@ -1,16 +1,26 @@
 package io.github.klanary.jigeumchulbal.session
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import io.github.klanary.jigeumchulbal.data.local.AppSettings
 import io.github.klanary.jigeumchulbal.fakes.FakeAlarmScheduler
 import io.github.klanary.jigeumchulbal.fakes.FakeLauncher
 import io.github.klanary.jigeumchulbal.fakes.FakeNotifier
+import io.github.klanary.jigeumchulbal.fakes.InMemoryPreferencesDataStore
 import io.github.klanary.jigeumchulbal.fakes.testSessionStore
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SessionControllerTest {
     private val scheduler = FakeAlarmScheduler()
     private val notifier = FakeNotifier()
@@ -92,5 +102,35 @@ class SessionControllerTest {
         restarted.dispatch(SessionEvent.Cancel)
         assertEquals(SessionState.Idle, store.load())
         assertEquals(1, launcher.stops)
+    }
+
+    /**
+     * 세션 서비스는 할 일이 바뀌면 지금 일을 취소한다. 그 일이 상태 전환을 하던 중이어도(저장 중) 전환은 끝까지 해야
+     * 알람·서비스·알림이 상태와 어긋나지 않는다.
+     */
+    @Test fun dispatchFinishesEvenWhenCallerIsCancelled() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val store = SessionStore(GatedDataStore(InMemoryPreferencesDataStore(), gate), Json { ignoreUnknownKeys = true })
+        val c = controller(store)
+        val caller = launch { c.dispatch(startWaiting) }
+        runCurrent() // 저장에서 멈춰 있다
+        caller.cancel()
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(store.load() is SessionState.Waiting)
+        assertEquals(1, launcher.starts)
+    }
+}
+
+/** 저장(updateData)이 [gate]가 열릴 때까지 멈추는 DataStore. */
+private class GatedDataStore(
+    private val inner: DataStore<Preferences>,
+    private val gate: CompletableDeferred<Unit>,
+) : DataStore<Preferences> {
+    override val data = inner.data
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        gate.await()
+        return inner.updateData(transform)
     }
 }

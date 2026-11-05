@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.session
 
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -8,6 +9,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 sealed interface SessionUiEvent {
     data class Finished(val reason: EndReason) : SessionUiEvent
@@ -22,6 +24,8 @@ enum class StartResult { STARTED, ALREADY_RUNNING }
  * 세션 하나를 들고, 이벤트를 상태 머신에 넣고, 돌아온 효과를 포트로 실행한다.
  * 알람 수신기·대기 서비스·화면이 동시에 이벤트를 보낼 수 있어 Mutex로 차례대로 처리한다.
  * 앱 안 모드(알림 권한 없음)에서는 저장·알람·알림·서비스를 쓰지 않고 화면에만 알린다.
+ * 상태 전환(상태 → 저장 → 효과 실행)은 부른 쪽이 도중에 취소돼도 끝까지 한다. 세션 서비스는 할 일이 바뀌면 지금 일을
+ * 취소하는데, 그 일이 막 보낸 사건 때문에 할 일이 바뀐 경우 전환이 반쯤만 되면 알람·서비스·알림이 상태와 어긋난다.
  */
 class SessionController(
     private val store: SessionStore,
@@ -45,10 +49,10 @@ class SessionController(
 
     /** 세션은 한 번에 하나다(스펙 8.1). 진행 중이면 [replaceExisting]일 때만 기존 세션을 끝내고 시작한다. */
     suspend fun start(event: SessionEvent, inAppOnly: Boolean, replaceExisting: Boolean = false): StartResult =
-        mutex.withLock {
+        atomically {
             ensureLoaded()
             if (session.state != SessionState.Idle) {
-                if (!replaceExisting) return@withLock StartResult.ALREADY_RUNNING
+                if (!replaceExisting) return@atomically StartResult.ALREADY_RUNNING
                 apply(SessionEvent.Cancel) // 기존 세션의 알람·서비스는 기존 모드로 정리한다
             }
             _inAppOnly.value = inAppOnly
@@ -56,7 +60,7 @@ class SessionController(
             StartResult.STARTED
         }
 
-    suspend fun dispatch(event: SessionEvent) = mutex.withLock {
+    suspend fun dispatch(event: SessionEvent) = atomically {
         ensureLoaded()
         apply(event)
     }
@@ -68,7 +72,7 @@ class SessionController(
      * 저장된 세션을 이어 간다(스펙 8.7). 앱을 열 때(MainActivity)와 재부팅 뒤(BootReceiver) 부른다.
      * App.onCreate에서는 부르지 않는다: 부팅·알람으로 프로세스가 깨어날 때 대기 서비스를 시작하면 안 된다.
      */
-    suspend fun restore(onBoot: Boolean) = mutex.withLock {
+    suspend fun restore(onBoot: Boolean) = atomically {
         ensureLoaded()
         val (restored, effects) = planRestore(session.state, clock(), onBoot)
         session = CommuteSession(clock, restored)
@@ -76,15 +80,18 @@ class SessionController(
     }
 
     /** 정확한 알람이 새로 허용되면 진행 중 세션의 알람을 정확한 방식으로 다시 예약한다(스펙 8.7). */
-    suspend fun rescheduleAll() = mutex.withLock {
+    suspend fun rescheduleAll() = atomically {
         ensureLoaded()
-        if (_inAppOnly.value || session.state == SessionState.Idle) return@withLock
+        if (_inAppOnly.value || session.state == SessionState.Idle) return@atomically
         scheduler.cancelAll()
         planRestore(session.state, clock(), onBoot = false).second
             .filterIsInstance<SessionEffect.Schedule>()
             .forEach { scheduler.schedule(it.id, it.at) }
         notifier.showOngoing(session.state, clock()) // "알림이 늦을 수 있어요"를 지운다
     }
+
+    /** 한 번에 하나씩, 취소되지 않게 실행한다(클래스 설명 참고). */
+    private suspend fun <T> atomically(block: suspend () -> T): T = withContext(NonCancellable) { mutex.withLock { block() } }
 
     /** 처음 한 번 저장된 세션을 불러온다(앱 재시작 뒤 알람 수신기가 먼저 불러도 이어진다). */
     private suspend fun ensureLoaded() {

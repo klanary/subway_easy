@@ -3,6 +3,7 @@ package io.github.klanary.jigeumchulbal.session
 import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.remote.LegDto
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
+import io.github.klanary.jigeumchulbal.data.remote.StationDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.remote.TrainNearDto
@@ -62,3 +63,7 @@ val FAR = GeoPoint(37.56806, 126.97108)
 val sampleTarget = DetectionTarget("5호선", "광화문", "서대문", BOARD, NEXT)
 
 fun fix(p: GeoPoint, atSec: Long, acc: Float = 20f) = LocationFix(p, acc, atSec * 1_000)
+
+/** 역 검색 결과(탑승 감지 대상의 좌표를 얻는 데 쓴다). [BOARD]·[NEXT]와 같은 좌표다. */
+val GWANGHWAMUN = StationDto("광화문", "광화문", listOf("5호선"), 37.5710, 126.9768)
+val SEODAEMUN = StationDto("서대문", "서대문", listOf("5호선"), 37.5658, 126.9667)

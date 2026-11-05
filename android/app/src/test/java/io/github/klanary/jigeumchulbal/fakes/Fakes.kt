@@ -32,6 +32,7 @@ import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
+import io.github.klanary.jigeumchulbal.location.LocationFix
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.session.AlarmId
 import io.github.klanary.jigeumchulbal.session.AlarmScheduler
@@ -46,6 +47,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 
 // ViewModel 테스트용 가짜 저장소. 이후 작업이 필요한 가짜를 더한다.
@@ -60,8 +62,12 @@ class FakeStationRepository : StationRepository {
     var arrivalsResult: ApiResult<ArrivalsDto> =
         ApiResult.Ok(ArrivalsDto(stationId = "역", updatedAt = "2026-11-03T08:00:00+09:00", groups = emptyList()))
 
+    /** 검색어별 결과. 있으면 [result]보다 먼저 쓴다. */
+    var searchByQuery: Map<String, List<StationDto>> = emptyMap()
+
     override suspend fun search(q: String, limit: Int): ApiResult<List<StationDto>> {
         searchCalls += q
+        searchByQuery[q]?.let { return ApiResult.Ok(it) }
         return result ?: ApiResult.Ok(listOf(StationDto(q, q, listOf("2호선"), 37.5571, 126.9245)))
     }
 
@@ -227,7 +233,12 @@ class FakeTrainRepository : TrainRepository {
 }
 
 class FakeLocationProvider(var permission: Boolean, var point: GeoPoint?) : LocationProvider {
+    /** 위치 갱신으로 내보낼 위치들. 권한이 없으면 빈 흐름이다. */
+    var fixes: Flow<LocationFix> = emptyFlow()
+
     override fun hasPermission(): Boolean = permission
+
+    override fun updates(intervalMs: Long): Flow<LocationFix> = if (permission) fixes else emptyFlow()
 
     override suspend fun current(): GeoPoint? = if (permission) point else null
 }

@@ -164,4 +164,17 @@ class RouteFlowViewModelTest {
         assertEquals(1, routes.calls.size)
         assertTrue(s.results is UiState.Content)
     }
+
+    @Test fun resultsFromFavoriteOpenOnlyOnce() = runTest {
+        favorites.addRoute(Endpoint("집", here, EndpointKind.PIN), null, school)
+        val vm = vm(FakeLocationProvider(false, null)); vm.init(destMyPlaceId = null, favoriteRouteId = 1); advanceUntilIdle()
+        // 결과에서 뒤로 와 편집 화면이 다시 그려져도 결과로 또 보내지 않는다.
+        assertTrue(vm.consumeOpenResults())
+        assertFalse(vm.consumeOpenResults())
+    }
+
+    @Test fun plainEntryNeverOpensResults() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        assertFalse(vm.consumeOpenResults())
+    }
 }

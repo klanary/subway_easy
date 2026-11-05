@@ -38,7 +38,10 @@ fun ongoingContent(state: SessionState, now: Long, exactAlarms: Boolean): Ongoin
             OngoingContent(
                 title = "${stopLabel(point)}까지 ${point.stopsToGo}정거장",
                 text = timeToAlight(point, now),
-                subText = subText,
+                // 추적이 끊겨도 알람은 마지막 시각대로 울린다는 것을 함께 보여 준다(위치 결합 스펙 7.2).
+                subText = listOfNotNull(Copy.TRACKING_LOST.takeIf { state.tracking?.lost == true }, subText)
+                    .joinToString(" · ")
+                    .ifEmpty { null },
                 // 하차 예정 시각이 지나면 카운트다운이 음수로 넘어가지 않게 멈춘다.
                 countdownTo = point.alightAt.takeIf { it > now },
                 actions = listOf(SessionAction.CANCEL),

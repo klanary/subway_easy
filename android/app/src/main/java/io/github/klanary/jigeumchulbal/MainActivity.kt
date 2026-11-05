@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import io.github.klanary.jigeumchulbal.session.ACTION_OPEN_SESSION
+import io.github.klanary.jigeumchulbal.session.ACTION_PICK_TRAIN
 import io.github.klanary.jigeumchulbal.ui.AppNavHost
 import io.github.klanary.jigeumchulbal.ui.theme.AppTheme
 import kotlinx.coroutines.channels.Channel
@@ -14,8 +15,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    /** 알림·알람 아이콘으로 열린 요청. 화면 이동은 AppNavHost가 한다. */
-    private val openSessionRequests = Channel<Unit>(Channel.CONFLATED)
+    /** 알림·알람 아이콘으로 열린 요청(true면 탄 열차 고르기까지). 화면 이동은 AppNavHost가 한다. */
+    private val openSessionRequests = Channel<Boolean>(Channel.CONFLATED)
     private val openSessionFlow = openSessionRequests.receiveAsFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +40,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == ACTION_OPEN_SESSION) openSessionRequests.trySend(Unit)
+        when (intent?.action) {
+            ACTION_OPEN_SESSION -> openSessionRequests.trySend(false)
+            ACTION_PICK_TRAIN -> openSessionRequests.trySend(true)
+        }
     }
 }

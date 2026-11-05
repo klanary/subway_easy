@@ -97,6 +97,15 @@ object Copy {
 
     /** 탄 열차를 3회 연속 못 찾았을 때 진행 중 알림 부제(위치 결합 스펙 7.2). */
     const val TRACKING_LOST = "실시간 추적 끊김"
+
+    // 탄 열차 직접 고르기(위치 결합 스펙 7.1)
+    const val PICK_TRAIN_HINT = "탄 열차를 고르면 도착 시각을 맞춰 드려요"
+    const val PICK_TRAIN = "탄 열차 고르기"
+    const val CHANGE_TRAIN = "열차 바꾸기"
+    const val OTHER_TRAIN = "다른 열차였어요"
+    const val PICK_TRAIN_TITLE = "어느 열차에 탔나요?"
+    const val NO_NEAR_TRAINS = "근처에 고를 수 있는 열차가 없어요"
+    const val LOADING_TRAINS = "근처 열차를 불러오고 있어요"
     const val IN_APP_ONLY = "알림 권한이 없어 이 화면에서만 안내해요"
     const val ALIGHT_EXPECTED = "도착 예정"
     const val TRANSFER = "환승"

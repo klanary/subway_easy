@@ -38,6 +38,9 @@ data class StationDest(val stationId: String)
 @Serializable
 object SettingsDest
 
-/** 통학 세션 화면. 알림이나 알람 아이콘을 눌러도 열린다(MainActivity). */
+/**
+ * 통학 세션 화면. 알림이나 알람 아이콘을 눌러도 열린다(MainActivity).
+ * [pickTrain]: 알림의 [다른 열차였어요]·"어느 열차에 탔나요?"로 열면 탄 열차 고르기 목록을 바로 연다(위치 결합 스펙 7.1).
+ */
 @Serializable
-object SessionDest
+data class SessionDest(val pickTrain: Boolean = false)

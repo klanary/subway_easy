@@ -4,6 +4,8 @@ import io.github.klanary.jigeumchulbal.data.remote.LegDto
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
+import io.github.klanary.jigeumchulbal.data.remote.TrainNearDto
+import io.github.klanary.jigeumchulbal.data.remote.TrainState
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 
 // 위치 결합·열차 추적 테스트(P6 Task 9~14)가 함께 쓰는 값. 사용자 통학처럼 5호선에서 6호선으로 갈아타는 경로다.
@@ -40,3 +42,7 @@ fun trackedPoints(): List<AlightPoint> = listOf(
         line = "6호선", boardStationId = "공덕", alightStationId = "삼각지", nextStop = "효창공원앞",
     ),
 )
+
+/** 근처 열차 목록의 한 열차: 탈 역을 막 지나 다음 역으로 가는 중(전역출발, 1정거장 지남). */
+fun nearTrain(dest: String?, station: String, no: String = "5123") =
+    TrainNearDto(no, station, station, TrainState.LEFT_PREVIOUS, destination = dest, stopsFromStation = 1)

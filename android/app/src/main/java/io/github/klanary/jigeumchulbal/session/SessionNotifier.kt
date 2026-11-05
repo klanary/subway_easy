@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 import io.github.klanary.jigeumchulbal.R
+import io.github.klanary.jigeumchulbal.ui.common.Copy
 import java.util.concurrent.atomic.AtomicInteger
 
 /** 진행 중 알림은 이 id 하나를 계속 고쳐 쓴다. 대기 서비스도 같은 id로 포그라운드 알림을 띄운다. */
@@ -37,17 +38,22 @@ class SessionNotifier(
 
     override fun alert(content: AlertContent) {
         val (title, text) = alertText(content)
-        val notification = Notification.Builder(context, CHANNEL_ALERTS)
+        val builder = Notification.Builder(context, CHANNEL_ALERTS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setContentIntent(openSessionPendingIntent(context))
+            // 탄 열차를 모를 때는 누르면 바로 고르기 목록을 연다(위치 결합 스펙 7.1).
+            .setContentIntent(if (content == AlertContent.PickTrain) pickTrainPendingIntent(context) else openSessionPendingIntent(context))
             .setAutoCancel(true)
-            .build()
-        manager.notify(ALERT_ID_BASE + alertCount.getAndIncrement() % ALERT_SLOTS, notification)
+        if (content is AlertContent.TrainDetected) {
+            // 자동 감지가 틀렸을 때 바로 고칠 수 있게 [다른 열차였어요]를 단다.
+            val icon = Icon.createWithResource(context, R.drawable.ic_notification)
+            builder.addAction(Notification.Action.Builder(icon, Copy.OTHER_TRAIN, pickTrainPendingIntent(context)).build())
+        }
+        manager.notify(ALERT_ID_BASE + alertCount.getAndIncrement() % ALERT_SLOTS, builder.build())
     }
 
     /** 대기 서비스가 startForeground에 쓴다. 세션이 그새 끝났어도 띄울 알림은 있어야 한다. */

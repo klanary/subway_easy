@@ -3,6 +3,7 @@ package io.github.klanary.jigeumchulbal.ui.session
 import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
+import io.github.klanary.jigeumchulbal.data.remote.TrainNearDto
 import io.github.klanary.jigeumchulbal.session.AlertContent
 import io.github.klanary.jigeumchulbal.session.AlightPoint
 import io.github.klanary.jigeumchulbal.session.PointKind
@@ -57,11 +61,23 @@ import io.github.klanary.jigeumchulbal.ui.common.formatClock
 /**
  * 통학 세션(스펙 4.2): 대기 단계는 "지금 출발하면 N분 뒤…"와 [탑승했어요] [종료],
  * 탑승 단계는 하차·환승 지점 목록과 [종료]. 세션이 끝나면 이전 화면으로 돌아간다.
+ * 탄 열차를 따라가는 중이면 추적 상태와 [탄 열차 고르기]·[열차 바꾸기]를 보인다(위치 결합 스펙 7.1).
+ * [pickTrain]: 알림의 [다른 열차였어요]로 열렸으면 고르기 목록을 처음 한 번 연다.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SessionScreen(navController: NavController, viewModel: SessionViewModel = sessionViewModel()) {
+fun SessionScreen(navController: NavController, pickTrain: Boolean = false, viewModel: SessionViewModel = sessionViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val picker by viewModel.picker.collectAsStateWithLifecycle()
+    // 회전·복원 뒤에 다시 열지 않도록 한 번 연 것을 기억한다. 세션을 불러오기 전(Idle)이면 탑승 단계가 될 때까지 기다린다.
+    var pickTrainHandled by rememberSaveable { mutableStateOf(false) }
+    val riding = state is SessionState.Riding
+    LaunchedEffect(pickTrain, riding) {
+        if (pickTrain && riding && !pickTrainHandled) {
+            pickTrainHandled = true
+            viewModel.openTrainPicker()
+        }
+    }
     val inAppOnly by viewModel.inAppOnly.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     var exactAlarms by remember { mutableStateOf(viewModel.exactAlarms()) }
@@ -89,6 +105,7 @@ fun SessionScreen(navController: NavController, viewModel: SessionViewModel = se
     LaunchedEffect(viewModel, lifecycleOwner, inAppOnly) {
         if (inAppOnly) lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.runInAppLoop() }
     }
+    TrainPickerDialog(picker, onChoose = viewModel::chooseTrain, onClose = viewModel::closeTrainPicker)
     inAppAlert?.let { content ->
         val (title, text) = alertText(content)
         AlertDialog(
@@ -126,7 +143,7 @@ fun SessionScreen(navController: NavController, viewModel: SessionViewModel = se
             when (val s = state) {
                 SessionState.Idle -> Unit
                 is SessionState.Waiting -> WaitingSection(s, now, viewModel::boarded, viewModel::cancel)
-                is SessionState.Riding -> RidingSection(s, viewModel::cancel)
+                is SessionState.Riding -> RidingSection(s, viewModel::openTrainPicker, viewModel::cancel)
             }
         }
     }
@@ -155,9 +172,17 @@ private fun WaitingSection(state: SessionState.Waiting, now: Long, onBoarded: ()
     }
 }
 
-/** 하차·환승 지점마다 이름과 하차 예정 시각. 이미 지난 지점은 흐리게 보인다. */
+/** 하차·환승 지점마다 이름과 하차 예정 시각. 이미 지난 지점은 흐리게 보인다. 추적 중이면 그 상태와 열차 고르기를 먼저 보인다. */
 @Composable
-private fun RidingSection(state: SessionState.Riding, onCancel: () -> Unit) {
+private fun RidingSection(state: SessionState.Riding, onPickTrain: () -> Unit, onCancel: () -> Unit) {
+    trackingStatus(state)?.let { status ->
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(status, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            OutlinedButton(onClick = onPickTrain) {
+                Text(if (state.tracking?.trainNo == null) Copy.PICK_TRAIN else Copy.CHANGE_TRAIN)
+            }
+        }
+    }
     Column {
         state.points.forEachIndexed { i, point ->
             ListItem(
@@ -169,6 +194,36 @@ private fun RidingSection(state: SessionState.Riding, onCancel: () -> Unit) {
         }
     }
     OutlinedButton(onClick = onCancel) { Text(SessionAction.CANCEL.label) }
+}
+
+/** 탄 열차 고르기 목록("OO행 · 지금 XX역"). 고르면 그 열차로 정한다(⑭ 3번). */
+@Composable
+private fun TrainPickerDialog(picker: PickerState, onChoose: (TrainNearDto) -> Unit, onClose: () -> Unit) {
+    if (picker == PickerState.Hidden) return
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(Copy.PICK_TRAIN_TITLE) },
+        text = {
+            when (picker) {
+                PickerState.Loading -> Text(Copy.LOADING_TRAINS)
+                is PickerState.Failed -> Text(picker.message)
+                is PickerState.Loaded -> if (picker.trains.isEmpty()) {
+                    Text(Copy.NO_NEAR_TRAINS)
+                } else {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        picker.trains.forEach { train ->
+                            ListItem(
+                                headlineContent = { Text(trainChoiceLabel(train)) },
+                                modifier = Modifier.clickable { onChoose(train) },
+                            )
+                        }
+                    }
+                }
+                PickerState.Hidden -> Unit
+            }
+        },
+        confirmButton = { TextButton(onClick = onClose) { Text(Copy.CANCEL) } },
+    )
 }
 
 /** 앱 안 모드 알림의 진동 한 번. 보통 모드에서는 알림 채널이 진동을 맡는다. */

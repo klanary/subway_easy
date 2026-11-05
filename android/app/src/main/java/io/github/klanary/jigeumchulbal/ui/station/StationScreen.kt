@@ -67,7 +67,7 @@ fun StationScreen(
             value = System.currentTimeMillis()
         }
     }
-    val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest) })
+    val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest()) })
 
     Scaffold(
         topBar = {

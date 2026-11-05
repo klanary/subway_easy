@@ -2,7 +2,6 @@ package io.github.klanary.jigeumchulbal.session
 
 import android.app.Service
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
@@ -11,16 +10,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * 대기 단계(⑦)에만 도는 포그라운드 서비스(유형 dataSync, 스펙 8.2). 진행 중 알림을 띄운 채 [WaitingPoller]를 돌린다.
- * 대기 단계가 끝나면 컨트롤러가 서비스를 멈추고, 폴러가 먼저 끝나면 스스로 멈춘다.
+ * 통학 세션 서비스(스펙 8.2, 위치 결합 스펙 7.3). 진행 중 알림을 띄운 채 지금 상태에 맞는 일을 돌린다:
+ * 대기 단계에는 실시간 도착 조회(⑦), 탑승 단계에는 탄 열차 추적(⑪). 할 일이 없어지면 스스로 멈추고, 세션이 끝나면
+ * 컨트롤러가 멈춘다. 유형은 dataSync이며, 위치 권한이 있으면 탑승 감지를 위해 location을 더한다.
  */
-class WaitingService : Service() {
+class SessionService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var polling: Job? = null
+    private var work: Job? = null
     private val container get() = (application as App).container
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -32,16 +33,18 @@ class WaitingService : Service() {
             this,
             ONGOING_NOTIFICATION_ID,
             container.sessionNotifier.foregroundNotification(controller.state.value, System.currentTimeMillis()),
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
+            sessionServiceType(container.locationProvider.hasPermission(), Build.VERSION.SDK_INT),
         )
-        if (polling?.isActive != true) {
-            polling = scope.launch {
-                WaitingPoller(
-                    fetch = { container.stationRepository.arrivals(it.stationId, it.line, it.towards) },
-                    dispatch = controller::dispatch,
-                    state = { controller.state.value },
+        if (work?.isActive != true) {
+            work = scope.launch {
+                runSessionWork(
+                    controller = controller,
+                    stations = container.stationRepository,
+                    trains = container.trainRepository,
                     clock = System::currentTimeMillis,
-                ).run()
+                    canDetect = { false }, // 탑승 자동 감지는 P6 Task 14에서 켠다
+                    detect = { awaitCancellation() },
+                )
                 stopSelf()
             }
         }
@@ -50,8 +53,8 @@ class WaitingService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
-        // 서비스가 멈추면 시스템이 서비스 알림(id 1)을 지운다. 탑승 단계로 넘어가며 같은 id에 새로 쓴 진행 중 알림까지
-        // 지워지지 않도록 알림을 서비스에서 떼어 낸 뒤 지금 세션 상태로 다시 맞춘다(세션이 끝났으면 지운다).
+        // 서비스가 멈추면 시스템이 서비스 알림(id 1)을 지운다. 같은 id에 쓴 진행 중 알림까지 지워지지 않도록
+        // 알림을 서비스에서 떼어 낸 뒤 지금 세션 상태로 다시 맞춘다(세션이 끝났으면 지운다).
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
         container.sessionNotifier.showOngoing(container.sessionController.state.value, System.currentTimeMillis())
         super.onDestroy()

@@ -94,6 +94,9 @@ object Copy {
     const val SESSION_IN_PROGRESS = "통학 알림 진행 중"
     const val NO_SESSION = "진행 중인 통학 알림이 없어요"
     const val MAY_BE_LATE = "알림이 늦을 수 있어요"
+
+    /** 탄 열차를 3회 연속 못 찾았을 때 진행 중 알림 부제(위치 결합 스펙 7.2). */
+    const val TRACKING_LOST = "실시간 추적 끊김"
     const val IN_APP_ONLY = "알림 권한이 없어 이 화면에서만 안내해요"
     const val ALIGHT_EXPECTED = "도착 예정"
     const val TRANSFER = "환승"

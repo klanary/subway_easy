@@ -76,4 +76,10 @@ class OngoingContentTest {
     }
 
     @Test fun idleHasNoOngoingNotification() = assertNull(ongoingContent(SessionState.Idle, 0, true))
+
+    @Test fun lostTrackingSubText() {
+        val r = SessionState.Riding(trackedPoints(), tracking = Tracking(0, "5호선", "공덕", "5123", lost = true))
+        assertEquals("실시간 추적 끊김", ongoingContent(r, now = 0, exactAlarms = true)!!.subText)
+        assertEquals("실시간 추적 끊김 · 알림이 늦을 수 있어요", ongoingContent(r, now = 0, exactAlarms = false)!!.subText)
+    }
 }

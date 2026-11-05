@@ -4,6 +4,7 @@ import io.github.klanary.jigeumchulbal.data.local.AppSettings
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainDto
 import io.github.klanary.jigeumchulbal.tracking.trackingFrom
+import kotlin.math.abs
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -83,6 +84,15 @@ sealed interface SessionEvent {
 
     /** 위치로 탑승을 알아냈다(⑭ 자동 감지). 탄 열차를 고르지 못했으면 [train]이 null이다. */
     data class BoardedDetected(val train: DetectedTrain?) : SessionEvent
+
+    /**
+     * 탄 열차가 내릴 역까지 남은 시간(⑪). [etaSec]이 null이면 열차가 내릴 역을 지났다.
+     * [receivedAt]은 응답을 받은 시각으로, 새 하차 시각은 `receivedAt + etaSec`이다.
+     */
+    data class TrainEtaUpdated(val etaSec: Int?, val receivedAt: Long) : SessionEvent
+
+    /** 탄 열차를 지금 위치 목록에서 못 찾았거나 조회가 실패했다. */
+    data object TrainLookupFailed : SessionEvent
 
     /** 탄 열차를 정하거나 바꾼다(⑭). [pointIndex]가 지금 추적 중인 단계와 다르면 무시한다. */
     data class TrainIdentified(
@@ -310,6 +320,8 @@ class CommuteSession(
         }
         is SessionEvent.BoardedDetected -> onRidingDetected(current, event.train)
         is SessionEvent.TrainIdentified -> onTrainIdentified(current, event)
+        is SessionEvent.TrainEtaUpdated -> onTrainEta(current, event)
+        SessionEvent.TrainLookupFailed -> onTrainLookupFailed(current)
         SessionEvent.Cancel -> end(EndReason.CANCELLED, stopService = current.tracking != null)
         else -> emptyList()
     }
@@ -333,6 +345,60 @@ class CommuteSession(
             SessionEffect.StartSessionService.takeIf { event.source == TrainSource.MANUAL },
             SessionEffect.UpdateOngoing,
         )
+    }
+
+    /**
+     * 탄 열차의 새 하차 시각(⑪, 위치 결합 스펙 7.2). 지금 지점의 하차 시각이 20초 넘게 달라지면 그 지점과 이후 지점을
+     * 같은 만큼 옮기고, 아직 울리지 않은 알람만 다시 예약한다(알림 시각 = max(지금, 하차 시각 − 알림 시점)).
+     * 마지막 지점 알림 뒤의 세션 종료 시각도 같이 옮겨, 열차가 늦을 때 내리기 전에 진행 중 알림이 사라지지 않게 한다.
+     */
+    private fun onTrainEta(current: SessionState.Riding, event: SessionEvent.TrainEtaUpdated): List<SessionEffect> {
+        val tracking = current.tracking?.takeIf { it.trainNo != null } ?: return emptyList()
+        val index = tracking.pointIndex
+        val point = current.points.getOrNull(index) ?: return emptyList()
+        val etaSec = event.etaSec ?: return advanceTracking(current) // 내릴 역을 지났다
+        val now = clock()
+        val healthy = tracking.copy(failures = 0, lost = false)
+        val delta = event.receivedAt + etaSec * SECOND_MS - point.alightAt
+        if (abs(delta) <= ETA_SHIFT_MS) {
+            if (healthy == tracking) return emptyList()
+            state = current.copy(tracking = healthy)
+            return listOf(SessionEffect.UpdateOngoing)
+        }
+        val leadMs = current.alightLeadSec * SECOND_MS
+        val points = current.points.mapIndexed { j, p ->
+            when {
+                j < index -> p
+                j < current.nextIndex -> p.copy(alightAt = p.alightAt + delta) // 이미 울린 알림은 다시 예약하지 않는다
+                else -> (p.alightAt + delta).let { alight -> p.copy(alightAt = alight, alertAt = maxOf(now, alight - leadMs)) }
+            }
+        }
+        val endAt = current.endAt?.let { maxOf(now, it + delta) }
+        state = current.copy(points = points, endAt = endAt, tracking = healthy)
+        return buildList {
+            for (j in maxOf(index, current.nextIndex) until points.size) add(SessionEffect.Schedule(AlarmId.Alight(j), points[j].alertAt))
+            if (endAt != null && endAt != current.endAt) add(SessionEffect.Schedule(AlarmId.SessionEnd, endAt))
+            add(SessionEffect.UpdateOngoing)
+        }
+    }
+
+    /** 탄 열차를 못 찾음. 3회 연속이면 "실시간 추적 끊김"이고 알람은 마지막 시각을 유지한다. 내릴 시각이 지났으면 다음 단계로 넘어간다. */
+    private fun onTrainLookupFailed(current: SessionState.Riding): List<SessionEffect> {
+        val tracking = current.tracking?.takeIf { it.trainNo != null } ?: return emptyList()
+        val point = current.points.getOrNull(tracking.pointIndex)
+        if (point == null || clock() >= point.alightAt) return advanceTracking(current)
+        val failures = tracking.failures + 1
+        val updated = tracking.copy(failures = failures, lost = failures >= LOST_AFTER_FAILURES)
+        state = current.copy(tracking = updated)
+        return if (updated.lost != tracking.lost) listOf(SessionEffect.UpdateOngoing) else emptyList()
+    }
+
+    /** 지금 단계의 하차 지점을 지났다(환승, 7.2): 다음 지하철 단계를 추적하고 열차는 다시 정한다. 더 없으면 세션 서비스를 멈춘다. */
+    private fun advanceTracking(current: SessionState.Riding): List<SessionEffect> {
+        val index = current.tracking?.pointIndex ?: return emptyList()
+        val next = trackingFrom(current.points, index + 1)
+        state = current.copy(tracking = next)
+        return listOfNotNull(SessionEffect.StopSessionService.takeIf { next == null }, SessionEffect.UpdateOngoing)
     }
 
     private fun startRiding(
@@ -369,5 +435,12 @@ class CommuteSession(
         const val MINUTE_MS = 60_000L
         const val MISS_GRACE_MS = 60_000L
         const val END_AFTER_LAST_MS = 300_000L
+        const val SECOND_MS = 1_000L
+
+        /** 탄 열차의 하차 시각이 이보다 많이 달라질 때만 지점을 옮긴다(위치 결합 스펙 3.1 ⑪). */
+        const val ETA_SHIFT_MS = 20_000L
+
+        /** 탄 열차를 이만큼 연달아 못 찾으면 "실시간 추적 끊김"이다. */
+        const val LOST_AFTER_FAILURES = 3
     }
 }

@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.session
 
+import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.remote.LegDto
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
@@ -7,6 +8,8 @@ import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.remote.TrainNearDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainState
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
+import io.github.klanary.jigeumchulbal.location.LocationFix
+import io.github.klanary.jigeumchulbal.tracking.DetectionTarget
 
 // 위치 결합·열차 추적 테스트(P6 Task 9~14)가 함께 쓰는 값. 사용자 통학처럼 5호선에서 6호선으로 갈아타는 경로다.
 
@@ -46,3 +49,16 @@ fun trackedPoints(): List<AlightPoint> = listOf(
 /** 근처 열차 목록의 한 열차: 탈 역을 막 지나 다음 역으로 가는 중(전역출발, 1정거장 지남). */
 fun nearTrain(dest: String?, station: String, no: String = "5123") =
     TrainNearDto(no, station, station, TrainState.LEFT_PREVIOUS, destination = dest, stopsFromStation = 1)
+
+// 탑승 감지 테스트용 좌표(광화문·서대문 근처, 시험용 기하). 거리는 haversine으로 미리 잰 값이다.
+val BOARD = GeoPoint(37.5710, 126.9768)
+
+/** 탈 역에서 약 1,061m. */
+val NEXT = GeoPoint(37.5658, 126.9667)
+
+/** 탈 역에서 601m, 다음 역에서 461m(다음 역 쪽으로 간 위치). */
+val FAR = GeoPoint(37.56806, 126.97108)
+
+val sampleTarget = DetectionTarget("5호선", "광화문", "서대문", BOARD, NEXT)
+
+fun fix(p: GeoPoint, atSec: Long, acc: Float = 20f) = LocationFix(p, acc, atSec * 1_000)

@@ -2,6 +2,7 @@ package io.github.klanary.jigeumchulbal.session
 
 import android.content.pm.ServiceInfo
 import android.os.Build
+import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
@@ -21,13 +22,17 @@ data class DetectionSpot(val line: String, val boardStationId: String, val nextS
  */
 fun detectionSpot(state: SessionState): DetectionSpot? = when (state) {
     SessionState.Idle -> null
-    is SessionState.Waiting -> state.route?.legs?.flatMap { it.steps }?.firstOrNull { it.mode == StepMode.SUBWAY }?.let { step ->
-        spot(step.lineName, step.boardStationId, step.stops?.getOrNull(1))
-    }
+    is SessionState.Waiting -> state.route?.detectionSpot()
     is SessionState.Riding -> state.tracking?.takeIf { it.trainNo == null }?.let { tracking ->
         state.points.getOrNull(tracking.pointIndex)?.let { spot(it.line, it.boardStationId, it.nextStop) }
     }
 }
+
+/** 경로의 첫 지하철 단계에서 탑승을 감지할 곳(대기 중인 세션, 경로 상세 화면). */
+fun RouteDto.detectionSpot(): DetectionSpot? =
+    legs.flatMap { it.steps }.firstOrNull { it.mode == StepMode.SUBWAY }?.let { step ->
+        spot(step.lineName, step.boardStationId, step.stops?.getOrNull(1))
+    }
 
 private fun spot(line: String?, board: String?, next: String?): DetectionSpot? =
     if (line != null && line in TRACKED_LINES && board != null && next != null) DetectionSpot(line, board, next) else null
@@ -79,6 +84,14 @@ suspend fun runSessionJobs(
     }
 }
 
+/** 대기 단계의 실시간 도착 조회(⑦). 세션 서비스의 감지와 함께 돌 때도 같은 것을 쓴다. */
+fun waitingPoller(controller: SessionController, stations: StationRepository, clock: () -> Long) = WaitingPoller(
+    fetch = { stations.arrivals(it.stationId, it.line, it.towards) },
+    dispatch = controller::dispatch,
+    state = { controller.state.value },
+    clock = clock,
+)
+
 /** 세션 서비스와 앱 안 모드가 함께 쓰는 대기 조회·추적 조회. 감지는 [detect]로 받는다(서비스만 한다). */
 suspend fun runSessionWork(
     controller: SessionController,
@@ -90,14 +103,7 @@ suspend fun runSessionWork(
 ) = runSessionJobs(
     state = { controller.state.value },
     canDetect = canDetect,
-    wait = {
-        WaitingPoller(
-            fetch = { stations.arrivals(it.stationId, it.line, it.towards) },
-            dispatch = controller::dispatch,
-            state = { controller.state.value },
-            clock = clock,
-        ).run()
-    },
+    wait = { waitingPoller(controller, stations, clock).run() },
     track = {
         TrackingPoller(
             // TrackingPoller는 열차 번호를 정한 동안에만 조회한다.

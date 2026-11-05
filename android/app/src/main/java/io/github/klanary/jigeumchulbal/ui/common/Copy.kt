@@ -106,6 +106,11 @@ object Copy {
     const val PICK_TRAIN_TITLE = "어느 열차에 탔나요?"
     const val NO_NEAR_TRAINS = "근처에 고를 수 있는 열차가 없어요"
     const val LOADING_TRAINS = "근처 열차를 불러오고 있어요"
+
+    // 경로 상세에서 탑승을 알아냈을 때 묻기(위치 결합 스펙 7.1)
+    const val BOARDED_QUESTION = "열차에 타셨나요?"
+    const val START_ALIGHT_ALERTS = "하차 알림 시작"
+    const val NOT_BOARDED = "아니에요"
     const val IN_APP_ONLY = "알림 권한이 없어 이 화면에서만 안내해요"
     const val ALIGHT_EXPECTED = "도착 예정"
     const val TRANSFER = "환승"

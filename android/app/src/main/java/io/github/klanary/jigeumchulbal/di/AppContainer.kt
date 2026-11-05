@@ -20,6 +20,7 @@ import io.github.klanary.jigeumchulbal.data.repository.DefaultRecentSearchReposi
 import io.github.klanary.jigeumchulbal.data.repository.DefaultRouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultStationRepository
+import io.github.klanary.jigeumchulbal.data.repository.DefaultTrainRepository
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
@@ -27,6 +28,7 @@ import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
+import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
 import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.session.AlarmScheduler
@@ -79,6 +81,7 @@ class AppContainer(context: Context) {
     val placeRepository: PlaceRepository = DefaultPlaceRepository(api, apiCaller)
     val routeRepository: RouteRepository = DefaultRouteRepository(api, apiCaller)
     val serverRepository: ServerRepository = DefaultServerRepository(api, apiCaller)
+    val trainRepository: TrainRepository = DefaultTrainRepository(api, apiCaller)
 
     // 기기 저장소: 내 장소·즐겨찾기·최근 검색은 기기에만 둔다(스펙 5.4).
     val database: AppDatabase = Room.databaseBuilder(appContext, AppDatabase::class.java, "jigeumchulbal.db").build()

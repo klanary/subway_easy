@@ -4,9 +4,12 @@ import kotlinx.serialization.Serializable
 
 // 통학 세션의 값들(스펙 8장). 세션 상태와 함께 DataStore에 JSON으로 저장하므로 모두 직렬화한다. 시각은 epoch ms.
 
-/** 알릴 열차: [alertAt]에 알리고, 열차는 [trainArrivalAt]에 탑승역에 도착할 예정이다. */
+/**
+ * 알릴 열차: [alertAt]에 알리고, 열차는 [trainArrivalAt]에 탑승역에 도착할 예정이다.
+ * [trainNo]는 그 열차 번호로, 열차 번호 없이 탑승으로 넘어가면 탄 열차로 쓴다(위치 결합 스펙 7.1 "계획한 열차").
+ */
 @Serializable
-data class TrainPlan(val alertAt: Long, val trainArrivalAt: Long, val destination: String?)
+data class TrainPlan(val alertAt: Long, val trainArrivalAt: Long, val destination: String?, val trainNo: String? = null)
 
 /** 승차 전 알림의 두 방식: 경로에서 시작하면 출발 타이밍, 역 상세(또는 첫 탑승 전 버스가 있는 경로)면 도착 N분 전. */
 @Serializable

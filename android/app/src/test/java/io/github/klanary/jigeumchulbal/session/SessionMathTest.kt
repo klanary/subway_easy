@@ -46,6 +46,11 @@ class SessionMathTest {
         assertEquals(5_000L, minutesBeforePlan(listOf(t(120)), 0, 180, now = 5_000)!!.alertAt)
     }
 
+    @Test fun planKeepsTrainNo() = assertEquals(
+        "5123",
+        departurePlan(listOf(TrainDto("하남검단산", 600, trainNo = "5123")), receivedAt = 0, travelSec = 420, marginSec = 60)!!.trainNo,
+    )
+
     @Test fun alightPointsFromFirstTransit() {
         val p = alightPoints(twoLines, boardedAt = 0, from = StartFrom.FIRST_TRANSIT, leadSec = 120)
         assertEquals(listOf(600_000L, 1_620_000L), p.map { it.alightAt })

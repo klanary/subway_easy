@@ -58,6 +58,7 @@ class RouteFlowViewModel(
 
     private var initialized = false
     private var autoOpenConsumed = false
+    private var openResultsPending = false
     private var searchJob: Job? = null
 
     /**
@@ -69,6 +70,7 @@ class RouteFlowViewModel(
         initialized = true
         if (favoriteRouteId != null) {
             autoOpenConsumed = true
+            openResultsPending = true
             viewModelScope.launch {
                 val fav = favorites.routes.first().find { it.id == favoriteRouteId } ?: return@launch
                 _state.update { fav.toFlowState() }
@@ -153,6 +155,13 @@ class RouteFlowViewModel(
         if (autoOpenConsumed) return false
         autoOpenConsumed = true
         return _state.value.dest == null
+    }
+
+    /** 홈 자주 가는 경로 카드로 들어왔으면 처음 한 번만 true. 결과에서 뒤로 와 편집 화면이 다시 그려져도 다시 보내지 않는다. */
+    fun consumeOpenResults(): Boolean {
+        val open = openResultsPending
+        openResultsPending = false
+        return open
     }
 
     private suspend fun fillOriginFromLocation(overwrite: Boolean) {

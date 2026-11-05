@@ -47,13 +47,12 @@ fun RouteEditScreen(
     val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.useCurrentLocation() }
 
     LaunchedEffect(Unit) {
-        if (favoriteRouteId != null) {
-            // 홈의 자주 가는 경로 카드: 편집을 건너뛰고 바로 경로 결과(⑨). 결과에서 뒤로 오면 편집 화면이다.
-            viewModel.init(destMyPlaceId, favoriteRouteId)
+        viewModel.init(destMyPlaceId, favoriteRouteId)
+        // 홈의 자주 가는 경로 카드: 편집을 건너뛰고 바로 경로 결과(⑨). 결과에서 뒤로 오면 편집 화면에 머문다.
+        if (viewModel.consumeOpenResults()) {
             navController.navigate(RoutesDest)
             return@LaunchedEffect
         }
-        viewModel.init(destMyPlaceId)
         // 홈 검색창으로 들어와 도착이 비어 있으면 바로 검색을 연다(한 번만).
         if (destMyPlaceId == null && viewModel.consumeAutoOpenSearch()) {
             navController.navigate(SearchDest(Slot.DEST))

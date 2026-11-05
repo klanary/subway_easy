@@ -3,6 +3,7 @@ package io.github.klanary.jigeumchulbal.session
 import io.github.klanary.jigeumchulbal.data.local.AppSettings
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainDto
+import io.github.klanary.jigeumchulbal.tracking.trackingFrom
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -34,13 +35,19 @@ sealed interface SessionState {
         val updatedAt: Long? = null,
     ) : SessionState
 
-    /** 하차 알림(⑤): 하차·환승 지점마다 알람을 걸어 두고, 울릴 때마다 다음 지점으로 넘어간다. */
+    /**
+     * 하차 알림(⑤): 하차·환승 지점마다 알람을 걸어 두고, 울릴 때마다 다음 지점으로 넘어간다.
+     * [tracking]이 있으면 탄 열차의 실시간 위치로 하차 시각을 맞춘다(⑪, 위치 결합 스펙 7.2). [alightLeadSec]은 그때 알림
+     * 시각을 다시 계산하는 데 쓰며, 이 칸이 없던 예전 저장분은 설정 기본값(120초)으로 읽는다.
+     */
     @Serializable
     @SerialName("riding")
     data class Riding(
         val points: List<AlightPoint>,
         val nextIndex: Int = 0,
         val endAt: Long? = null,
+        val alightLeadSec: Int = 120,
+        val tracking: Tracking? = null,
     ) : SessionState
 }
 
@@ -74,6 +81,17 @@ sealed interface SessionEvent {
 
     data object Boarded : SessionEvent
 
+    /** 위치로 탑승을 알아냈다(⑭ 자동 감지). 탄 열차를 고르지 못했으면 [train]이 null이다. */
+    data class BoardedDetected(val train: DetectedTrain?) : SessionEvent
+
+    /** 탄 열차를 정하거나 바꾼다(⑭). [pointIndex]가 지금 추적 중인 단계와 다르면 무시한다. */
+    data class TrainIdentified(
+        val pointIndex: Int,
+        val trainNo: String,
+        val source: TrainSource,
+        val destination: String?,
+    ) : SessionEvent
+
     data class StartRiding(val route: RouteDto, val settings: AppSettings) : SessionEvent
 
     data class AlarmFired(val id: AlarmId) : SessionEvent
@@ -98,6 +116,12 @@ sealed interface AlertContent {
 
     /** "대기 알림이 중단됐어요"(재부팅 등) */
     data object WaitingInterrupted : AlertContent
+
+    /** "OO행 열차에 탄 것으로 보여요" — 위치로 탑승을 알아냈다. [다른 열차였어요] 버튼을 단다(위치 결합 스펙 7.1). */
+    data class TrainDetected(val destination: String?) : AlertContent
+
+    /** "어느 열차에 탔나요?" — 탑승은 알아냈지만 탄 열차를 정하지 못했다. */
+    data object PickTrain : AlertContent
 }
 
 enum class EndReason { CANCELLED, TIMEOUT, ARRIVED, BOARDED_AT_STATION, INTERRUPTED }
@@ -116,9 +140,9 @@ sealed interface SessionEffect {
 
     data object ClearOngoing : SessionEffect
 
-    data object StartWaitingService : SessionEffect
+    data object StartSessionService : SessionEffect
 
-    data object StopWaitingService : SessionEffect
+    data object StopSessionService : SessionEffect
 
     data class Finished(val reason: EndReason) : SessionEffect
 }
@@ -154,10 +178,15 @@ class CommuteSession(
                 startedAt = now,
                 deadlineAt = now + event.settings.maxWaitMin * MINUTE_MS,
             )
-            listOf(SessionEffect.StartWaitingService, SessionEffect.UpdateOngoing)
+            listOf(SessionEffect.StartSessionService, SessionEffect.UpdateOngoing)
         }
-        is SessionEvent.StartRiding ->
-            startRiding(alightPoints(event.route, clock(), StartFrom.FIRST_TRANSIT, event.settings.alightLeadSec), emptyList())
+        is SessionEvent.StartRiding -> {
+            val lead = event.settings.alightLeadSec
+            val points = alightPoints(event.route, clock(), StartFrom.FIRST_TRANSIT, lead)
+            val tracking = trackingFrom(points, 0)
+            // 경로 상세에서 화면을 보며 시작하므로 세션 서비스를 켤 수 있다. 열차는 감지나 직접 고르기로 정한다.
+            startRiding(points, lead, tracking, before = emptyList(), after = listOfNotNull(SessionEffect.StartSessionService.takeIf { tracking != null }))
+        }
         else -> emptyList()
     }
 
@@ -180,22 +209,48 @@ class CommuteSession(
                 }
                 listOf(SessionEffect.Alert(content), SessionEffect.UpdateOngoing)
             }
-            SessionEvent.Boarded -> {
-                val route = current.route
-                if (route == null) {
-                    end(EndReason.BOARDED_AT_STATION, wasWaiting = true)
-                } else {
-                    startRiding(
-                        alightPoints(route, now, StartFrom.FIRST_SUBWAY, current.alightLeadSec),
-                        listOf(SessionEffect.StopWaitingService, SessionEffect.CancelAlarm(AlarmId.PreBoarding)),
-                    )
-                }
-            }
-            SessionEvent.Timeout -> end(EndReason.TIMEOUT, wasWaiting = true)
-            SessionEvent.Cancel -> end(EndReason.CANCELLED, wasWaiting = true)
+            SessionEvent.Boarded -> board(current, now, detected = null, byDetection = false)
+            is SessionEvent.BoardedDetected -> board(current, now, event.train, byDetection = true)
+            SessionEvent.Timeout -> end(EndReason.TIMEOUT, stopService = true)
+            SessionEvent.Cancel -> end(EndReason.CANCELLED, stopService = true)
             else -> emptyList()
         }
     }
+
+    /**
+     * 대기에서 탑승으로(⑤⑦). 경로가 있으면 첫 지하철 단계부터 하차 지점을 계산하고, 그 단계가 추적할 수 있는 호선이면
+     * 탄 열차를 정한다: 위치로 알아낸 열차(AUTO) → 승차 전 알림이 계획한 열차(PLANNED) 순서(위치 결합 스펙 7.1).
+     * 추적할 단계가 있으면 세션 서비스를 멈추지 않고 이어서 쓴다(7.3).
+     */
+    private fun board(current: SessionState.Waiting, now: Long, detected: DetectedTrain?, byDetection: Boolean): List<SessionEffect> {
+        val route = current.route ?: return end(EndReason.BOARDED_AT_STATION, stopService = true)
+        val points = alightPoints(route, now, StartFrom.FIRST_SUBWAY, current.alightLeadSec)
+        val plan = current.plan
+        val tracking = trackingFrom(points, 0)?.let { found ->
+            when {
+                found.pointIndex != 0 -> found // 계획·감지한 열차는 첫 지하철 단계의 열차다
+                detected != null -> found.identify(detected.trainNo, TrainSource.AUTO, detected.destination)
+                plan?.trainNo != null -> found.identify(plan.trainNo, TrainSource.PLANNED, plan.destination)
+                else -> found
+            }
+        }
+        val before = buildList {
+            if (tracking == null) add(SessionEffect.StopSessionService)
+            add(SessionEffect.CancelAlarm(AlarmId.PreBoarding))
+        }
+        val after = if (byDetection) listOfNotNull(detectionAlert(detected, tracking)) else emptyList()
+        return startRiding(points, current.alightLeadSec, tracking, before, after)
+    }
+
+    /** 위치로 탑승을 알아냈을 때의 알림: 고른 열차가 있으면 "탄 것으로 보여요", 아직 열차를 모르면 "어느 열차에 탔나요?". */
+    private fun detectionAlert(detected: DetectedTrain?, tracking: Tracking?): SessionEffect? = when {
+        detected != null -> SessionEffect.Alert(AlertContent.TrainDetected(detected.destination))
+        tracking != null && tracking.trainNo == null -> SessionEffect.Alert(AlertContent.PickTrain)
+        else -> null
+    }
+
+    private fun Tracking.identify(trainNo: String, source: TrainSource, destination: String?) =
+        copy(trainNo = trainNo, destination = destination, source = source, failures = 0, lost = false)
 
     private fun onArrivals(current: SessionState.Waiting, event: SessionEvent.ArrivalsUpdated, now: Long): List<SessionEffect> {
         val refreshed = current.copy(
@@ -245,29 +300,63 @@ class CommuteSession(
             }
             AlarmId.SessionEnd -> {
                 state = SessionState.Idle
-                listOf(SessionEffect.ClearOngoing, SessionEffect.Finished(EndReason.ARRIVED))
+                buildList {
+                    if (current.tracking != null) add(SessionEffect.StopSessionService)
+                    add(SessionEffect.ClearOngoing)
+                    add(SessionEffect.Finished(EndReason.ARRIVED))
+                }
             }
             AlarmId.PreBoarding -> emptyList()
         }
-        SessionEvent.Cancel -> end(EndReason.CANCELLED, wasWaiting = false)
+        is SessionEvent.BoardedDetected -> onRidingDetected(current, event.train)
+        is SessionEvent.TrainIdentified -> onTrainIdentified(current, event)
+        SessionEvent.Cancel -> end(EndReason.CANCELLED, stopService = current.tracking != null)
         else -> emptyList()
     }
 
-    private fun startRiding(points: List<AlightPoint>, before: List<SessionEffect>): List<SessionEffect> {
+    /** 환승 뒤 등, 열차를 아직 정하지 못한 단계에서 위치로 탑승을 알아냈다(위치 결합 스펙 7.1, 7.2). */
+    private fun onRidingDetected(current: SessionState.Riding, detected: DetectedTrain?): List<SessionEffect> {
+        val tracking = current.tracking
+        if (tracking == null || tracking.trainNo != null) return emptyList() // 이미 정했으면(직접 고름 등) 그대로 둔다
+        if (detected != null) {
+            state = current.copy(tracking = tracking.identify(detected.trainNo, TrainSource.AUTO, detected.destination))
+        }
+        return listOfNotNull(detectionAlert(detected, tracking), SessionEffect.UpdateOngoing)
+    }
+
+    private fun onTrainIdentified(current: SessionState.Riding, event: SessionEvent.TrainIdentified): List<SessionEffect> {
+        val tracking = current.tracking
+        if (tracking == null || tracking.pointIndex != event.pointIndex) return emptyList() // 다른 단계를 고른 늦은 사건
+        state = current.copy(tracking = tracking.identify(event.trainNo, event.source, event.destination))
+        // 직접 고르기는 화면에서 하므로 서비스를 켤 수 있다(권한이 없어 꺼져 있었으면 다시 켜서 추적한다).
+        return listOfNotNull(
+            SessionEffect.StartSessionService.takeIf { event.source == TrainSource.MANUAL },
+            SessionEffect.UpdateOngoing,
+        )
+    }
+
+    private fun startRiding(
+        points: List<AlightPoint>,
+        alightLeadSec: Int,
+        tracking: Tracking?,
+        before: List<SessionEffect>,
+        after: List<SessionEffect> = emptyList(),
+    ): List<SessionEffect> {
         if (points.isEmpty()) {
             // 대중교통 단계가 없는 경로(도보만)는 알릴 지점이 없다.
             state = SessionState.Idle
             return before + listOf(SessionEffect.CancelAllAlarms, SessionEffect.ClearOngoing, SessionEffect.Finished(EndReason.ARRIVED))
         }
-        state = SessionState.Riding(points)
-        return before + points.mapIndexed { i, p -> SessionEffect.Schedule(AlarmId.Alight(i), p.alertAt) } +
+        state = SessionState.Riding(points, alightLeadSec = alightLeadSec, tracking = tracking)
+        return before + points.mapIndexed { i, p -> SessionEffect.Schedule(AlarmId.Alight(i), p.alertAt) } + after +
             SessionEffect.UpdateOngoing
     }
 
-    private fun end(reason: EndReason, wasWaiting: Boolean): List<SessionEffect> {
+    /** 세션을 끝낸다. [stopService]: 세션 서비스가 돌고 있을 수 있으면(대기 단계, 추적 중인 탑승 단계) 멈춘다. */
+    private fun end(reason: EndReason, stopService: Boolean): List<SessionEffect> {
         state = SessionState.Idle
         return buildList {
-            if (wasWaiting) add(SessionEffect.StopWaitingService)
+            if (stopService) add(SessionEffect.StopSessionService)
             add(SessionEffect.CancelAllAlarms)
             add(SessionEffect.ClearOngoing)
             add(SessionEffect.Finished(reason))

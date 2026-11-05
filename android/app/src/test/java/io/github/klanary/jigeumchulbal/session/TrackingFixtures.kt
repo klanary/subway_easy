@@ -1,0 +1,42 @@
+package io.github.klanary.jigeumchulbal.session
+
+import io.github.klanary.jigeumchulbal.data.remote.LegDto
+import io.github.klanary.jigeumchulbal.data.remote.RouteDto
+import io.github.klanary.jigeumchulbal.data.remote.StepDto
+import io.github.klanary.jigeumchulbal.data.remote.StepMode
+import io.github.klanary.jigeumchulbal.fixtures.specRoute
+
+// 위치 결합·열차 추적 테스트(P6 Task 9~14)가 함께 쓰는 값. 사용자 통학처럼 5호선에서 6호선으로 갈아타는 경로다.
+
+/** 5호선 광화문→공덕(600초), 도보 120초, 6호선 공덕→삼각지(300초). */
+fun line5to6Route(): RouteDto = specRoute().copy(
+    legs = listOf(
+        LegDto(
+            listOf(
+                StepDto(
+                    StepMode.SUBWAY, 600, 0, lineName = "5호선",
+                    stops = listOf("광화문", "서대문", "충정로", "애오개", "공덕"),
+                    boardStationId = "광화문", alightStationId = "공덕",
+                ),
+                StepDto(StepMode.WALK, 120, 0),
+                StepDto(
+                    StepMode.SUBWAY, 300, 0, lineName = "6호선",
+                    stops = listOf("공덕", "효창공원앞", "삼각지"),
+                    boardStationId = "공덕", alightStationId = "삼각지",
+                ),
+            ),
+        ),
+    ),
+)
+
+/** [line5to6Route]를 0초에 탔을 때의 하차 지점(하차·환승 알림 120초 전). */
+fun trackedPoints(): List<AlightPoint> = listOf(
+    AlightPoint(
+        "공덕", false, PointKind.TRANSFER, alightAt = 600_000, alertAt = 480_000, stopsToGo = 4, nextLine = "6호선",
+        line = "5호선", boardStationId = "광화문", alightStationId = "공덕", nextStop = "서대문",
+    ),
+    AlightPoint(
+        "삼각지", false, PointKind.FINAL, alightAt = 1_020_000, alertAt = 900_000, stopsToGo = 2,
+        line = "6호선", boardStationId = "공덕", alightStationId = "삼각지", nextStop = "효창공원앞",
+    ),
+)

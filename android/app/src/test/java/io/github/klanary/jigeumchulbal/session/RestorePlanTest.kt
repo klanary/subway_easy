@@ -41,7 +41,7 @@ class RestorePlanTest {
         val (state, effects) = planRestore(waiting(), now = 10_000, onBoot = true)
         assertEquals(SessionState.Idle, state)
         assertEquals(SessionEffect.Alert(AlertContent.WaitingInterrupted), effects.first())
-        assertFalse(SessionEffect.StartWaitingService in effects)
+        assertFalse(SessionEffect.StartSessionService in effects)
         assertEquals(SessionEffect.Finished(EndReason.INTERRUPTED), effects.last())
     }
 
@@ -49,7 +49,7 @@ class RestorePlanTest {
         assertEquals(SessionEffect.Finished(EndReason.TIMEOUT), planRestore(waiting(), now = 1_800_000, onBoot = false).second.last())
 
     @Test fun restoreWaitingRestartsServiceAndAlarm() = assertEquals(
-        listOf(SessionEffect.StartWaitingService, SessionEffect.Schedule(AlarmId.PreBoarding, 900_000), SessionEffect.UpdateOngoing),
+        listOf(SessionEffect.StartSessionService, SessionEffect.Schedule(AlarmId.PreBoarding, 900_000), SessionEffect.UpdateOngoing),
         planRestore(waiting(), now = 10_000, onBoot = false).second,
     )
 

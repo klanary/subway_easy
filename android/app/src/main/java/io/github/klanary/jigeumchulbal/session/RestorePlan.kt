@@ -10,7 +10,7 @@ import io.github.klanary.jigeumchulbal.session.CommuteSession.Companion.END_AFTE
 fun planRestore(state: SessionState, now: Long, onBoot: Boolean): Pair<SessionState, List<SessionEffect>> = when (state) {
     SessionState.Idle -> state to emptyList()
     is SessionState.Waiting -> restoreWaiting(state, now, onBoot)
-    is SessionState.Riding -> restoreRiding(state, now)
+    is SessionState.Riding -> restoreRiding(state, now, onBoot)
 }
 
 private fun restoreWaiting(state: SessionState.Waiting, now: Long, onBoot: Boolean): Pair<SessionState, List<SessionEffect>> = when {
@@ -23,7 +23,7 @@ private fun restoreWaiting(state: SessionState.Waiting, now: Long, onBoot: Boole
     now >= state.deadlineAt -> SessionState.Idle to
         listOf(SessionEffect.CancelAllAlarms, SessionEffect.ClearOngoing, SessionEffect.Finished(EndReason.TIMEOUT))
     else -> state to buildList {
-        add(SessionEffect.StartWaitingService)
+        add(SessionEffect.StartSessionService)
         // 지난 예측이나 잠금 중인 예측은 서비스의 다음 조회가 다시 계산한다.
         val plan = state.plan
         if (plan != null && state.lockedUntil == null && plan.alertAt > now) add(SessionEffect.Schedule(AlarmId.PreBoarding, plan.alertAt))
@@ -31,7 +31,10 @@ private fun restoreWaiting(state: SessionState.Waiting, now: Long, onBoot: Boole
     }
 }
 
-private fun restoreRiding(state: SessionState.Riding, now: Long): Pair<SessionState, List<SessionEffect>> {
+private fun restoreRiding(state: SessionState.Riding, now: Long, onBoot: Boolean): Pair<SessionState, List<SessionEffect>> {
+    // 탄 열차를 따라가던 중이면 세션 서비스를 다시 켠다. 재부팅 직후에는 포그라운드 서비스를 켜지 않고 알람만 되살린다
+    // (위치 결합 스펙 7.3). 서비스가 없으면 알람은 마지막으로 옮겨진 시각대로 울린다.
+    val service = listOfNotNull(SessionEffect.StartSessionService.takeIf { state.tracking != null && !onBoot })
     val points = state.points
     val first = (state.nextIndex until points.size).firstOrNull { points[it].alightAt > now }
     if (first == null) {
@@ -39,7 +42,7 @@ private fun restoreRiding(state: SessionState.Riding, now: Long): Pair<SessionSt
         val lastEnd = state.endAt ?: points.lastOrNull()?.let { it.alertAt + END_AFTER_LAST_MS }
         return if (lastEnd != null && lastEnd > now) {
             state.copy(nextIndex = points.size, endAt = lastEnd) to
-                listOf(SessionEffect.Schedule(AlarmId.SessionEnd, lastEnd), SessionEffect.UpdateOngoing)
+                service + listOf(SessionEffect.Schedule(AlarmId.SessionEnd, lastEnd), SessionEffect.UpdateOngoing)
         } else {
             SessionState.Idle to listOf(SessionEffect.ClearOngoing, SessionEffect.Finished(EndReason.ARRIVED))
         }
@@ -47,5 +50,5 @@ private fun restoreRiding(state: SessionState.Riding, now: Long): Pair<SessionSt
     // 건너뛴 지점의 알람이 늦게 울려 이미 지난 역을 알리지 않게 취소한다.
     val skipped = (state.nextIndex until first).map { SessionEffect.CancelAlarm(AlarmId.Alight(it)) }
     val schedules = (first until points.size).map { SessionEffect.Schedule(AlarmId.Alight(it), maxOf(points[it].alertAt, now)) }
-    return state.copy(nextIndex = first) to skipped + schedules + SessionEffect.UpdateOngoing
+    return state.copy(nextIndex = first) to service + skipped + schedules + SessionEffect.UpdateOngoing
 }

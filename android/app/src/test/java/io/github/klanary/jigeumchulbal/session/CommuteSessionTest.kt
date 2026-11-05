@@ -34,7 +34,7 @@ class CommuteSessionTest {
     @Test fun startWaitingStartsServiceAndSetsDeadline() {
         val s = CommuteSession({ now })
         assertEquals(
-            listOf(SessionEffect.StartWaitingService, SessionEffect.UpdateOngoing),
+            listOf(SessionEffect.StartSessionService, SessionEffect.UpdateOngoing),
             s.handle(SessionEvent.StartWaiting(target, WaitMode.DEPARTURE_TIMING, null, 420, settings)),
         )
         assertEquals(1_800_000L, (s.state as SessionState.Waiting).deadlineAt)
@@ -103,7 +103,7 @@ class CommuteSessionTest {
         val s = waiting()
         now = 500_000
         val effects = s.handle(SessionEvent.Boarded)
-        assertEquals(SessionEffect.StopWaitingService, effects.first())
+        assertEquals(SessionEffect.StopSessionService, effects.first())
         assertEquals(500_000L + 600_000L, (s.state as SessionState.Riding).points.single().alightAt) // 스펙 예시: 지하철 600초
     }
 

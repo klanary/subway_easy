@@ -149,6 +149,7 @@ class FakeRouteRepository : RouteRepository {
     var result: ApiResult<RoutesDto> =
         ApiResult.Ok(RoutesDto(updatedAt = "2026-11-03T08:00:00+09:00", routes = listOf(specRoute())))
     val calls = mutableListOf<Triple<Endpoint, Endpoint, Endpoint?>>()
+    val lastVia: Endpoint? get() = calls.lastOrNull()?.third
 
     override suspend fun routes(origin: Endpoint, dest: Endpoint, via: Endpoint?): ApiResult<RoutesDto> {
         calls += Triple(origin, dest, via)

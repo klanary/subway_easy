@@ -30,6 +30,10 @@ object Copy {
     const val ORIGIN = "출발"
     const val DEST = "도착"
     const val DEST_HINT = "도착지를 검색하세요"
+    const val VIA = "경유"
+    const val VIA_HINT = "경유지를 검색하세요"
+    const val ADD_VIA = "+ 경유지"
+    const val REMOVE_VIA = "경유지 지우기"
     const val SWAP = "출발·도착 바꾸기"
     const val SEARCH_ROUTES = "경로 검색"
 

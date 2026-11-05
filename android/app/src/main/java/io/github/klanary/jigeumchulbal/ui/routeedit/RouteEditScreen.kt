@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +72,19 @@ fun RouteEditScreen(viewModel: RouteFlowViewModel, destMyPlaceId: Long?, navCont
                     hint = state.originHint ?: Copy.ORIGIN_HINT,
                     onClick = { navController.navigate(SearchDest(Slot.ORIGIN)) },
                 )
+                if (state.viaVisible) {
+                    EndpointRow(
+                        label = Copy.VIA,
+                        value = state.via?.label,
+                        hint = Copy.VIA_HINT,
+                        onClick = { navController.navigate(SearchDest(Slot.VIA)) },
+                        trailing = {
+                            IconButton(onClick = viewModel::toggleVia) {
+                                Icon(Icons.Filled.Close, contentDescription = Copy.REMOVE_VIA)
+                            }
+                        },
+                    )
+                }
                 EndpointRow(
                     label = Copy.DEST,
                     value = state.dest?.label,
@@ -80,6 +94,9 @@ fun RouteEditScreen(viewModel: RouteFlowViewModel, destMyPlaceId: Long?, navCont
             }
             if (state.origin == null) {
                 AssistChip(onClick = requestLocation, label = { Text(Copy.CURRENT_LOCATION) })
+            }
+            if (!state.viaVisible) {
+                TextButton(onClick = viewModel::toggleVia) { Text(Copy.ADD_VIA) }
             }
             TextButton(onClick = viewModel::swap) { Text(Copy.SWAP) }
             Button(
@@ -97,7 +114,13 @@ fun RouteEditScreen(viewModel: RouteFlowViewModel, destMyPlaceId: Long?, navCont
 }
 
 @Composable
-private fun EndpointRow(label: String, value: String?, hint: String, onClick: () -> Unit) {
+private fun EndpointRow(
+    label: String,
+    value: String?,
+    hint: String,
+    onClick: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
+) {
     ListItem(
         overlineContent = { Text(label) },
         headlineContent = {
@@ -107,6 +130,7 @@ private fun EndpointRow(label: String, value: String?, hint: String, onClick: ()
                 Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
+        trailingContent = trailing,
         modifier = Modifier.clickable(onClick = onClick),
     )
 }

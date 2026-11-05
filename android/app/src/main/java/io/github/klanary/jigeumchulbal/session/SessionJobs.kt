@@ -7,6 +7,10 @@ import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
 import io.github.klanary.jigeumchulbal.tracking.TRACKED_LINES
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 // 세션 서비스가 지금 상태에서 할 일(위치 결합 스펙 7.3). 안드로이드 서비스와 떼어 순수 함수로 테스트한다.
 
@@ -63,23 +67,35 @@ fun sessionServiceType(hasLocationPermission: Boolean, sdkInt: Int): Int = when 
 }
 
 /**
- * 할 일이 없어질 때까지 지금 상태에 맞는 일을 돌린다. 각 일은 상태가 바뀌어야 끝난다(대기 조회는 대기가 끝나면,
- * 추적은 열차를 모르게 되거나 탑승이 끝나면, 감지는 탑승을 알아내 사건을 보내면).
+ * 할 일이 없어질 때까지 지금 상태에 맞는 일을 돌린다. 할 일의 종류가 바뀌면 지금 일을 바로 멈추고 다음 일로 넘어간다.
+ * 탑승 감지는 위치만 기다려 스스로 끝나지 않으므로, 그사이 직접 고르기로 열차를 정하면 이렇게 멈춰야 추적이 시작된다.
+ * 조회도 다음 조회까지 기다리지 않고 곧바로 넘어간다. 일을 멈춰도 상태 전환은 컨트롤러가 끝까지 한다.
  */
 suspend fun runSessionJobs(
-    state: () -> SessionState,
+    states: StateFlow<SessionState>,
     canDetect: () -> Boolean,
     wait: suspend () -> Unit,
     track: suspend () -> Unit,
     detect: suspend (withWaiting: Boolean) -> Unit,
 ) {
     while (true) {
-        when (sessionJob(state(), canDetect())) {
-            SessionJob.NONE -> return
-            SessionJob.WAIT -> wait()
-            SessionJob.WAIT_AND_DETECT -> detect(true)
-            SessionJob.TRACK -> track()
-            SessionJob.DETECT -> detect(false)
+        val job = sessionJob(states.value, canDetect())
+        if (job == SessionJob.NONE) return
+        coroutineScope {
+            val work = launch {
+                when (job) {
+                    SessionJob.WAIT -> wait()
+                    SessionJob.WAIT_AND_DETECT -> detect(true)
+                    SessionJob.TRACK -> track()
+                    SessionJob.DETECT -> detect(false)
+                    SessionJob.NONE -> Unit
+                }
+            }
+            val watcher = launch {
+                states.first { sessionJob(it, canDetect()) != job }
+                work.cancel()
+            }
+            work.invokeOnCompletion { watcher.cancel() }
         }
     }
 }
@@ -101,7 +117,7 @@ suspend fun runSessionWork(
     canDetect: () -> Boolean,
     detect: suspend (withWaiting: Boolean) -> Unit,
 ) = runSessionJobs(
-    state = { controller.state.value },
+    states = controller.state,
     canDetect = canDetect,
     wait = { waitingPoller(controller, stations, clock).run() },
     track = {

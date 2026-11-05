@@ -6,11 +6,13 @@ import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.remote.ApiCaller
 import io.github.klanary.jigeumchulbal.data.remote.ApiService
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
+import io.github.klanary.jigeumchulbal.data.remote.LineTrainsDto
 import io.github.klanary.jigeumchulbal.data.remote.NetworkMonitor
 import io.github.klanary.jigeumchulbal.data.remote.PlaceSearchDto
 import io.github.klanary.jigeumchulbal.data.remote.ReverseDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationSearchDto
+import io.github.klanary.jigeumchulbal.data.remote.TrainEtaDto
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -41,6 +43,8 @@ class RecordingApiService : ApiService {
     override suspend fun arrivals(id: String, line: String?, towards: String?): ArrivalsDto = error("not used")
     override suspend fun searchPlaces(q: String, lat: Double?, lng: Double?): PlaceSearchDto = error("not used")
     override suspend fun reverse(lat: Double, lng: Double): ReverseDto = error("not used")
+    override suspend fun lineTrains(line: String, station: String, toward: String?): LineTrainsDto = error("not used")
+    override suspend fun trainEta(trainNo: String, line: String, to: String): TrainEtaDto = error("not used")
 }
 
 class RouteRepositoryTest {

@@ -22,6 +22,7 @@ fun departurePlan(trains: List<TrainDto>, receivedAt: Long, travelSec: Int, marg
         alertAt = receivedAt + (sec - travelSec - marginSec) * SECOND_MS,
         trainArrivalAt = receivedAt + sec * SECOND_MS,
         destination = dto.destination,
+        trainNo = dto.trainNo,
     )
 }
 
@@ -32,6 +33,7 @@ fun minutesBeforePlan(trains: List<TrainDto>, receivedAt: Long, leadSec: Int, no
         alertAt = maxOf(now, receivedAt + (sec - leadSec) * SECOND_MS),
         trainArrivalAt = receivedAt + sec * SECOND_MS,
         destination = dto.destination,
+        trainNo = dto.trainNo,
     )
 }
 

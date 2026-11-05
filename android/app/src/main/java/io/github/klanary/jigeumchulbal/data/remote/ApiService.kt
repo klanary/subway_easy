@@ -29,6 +29,22 @@ interface ApiService {
     @GET("v1/places/reverse")
     suspend fun reverse(@Query("lat") lat: Double, @Query("lng") lng: Double): ReverseDto
 
+    /** 역 앞뒤 3정거장 안의 열차(위치 결합 스펙 6.3). [toward]를 주면 그쪽으로 가는 열차만. */
+    @GET("v1/lines/{line}/trains")
+    suspend fun lineTrains(
+        @Path("line") line: String,
+        @Query("station") station: String,
+        @Query("toward") toward: String?,
+    ): LineTrainsDto
+
+    /** 탄 열차가 내릴 역([to])까지 남은 시간. */
+    @GET("v1/trains/{trainNo}")
+    suspend fun trainEta(
+        @Path("trainNo") trainNo: String,
+        @Query("line") line: String,
+        @Query("to") to: String,
+    ): TrainEtaDto
+
     @GET("v1/routes")
     suspend fun routes(
         @Query("from") from: String,

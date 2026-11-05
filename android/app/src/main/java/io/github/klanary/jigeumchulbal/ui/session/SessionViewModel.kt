@@ -3,6 +3,8 @@ package io.github.klanary.jigeumchulbal.ui.session
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.klanary.jigeumchulbal.data.remote.ApiResult
+import io.github.klanary.jigeumchulbal.data.remote.TrainNearDto
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
 import io.github.klanary.jigeumchulbal.session.SessionController
@@ -10,6 +12,7 @@ import io.github.klanary.jigeumchulbal.session.SessionEvent
 import io.github.klanary.jigeumchulbal.session.SessionState
 import io.github.klanary.jigeumchulbal.session.SessionUiEvent
 import io.github.klanary.jigeumchulbal.session.TrainPlan
+import io.github.klanary.jigeumchulbal.session.TrainSource
 import io.github.klanary.jigeumchulbal.session.WaitMode
 import io.github.klanary.jigeumchulbal.session.ceilMinutes
 import io.github.klanary.jigeumchulbal.session.currentPoint
@@ -23,9 +26,11 @@ import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
@@ -64,6 +69,41 @@ class SessionViewModel(
 
     fun cancel() {
         viewModelScope.launch { controller.dispatch(SessionEvent.Cancel) }
+    }
+
+    private val _picker = MutableStateFlow<PickerState>(PickerState.Hidden)
+
+    /** 탄 열차 직접 고르기 목록(⑭ 3번, 위치 결합 스펙 7.1). */
+    val picker: StateFlow<PickerState> = _picker.asStateFlow()
+
+    /** 지금 추적 중인 단계의 탈 역 근처에서, 그 단계의 다음 정거장 쪽으로 가는 열차를 불러온다. */
+    fun openTrainPicker() {
+        val riding = controller.state.value as? SessionState.Riding ?: return
+        val tracking = riding.tracking ?: return
+        val point = riding.points.getOrNull(tracking.pointIndex)
+        val station = point?.boardStationId ?: return
+        _picker.value = PickerState.Loading
+        viewModelScope.launch {
+            _picker.value = when (val result = trains.near(tracking.line, station, point.nextStop)) {
+                is ApiResult.Ok -> PickerState.Loaded(result.value.trains)
+                is ApiResult.Err -> PickerState.Failed(pickerErrorMessage(result.error))
+            }
+        }
+    }
+
+    /** 고른 열차로 정한다. 세션 서비스가 꺼져 있었으면 상태 머신이 다시 켠다. */
+    fun chooseTrain(train: TrainNearDto) {
+        _picker.value = PickerState.Hidden
+        val tracking = (controller.state.value as? SessionState.Riding)?.tracking ?: return
+        viewModelScope.launch {
+            controller.dispatch(
+                SessionEvent.TrainIdentified(tracking.pointIndex, train.trainNo, TrainSource.MANUAL, train.destination),
+            )
+        }
+    }
+
+    fun closeTrainPicker() {
+        _picker.value = PickerState.Hidden
     }
 
     /**

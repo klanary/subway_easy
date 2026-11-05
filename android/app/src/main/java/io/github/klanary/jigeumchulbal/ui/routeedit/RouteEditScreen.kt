@@ -37,11 +37,22 @@ import io.github.klanary.jigeumchulbal.ui.common.Copy
 /** 경로 편집. 출발 기본값은 현재 위치이고, 칸을 누르면 통합 검색이 열린다(스펙 4.2). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RouteEditScreen(viewModel: RouteFlowViewModel, destMyPlaceId: Long?, navController: NavController) {
+fun RouteEditScreen(
+    viewModel: RouteFlowViewModel,
+    destMyPlaceId: Long?,
+    navController: NavController,
+    favoriteRouteId: Long? = null,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.useCurrentLocation() }
 
     LaunchedEffect(Unit) {
+        if (favoriteRouteId != null) {
+            // 홈의 자주 가는 경로 카드: 편집을 건너뛰고 바로 경로 결과(⑨). 결과에서 뒤로 오면 편집 화면이다.
+            viewModel.init(destMyPlaceId, favoriteRouteId)
+            navController.navigate(RoutesDest)
+            return@LaunchedEffect
+        }
         viewModel.init(destMyPlaceId)
         // 홈 검색창으로 들어와 도착이 비어 있으면 바로 검색을 연다(한 번만).
         if (destMyPlaceId == null && viewModel.consumeAutoOpenSearch()) {

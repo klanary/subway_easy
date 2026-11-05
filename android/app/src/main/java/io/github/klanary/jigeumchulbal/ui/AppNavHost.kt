@@ -55,7 +55,8 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
             val flow = routeFlowEntry(navController, entry)
             val viewModel = routeFlowViewModel(flow)
             entry.OnPickResult(viewModel::apply)
-            RouteEditScreen(viewModel, flow.toRoute<RouteFlowGraph>().destMyPlaceId, navController)
+            val args = flow.toRoute<RouteFlowGraph>()
+            RouteEditScreen(viewModel, args.destMyPlaceId, navController, favoriteRouteId = args.favoriteRouteId)
         }
         composable<RoutesDest> { entry ->
             RoutesScreen(routeFlowViewModel(routeFlowEntry(navController, entry)), navController)
@@ -82,7 +83,7 @@ private fun routeFlowEntry(navController: NavController, entry: NavBackStackEntr
 
 @Composable
 private fun routeFlowViewModel(flow: NavBackStackEntry): RouteFlowViewModel =
-    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.myPlaceRepository, it.locationProvider) }
+    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.myPlaceRepository, it.locationProvider, it.favoriteRepository) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

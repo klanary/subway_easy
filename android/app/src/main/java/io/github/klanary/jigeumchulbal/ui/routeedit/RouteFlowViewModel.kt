@@ -4,9 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.klanary.jigeumchulbal.data.model.Endpoint
 import io.github.klanary.jigeumchulbal.data.model.EndpointKind
+import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.model.toEndpoint
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
+import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
+import io.github.klanary.jigeumchulbal.data.remote.ApiResult
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.location.LocationProvider
@@ -19,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -32,6 +37,7 @@ data class RouteFlowState(
     val results: UiState<RoutesDto>? = null,
     val receivedAt: Long? = null,
     val selectedRouteId: String? = null,
+    val isFavorite: Boolean = false,
 ) {
     val canSearch: Boolean get() = origin != null && dest != null
 
@@ -44,6 +50,7 @@ class RouteFlowViewModel(
     private val routes: RouteRepository,
     private val myPlaces: MyPlaceRepository,
     private val location: LocationProvider,
+    private val favorites: FavoriteRepository,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RouteFlowState())
@@ -53,10 +60,22 @@ class RouteFlowViewModel(
     private var autoOpenConsumed = false
     private var searchJob: Job? = null
 
-    /** 홈 검색창이면 [destMyPlaceId]가 null, 내 장소 칩이면 그 장소를 도착에 넣는다. 한 번만 실행한다. */
-    fun init(destMyPlaceId: Long?) {
+    /**
+     * 홈 검색창이면 [destMyPlaceId]가 null, 내 장소 칩이면 그 장소를 도착에 넣는다.
+     * [favoriteRouteId]가 있으면 그 즐겨찾기의 출발·경유·도착을 넣고 바로 검색한다(⑨, 홈 카드 1탭). 한 번만 실행한다.
+     */
+    fun init(destMyPlaceId: Long?, favoriteRouteId: Long? = null) {
         if (initialized) return
         initialized = true
+        if (favoriteRouteId != null) {
+            autoOpenConsumed = true
+            viewModelScope.launch {
+                val fav = favorites.routes.first().find { it.id == favoriteRouteId } ?: return@launch
+                _state.update { fav.toFlowState() }
+                search()
+            }
+            return
+        }
         viewModelScope.launch {
             val dest = destMyPlaceId?.let { myPlaces.get(it)?.toEndpoint() }
             if (dest != null) _state.update { it.copy(dest = dest) }
@@ -100,12 +119,28 @@ class RouteFlowViewModel(
         _state.update { it.copy(results = UiState.Loading, selectedRouteId = null) }
         searchJob = viewModelScope.launch {
             val result = routes.routes(origin, dest, current.via)
+            val at = clock()
+            if (result is ApiResult.Ok) favorites.recordUsageIfFavorite(origin, current.via, dest, at)
+            val favorite = favorites.findRoute(origin, current.via, dest) != null
             _state.update {
                 it.copy(
                     results = result.toUiState(isEmpty = { dto -> dto.routes.isEmpty() }, isStale = { dto -> dto.stale }),
-                    receivedAt = clock(),
+                    receivedAt = at,
+                    isFavorite = favorite,
                 )
             }
+        }
+    }
+
+    /** 경로 상세의 [★]. 지금 출발·경유·도착을 자주 가는 경로에 넣거나 뺀다. */
+    fun toggleFavorite() {
+        val current = _state.value
+        val origin = current.origin ?: return
+        val dest = current.dest ?: return
+        viewModelScope.launch {
+            val existing = favorites.findRoute(origin, current.via, dest)
+            if (existing != null) favorites.removeRoute(existing.id) else favorites.addRoute(origin, current.via, dest)
+            _state.update { it.copy(isFavorite = existing == null) }
         }
     }
 
@@ -137,5 +172,17 @@ class RouteFlowViewModel(
     }
 
     /** 출발·도착이 바뀌면 이전 검색 결과는 맞지 않으므로 지운다. */
-    private fun RouteFlowState.withoutResults() = copy(results = null, receivedAt = null, selectedRouteId = null)
+    private fun RouteFlowState.withoutResults() =
+        copy(results = null, receivedAt = null, selectedRouteId = null, isFavorite = false)
+
+    private fun FavoriteRouteEntity.toFlowState(): RouteFlowState {
+        fun endpoint(label: String, lat: Double, lng: Double) = Endpoint(label, GeoPoint(lat, lng), EndpointKind.PIN)
+        val via = if (viaLat != null && viaLng != null) endpoint(viaLabel ?: Copy.VIA_POINT, viaLat, viaLng) else null
+        return RouteFlowState(
+            origin = endpoint(originLabel, originLat, originLng),
+            via = via,
+            dest = endpoint(destLabel, destLat, destLng),
+            viaVisible = via != null,
+        )
+    }
 }

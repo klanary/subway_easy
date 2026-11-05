@@ -8,6 +8,7 @@ import io.github.klanary.jigeumchulbal.data.model.EndpointKind
 import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.remote.ApiError
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
+import io.github.klanary.jigeumchulbal.fakes.FakeFavoriteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeLocationProvider
 import io.github.klanary.jigeumchulbal.fakes.FakeMyPlaceRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeRouteRepository
@@ -35,7 +36,9 @@ class RouteFlowViewModelTest {
         listOf(MyPlaceEntity(7, MyPlaceType.SCHOOL, "학교", 37.4979, 127.0276, null, "강남")),
     )
 
-    private fun vm(location: LocationProvider) = RouteFlowViewModel(routes, myPlaces, location) { 1_000L }
+    private val favorites = FakeFavoriteRepository()
+    private fun vm(location: LocationProvider) = RouteFlowViewModel(routes, myPlaces, location, favorites) { 1_000L }
+    private val school = Endpoint("학교", GeoPoint(37.4979, 127.0276), EndpointKind.MY_PLACE, "강남")
 
     @Test fun originDefaultsToCurrentLocationWhenPermitted() = runTest {
         val vm = vm(FakeLocationProvider(true, here))
@@ -120,5 +123,45 @@ class RouteFlowViewModelTest {
         vm.apply(PickResult(Slot.VIA, Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.PIN)))
         vm.toggleVia()
         assertNull(vm.state.value.via)
+    }
+
+    @Test fun searchRecordsUsageWhenEndpointsMatchFavorite() = runTest {
+        favorites.addRoute(Endpoint("집", here, EndpointKind.PIN), null, school)
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        vm.search(); advanceUntilIdle()
+        assertEquals(listOf(1L to 1_000L), favorites.usages.value.map { it.routeId to it.usedAt })
+        assertTrue(vm.state.value.isFavorite)
+    }
+
+    @Test fun searchOfNonFavoriteRecordsNothing() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        vm.search(); advanceUntilIdle()
+        assertTrue(favorites.usages.value.isEmpty())
+        assertFalse(vm.state.value.isFavorite)
+    }
+
+    @Test fun toggleFavoriteAddsThenRemoves() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        vm.toggleFavorite(); advanceUntilIdle()
+        assertTrue(vm.state.value.isFavorite); assertEquals(1, favorites.routes.value.size)
+        vm.toggleFavorite(); advanceUntilIdle()
+        assertFalse(vm.state.value.isFavorite); assertTrue(favorites.routes.value.isEmpty())
+    }
+
+    @Test fun currentLocationIsNotSavedUnderItsLiveLabel() = runTest {
+        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        vm.toggleFavorite(); advanceUntilIdle()
+        assertEquals(Copy.SAVED_LOCATION, favorites.routes.value.single().originLabel)
+    }
+
+    @Test fun initFromFavoriteFillsEndpointsAndSearches() = runTest {
+        val via = Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.STATION, "경복궁")
+        favorites.addRoute(Endpoint("집", here, EndpointKind.PIN), via, school)
+        val vm = vm(FakeLocationProvider(false, null)); vm.init(destMyPlaceId = null, favoriteRouteId = 1); advanceUntilIdle()
+        val s = vm.state.value
+        assertEquals(listOf("집", "경복궁", "학교"), listOf(s.origin?.label, s.via?.label, s.dest?.label))
+        assertTrue(s.viaVisible)
+        assertEquals(1, routes.calls.size)
+        assertTrue(s.results is UiState.Content)
     }
 }

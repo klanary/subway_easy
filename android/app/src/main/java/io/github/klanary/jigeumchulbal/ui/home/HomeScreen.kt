@@ -40,6 +40,7 @@ import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
 import io.github.klanary.jigeumchulbal.session.SessionState
+import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
 import io.github.klanary.jigeumchulbal.ui.RouteFlowGraph
 import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.SettingsDest
@@ -101,6 +102,15 @@ fun HomeScreen(
                 }
             }
             item { MyPlaceChips(state.chips, navController) }
+            if (state.favoriteRoutes.isNotEmpty()) {
+                item { Text(Copy.FAVORITE_ROUTES, style = MaterialTheme.typography.titleMedium) }
+                items(state.favoriteRoutes, key = { "route-${it.id}" }) { route ->
+                    // 한 번 탭으로 경로 결과(⑨)
+                    OutlinedCard(onClick = { navController.navigate(RouteFlowGraph(favoriteRouteId = route.id)) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(favoriteRouteTitle(route), Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
             if (state.favoriteStations.isNotEmpty()) {
                 item { Text(Copy.FAVORITE_STATIONS, style = MaterialTheme.typography.titleMedium) }
                 items(state.favoriteStations, key = { it.stationId }) { station ->
@@ -110,6 +120,10 @@ fun HomeScreen(
         }
     }
 }
+
+/** "출발 → 도착", 경유지가 있으면 "출발 → 경유 → 도착". */
+private fun favoriteRouteTitle(route: FavoriteRouteEntity): String =
+    listOfNotNull(route.originLabel, route.viaLabel.takeIf { route.viaLat != null }, route.destLabel).joinToString(" → ")
 
 /** "통학 알림 진행 중 · …". 1초 시계는 이 배너만 다시 그린다. */
 @Composable

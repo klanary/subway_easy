@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,6 +96,9 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
         sheetContent = {
             // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
             if (route.hasTransit()) SessionButtons(route, startSession)
+            TextButton(onClick = viewModel::toggleFavorite, modifier = Modifier.padding(horizontal = 8.dp)) {
+                Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
+            }
             StepList(route, viaLabel = state.via?.label)
         },
     ) { padding ->

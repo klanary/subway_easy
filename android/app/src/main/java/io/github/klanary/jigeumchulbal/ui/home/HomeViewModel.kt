@@ -1,6 +1,10 @@
 package io.github.klanary.jigeumchulbal.ui.home
 
 import androidx.lifecycle.ViewModel
+import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
+import java.time.Instant
+import java.time.ZoneId
+import kotlinx.coroutines.flow.combine
 import androidx.lifecycle.viewModelScope
 import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
@@ -24,6 +28,7 @@ data class FavoriteStationUi(val stationId: String, val arrivals: UiState<Arriva
 data class HomeUiState(
     val chips: List<MyPlaceEntity> = emptyList(),
     val favoriteStations: List<FavoriteStationUi> = emptyList(),
+    val favoriteRoutes: List<FavoriteRouteEntity> = emptyList(),
 )
 
 /**
@@ -36,6 +41,7 @@ class HomeViewModel(
     private val stations: StationRepository,
     server: ServerRepository,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -46,6 +52,14 @@ class HomeViewModel(
     init {
         viewModelScope.launch { server.wake() }
         viewModelScope.launch { myPlaces.places.collect { places -> _state.update { it.copy(chips = places) } } }
+        viewModelScope.launch {
+            // 자주 가는 경로 카드: 지금 시간대에 많이 쓴 경로부터(스펙 7.2). 정렬 기준 시각은 홈을 연 때다.
+            val now = Instant.ofEpochMilli(clock()).atZone(zone)
+            val since = now.minusDays(30).toInstant().toEpochMilli()
+            combine(favorites.routes, favorites.usagesSince(since)) { routes, usages ->
+                sortFavoriteRoutes(routes, usages, now)
+            }.collect { sorted -> _state.update { it.copy(favoriteRoutes = sorted) } }
+        }
         viewModelScope.launch {
             favorites.stations.collect { list ->
                 favoriteList = list

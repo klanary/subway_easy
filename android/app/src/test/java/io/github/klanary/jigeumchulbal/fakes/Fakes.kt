@@ -1,5 +1,10 @@
 package io.github.klanary.jigeumchulbal.fakes
 
+import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
+import io.github.klanary.jigeumchulbal.data.local.RouteUsageEntity
+import io.github.klanary.jigeumchulbal.data.repository.favoriteRouteOf
+import io.github.klanary.jigeumchulbal.ui.home.sameEndpoints
+
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -78,6 +83,29 @@ class FakeFavoriteRepository(stations: List<FavoriteStationEntity> = emptyList()
         } else {
             list + FavoriteStationEntity(stationId = stationId, createdAt = 0)
         }
+    }
+
+    override val routes = MutableStateFlow<List<FavoriteRouteEntity>>(emptyList())
+    val usages = MutableStateFlow<List<RouteUsageEntity>>(emptyList())
+
+    override fun usagesSince(sinceMillis: Long): Flow<List<RouteUsageEntity>> =
+        usages.map { list -> list.filter { it.usedAt >= sinceMillis } }
+
+    override suspend fun addRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint) {
+        val id = (routes.value.maxOfOrNull { it.id } ?: 0) + 1
+        routes.value = routes.value + favoriteRouteOf(origin, via, dest, createdAt = 0).copy(id = id)
+    }
+
+    override suspend fun removeRoute(id: Long) {
+        routes.value = routes.value.filterNot { it.id == id }
+        usages.value = usages.value.filterNot { it.routeId == id }
+    }
+
+    override suspend fun findRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint): FavoriteRouteEntity? =
+        routes.value.find { sameEndpoints(it, origin, via, dest) }
+
+    override suspend fun recordUsageIfFavorite(origin: Endpoint, via: Endpoint?, dest: Endpoint, at: Long) {
+        findRoute(origin, via, dest)?.let { usages.value = usages.value + RouteUsageEntity(routeId = it.id, usedAt = at) }
     }
 }
 

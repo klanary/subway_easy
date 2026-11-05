@@ -86,7 +86,7 @@ class AppContainer(context: Context) {
     val settingsStore = SettingsStore(appContext.settingsDataStore)
 
     val myPlaceRepository: MyPlaceRepository = DefaultMyPlaceRepository(database.myPlaceDao())
-    val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteStationDao())
+    val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteStationDao(), database.favoriteRouteDao())
     val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)

@@ -58,11 +58,11 @@
 
 | 항목 | 값 |
 |---|---|
-| 파일 이름 | `server/data/raw/station_master.csv` |
+| 파일 이름 | `server/data/raw/station_master.json` (OpenAPI `subwayStationMaster`, `python -m scripts.fetch_station_master`로 받는다. 내려받은 CSV도 읽는다) |
 | 내려받은 날짜 | |
 | 인코딩 | |
-| 열 이름 | |
-| 행 수 | |
+| 열 이름 | OpenAPI: `BLDN_ID`, `BLDN_NM`, `ROUTE`, `LAT`, `LOT` (2026-11-11 샘플 키로 확인. 값 예: `0150`, `서울역`, `1호선`, `37.556228`, `126.972135`) |
+| 행 수 | 784 (`list_total_count`, 2026-11-11) |
 | 좌표가 빈 행 수 | |
 
 ### 호선 표기 목록

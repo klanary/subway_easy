@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "meta": {
+      "total_count": 1
+    },
+    "documents": [
+      {
+        "road_address": null,
+        "address": {
+          "address_name": "서울 마포구 동교동 166-13",
+          "region_1depth_name": "서울",
+          "region_2depth_name": "마포구",
+          "region_3depth_name": "동교동",
+          "mountain_yn": "N",
+          "main_address_no": "166",
+          "sub_address_no": "13",
+          "zip_code": ""
+        }
+      }
+    ]
+  }
+}

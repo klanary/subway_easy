@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": {
+    "status": "EQUAL_POINTS",
+    "properties": {
+      "total": 0,
+      "bus": 0,
+      "subway": 0,
+      "busAndSubway": 0,
+      "landingURL": "https://map.kakao.com/link/by/traffic/%ED%99%8D%EB%8C%80%EC%9E%85%EA%B5%AC%EC%97%AD,37.557100,126.924500/%ED%99%8D%EB%8C%80%EC%9E%85%EA%B5%AC%EC%97%AD,37.557100,126.924500"
+    },
+    "routes": []
+  }
+}

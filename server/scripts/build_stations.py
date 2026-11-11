@@ -29,10 +29,36 @@ COLUMNS: dict[str, tuple[str, ...]] = {
 }
 
 # 역 id → 서울시 실시간 API에 넣을 조회 이름 (스펙 6.5의 공식 예외 목록).
-API_NAME_EXCEPTIONS: dict[str, str] = {}
+API_NAME_EXCEPTIONS: dict[str, str] = {
+    "응암": "응암순환(상선)",
+    "공릉": "공릉(서울산업대입구)",
+    "남한산성입구": "남한산성입구(성남법원, 검찰청)",
+    "대모산입구": "대모산",
+    "천호": "천호(풍납토성)",
+    "몽촌토성": "몽촌토성(평화의문)",
+}
 
 # (정규화 이름, 호선) → 따로 나눌 역 id. 이름은 같지만 1km 넘게 떨어진 역이다.
 SEPARATE_STATIONS: dict[tuple[str, str], str] = {("양평", "경의중앙선"): "양평(경의중앙선)"}
+
+# (원본 역명, 원본 호선) → (고친 역명, 고친 호선). 원본이 실제와 다른 행만 적는다.
+# - 경원선의 용산~청량리 구간 역에는 1호선이 아니라 경의중앙선이 선다.
+# - GTX-A의 "운정"은 경의중앙선 운정과 3.6km 떨어진 다른 역(운정중앙)이다.
+ROW_FIXES: dict[tuple[str, str], tuple[str, str]] = {
+    **{
+        (name, "경원선"): (name, "경의중앙선")
+        for name in (
+            "이촌(국립중앙박물관)",
+            "서빙고",
+            "한남",
+            "옥수",
+            "응봉",
+            "왕십리(성동구청)",
+            "청량리(서울시립대입구)",
+        )
+    },
+    ("운정", "수도권 광역급행철도"): ("운정중앙", "수도권 광역급행철도"),
+}
 
 MAX_SAME_STATION_M = 1_000
 
@@ -93,11 +119,14 @@ def _to_rows(records: list[dict]) -> tuple[list[MasterRow], int]:
         if not lat or not lng:
             skipped += 1
             continue
+        name = " ".join(str(record[names["name"]]).split())
+        raw_line = " ".join(str(record[names["line"]]).split())
+        name, raw_line = ROW_FIXES.get((name, raw_line), (name, raw_line))
         rows.append(
             MasterRow(
                 master_id=str(record[names["master_id"]]).strip(),
-                name=" ".join(str(record[names["name"]]).split()),
-                line=normalize_line(str(record[names["line"]])),
+                name=name,
+                line=normalize_line(raw_line),
                 lat=float(lat),
                 lng=float(lng),
             )

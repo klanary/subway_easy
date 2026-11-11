@@ -143,3 +143,47 @@ def test_fetch_all_raises_on_error_body():
     )
     with httpx.Client() as client, pytest.raises(RuntimeError, match="INFO-100"):
         fetch_all(client, "K")
+
+
+_KEYS = ("BLDN_ID", "BLDN_NM", "ROUTE", "LAT", "LOT")
+
+
+def _rows_from(tmp_path, *records):
+    p = tmp_path / "m.json"
+    p.write_text(json.dumps([dict(zip(_KEYS, r, strict=True)) for r in records]))
+    return read_master(p)[0]
+
+
+def test_track_names_become_operating_lines(tmp_path):
+    """원본의 호선 칸은 선로 이름이다(실제 데이터). 운영 호선으로 바꾼다."""
+    rows = _rows_from(
+        tmp_path,
+        ("1", "수원", "경부선", "37.26", "127.00"),
+        ("2", "대화", "일산선", "37.67", "126.74"),
+        ("3", "오이도", "안산선", "37.36", "126.73"),
+        ("4", "다산", "별내선", "37.62", "127.15"),
+        ("5", "석촌", "9호선(연장)", "37.50", "127.10"),
+        ("6", "광교", "신분당선(연장)", "37.30", "127.04"),
+        ("7", "킨텍스", "수도권 광역급행철도", "37.67", "126.75"),
+        ("8", "소요산", "경원선", "37.94", "127.06"),
+    )
+    lines = ["1호선", "3호선", "4호선", "8호선", "9호선", "신분당선", "GTX-A", "1호선"]
+    assert [r.line for r in rows] == lines
+
+
+def test_row_fixes_split_gyeongwon_and_rename_gtx_unjeong(tmp_path):
+    """경원선 용산~청량리 구간은 경의중앙선이고, GTX-A '운정'은 다른 역(운정중앙)이다."""
+    rows = _rows_from(
+        tmp_path,
+        ("1", "옥수", "경원선", "37.54", "127.01"),
+        ("2", "왕십리(성동구청)", "경원선", "37.56", "127.03"),
+        ("3", "운정", "수도권 광역급행철도", "37.71614", "126.72841"),
+        ("4", "운정", "경의중앙선", "37.725826", "126.767257"),
+    )
+    assert [(r.name, r.line) for r in rows] == [
+        ("옥수", "경의중앙선"),
+        ("왕십리(성동구청)", "경의중앙선"),
+        ("운정중앙", "GTX-A"),
+        ("운정", "경의중앙선"),
+    ]
+    assert {s.id for s in build(rows, separate={}, api_names={}).stations} >= {"운정", "운정중앙"}

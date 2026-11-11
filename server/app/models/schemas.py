@@ -33,3 +33,15 @@ class MetricsResponse(ApiModel):
     cache: CacheStats
     upstream: dict[str, UpstreamStats]
     unmatched_stations: int
+
+
+class StationItem(ApiModel):
+    id: str
+    name: str
+    lines: list[str]
+    lat: float
+    lng: float
+
+
+class StationSearchResponse(ApiModel):
+    items: list[StationItem]

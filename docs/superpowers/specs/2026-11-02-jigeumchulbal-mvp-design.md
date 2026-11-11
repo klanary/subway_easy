@@ -215,19 +215,6 @@ subway_easy/
 
 ### 6.1 외부 API
 
-> **2026-11-12 변경: 카카오를 쓰지 않는다.** 2026년 7월 이후 새로 만드는 카카오 앱은 카카오맵 API를 쓰려면 결제 수단(비즈월렛)을 연결해야 한다. 아래 표의 카카오 네 줄을 다음으로 바꾼다. 이 문서의 다른 절에 남은 "카카오 경로·로컬·지도"는 모두 이 대체 API를 뜻한다. 요청·응답 형식은 `docs/analysis/api-verification.md` §3에서 실제 응답으로 확정한다.
->
-> | 쓰임 | 대체 API | 키 |
-> |---|---|---|
-> | 대중교통 경로 | ODsay `GET https://api.odsay.com/v1/api/searchPubTransPathT` (`SX`, `SY`, `EX`, `EY`, `apiKey`). 경로선 좌표는 `loadLane` | ODsay 키 (`ODSAY_API_KEY`) |
-> | 장소 검색 | VWorld 검색 API `GET https://api.vworld.kr/req/search` (`type=PLACE`) | VWorld 키 (`VWORLD_API_KEY`) |
-> | 좌표 → 주소 | VWorld 지오코더 `GET https://api.vworld.kr/req/address` (`request=getAddress`, `point=경도,위도`) | VWorld 키 |
-> | 앱 지도 | MapLibre Native Android(오픈소스, SDK 키 없음) + VWorld 배경지도 타일(`https://api.vworld.kr/req/wmts/1.0.0/{키}/Base/{z}/{y}/{x}.png`) | VWorld 키(앱 `local.properties`의 `vworld.apiKey`) |
->
-> - 서버 응답 형식(6.2)과 앱 화면은 바꾸지 않는다. 바뀌는 것은 서버의 외부 연결 계층과 앱의 지도 감싸개뿐이다.
-> - ODsay는 정차역마다 좌표를 주므로 경로 지도와 탑승 감지에 그대로 쓸 수 있다.
-> - 무료 한도는 키를 받은 뒤 확인해 설정값(`ODSAY_DAILY_LIMIT`, `VWORLD_SEARCH_DAILY_LIMIT`, `VWORLD_ADDRESS_DAILY_LIMIT`)을 정한다.
-
 | API | 용도 | 일일 한도 (설정값 기본) | 키 |
 |---|---|---|---|
 | 서울시 지하철 실시간 도착정보 (`realtimeStationArrival`) | 역 실시간 도착 | 1,000회 (인증키 1개당) | 서울 열린데이터광장 실시간 지하철 인증키 |
@@ -839,7 +826,6 @@ README와 앱의 설정 > 정보 화면에 서울 열린데이터광장과 카�
    - 원본 파일을 내려받아 컬럼 이름과 좌표 형식을 확인한다.
    - 실시간 API 이름 예외 목록을 데이터셋 안내 문구에서 수집한다.
 3. **카카오**
-   - (2026-11-12부터 카카오 대신 ODsay와 VWorld를 쓴다. 아래 카카오 항목은 두 서비스의 키 발급, 무료 한도 확인, 응답 샘플 저장으로 바꿔 읽는다.)
    - 이 프로젝트용 앱을 만들고 카카오맵 API를 활성화한 뒤, 무료 쿼터 적용 여부를 확인한다.
    - 앱이 "테스트앱" 설정이 아닌지 확인한다. 테스트앱은 하루 쿼터가 아주 작아 경로 조회가 `code: -10`으로 실패한다.
    - 대중교통 경로 응답 샘플 3개 이상(지하철만, 버스+지하철, 환승 포함)을 저장하고, 지하철 단계의 호선 이름 표기를 확인한다.
@@ -863,12 +849,6 @@ README와 앱의 설정 > 정보 화면에 서울 열린데이터광장과 카�
 - Android 정확한 알람: https://developer.android.com/about/versions/14/changes/schedule-exact-alarms
 - Android 절전 모드(Doze): https://developer.android.com/training/monitoring-device-state/doze-standby
 
-- ODsay 대중교통 길찾기: https://lab.odsay.com/guide/releaseReference
-- VWorld 검색 API: https://www.vworld.kr/dev/v4dv_search2_s001.do
-- VWorld 지오코더 API: https://www.vworld.kr/dev/v4dv_geocoderguide2_s002.do
-- VWorld WMTS 배경지도: https://www.vworld.kr/dev/v4dv_wmtsguide_s001.do
-- MapLibre Native Android: https://maplibre.org/maplibre-native/android/
-
 ## 부록 B. 변경 이력
 
 | 날짜 | 위치 | 내용 | 이유 |
@@ -884,4 +864,3 @@ README와 앱의 설정 > 정보 화면에 서울 열린데이터광장과 카�
 | 2026-11-02 | 8.6, 8.7 | 알림 권한 거부 시 동작, 복원 시 지난 지점 처리 | 해석이 갈리는 문장 보완 |
 | 2026-11-05 | 머리말, 2, 3.1, 3.2, 3.4, 6.1, 6.2, 6.4, 6.5, 6.7, 8.2, 8.3, 8.6, 10.1 | 위치 결합 도착 시간(⑬)·탑승 열차 정하기(⑭) 추가, ⑪을 1차 범위로, 공식 역 이름 예외 목록, 생성 시각 보정을 안내 문구 계산까지 넓힘 | 사용자 요청과 2026-11-05 실제 응답·데이터셋 문서 확인 (`2026-11-05-train-position-fusion-design.md`) |
 | 2026-11-11 | 2, 11, 14 | S4를 "첫 실기기 실행부터 제출까지"로, 일정은 재설계 문서로, 14절에 카카오 테스트앱 확인 추가 | 1단계 확인 없이 앱이 앞서 나가 실제 데이터로 동작한 흐름이 없었다. 남은 14일에 맞춰 순서와 범위를 다시 정했다 |
-| 2026-11-12 | 6.1, 14, 부록 A | 카카오(경로·로컬·지도 SDK)를 ODsay, VWorld, MapLibre로 대체 | 새 카카오 앱은 결제 수단 연결이 필요해 사용자가 무료 공개 API로 바꾸기로 했다 |

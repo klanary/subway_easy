@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.core.container import AppServices, get_services
 from app.core.errors import InvalidRequest
-from app.models.schemas import StationItem, StationSearchResponse
+from app.models.schemas import ArrivalsResponse, StationItem, StationSearchResponse
 
 router = APIRouter()
 
@@ -28,3 +28,17 @@ async def search_stations(
             for s in services.stations.search(query, limit)
         ]
     )
+
+
+@router.get("/v1/stations/{station_id}/arrivals", response_model=ArrivalsResponse)
+async def station_arrivals(
+    station_id: str,
+    request: Request,
+    services: Annotated[AppServices, Depends(get_services)],
+    line: str | None = None,
+    towards: str | None = None,
+) -> ArrivalsResponse:
+    """호선·방향별 다음 열차 최대 2대(스펙 6.2). 서울시 응답은 20초 동안 캐시한다."""
+    response, cache_status = await services.arrivals.get_arrivals(station_id, line, towards)
+    request.state.cache_status = cache_status
+    return response

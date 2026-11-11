@@ -92,18 +92,6 @@
 
 ## §3 카카오
 
-> **2026-11-12: 카카오를 쓰지 않는다**(스펙 6.1). 이 절은 ODsay(경로)와 VWorld(장소 검색, 좌표→주소, 지도 타일)로 바꿔 채운다. 아래 카카오 표는 기록으로만 남긴다.
->
-> | 항목 | 문서로 확인한 값(2026-11-12, 실제 호출 전) |
-> |---|---|
-> | ODsay 경로 | `GET https://api.odsay.com/v1/api/searchPubTransPathT`, 필수 `apiKey`, `SX`, `SY`, `EX`, `EY`. 응답 `result.path[]`, `info.totalTime`·`payment`·`busTransitCount`·`subwayTransitCount`, `subPath[]`의 `trafficType`(1 지하철, 2 버스, 3 도보)·`sectionTime`·`distance`·`lane[].name`/`busNo`·`startName`·`endName`·`way`·`passStopList.stations[]`(`stationName`, `x`, `y`) |
-> | ODsay 경로선 | `GET https://api.odsay.com/v1/api/loadLane`, `mapObject`. 응답 `result.lane[].section[].graphPos[]`(`x`, `y`) |
-> | ODsay 오류 | 400 검색 결과 없음, 401 필수 값 누락, 500 서버 오류(문서 기준) |
-> | VWorld 장소 검색 | `GET https://api.vworld.kr/req/search`, `request=search`, `type=PLACE`, `query`, `key`. 응답 `title`, `address.road`/`parcel`, `point.x`/`y`, `status`(`OK`, `NOT_FOUND`, `ERROR`) |
-> | VWorld 좌표→주소 | `GET https://api.vworld.kr/req/address`, `request=getAddress`, `point=경도,위도`, `key`. 응답 `result`의 `text`, `type`(ROAD/PARCEL) |
-> | VWorld 타일 | `https://api.vworld.kr/req/wmts/1.0.0/{키}/Base/{z}/{y}/{x}.png` (레벨 6~19) |
-> | 한도 초과 | VWorld `OVER_REQUEST_LIMIT`. 무료 한도 수치는 두 서비스 모두 키 발급 뒤 확인 |
-
 | 항목 | 값 |
 |---|---|
 | 앱 이름 | |

@@ -46,7 +46,7 @@
 | 경우 | 코드 | 메시지 | 서버 처리 (스펙 6.3) |
 |---|---|---|---|
 | 정상 | `INFO-000` | 정상 처리되었습니다. | 그대로 변환. `errorMessage` 안에 들어 있다 |
-| 데이터 없음 | | | 빈 `groups` (200) |
+| 데이터 없음 | `INFO-200` | 해당하는 데이터가 없습니다. | 빈 `groups` (200). 없는 역 이름과 운행이 끝난 새벽 시간 모두 이 코드다(2026-11-12 02시, 본인 키) |
 | 일일 한도 초과 | | | 만료 캐시가 있으면 `stale`, 없으면 `QUOTA_EXCEEDED` (503) |
 | 그 밖 | `ERROR-336` 등 | (요청 범위 오류 등) | `UPSTREAM_ERROR` (502) |
 
@@ -59,29 +59,39 @@
 | 항목 | 값 |
 |---|---|
 | 파일 이름 | `server/data/raw/station_master.json` (OpenAPI `subwayStationMaster`, `python -m scripts.fetch_station_master`로 받는다. 내려받은 CSV도 읽는다) |
-| 내려받은 날짜 | |
+| 내려받은 날짜 | 2026-11-11 |
 | 인코딩 | |
 | 열 이름 | OpenAPI: `BLDN_ID`, `BLDN_NM`, `ROUTE`, `LAT`, `LOT` (2026-11-11 샘플 키로 확인. 값 예: `0150`, `서울역`, `1호선`, `37.556228`, `126.972135`) |
 | 행 수 | 784 (`list_total_count`, 2026-11-11) |
-| 좌표가 빈 행 수 | |
+| 좌표가 빈 행 수 | 0 |
 
 ### 호선 표기 목록
 
-호선 열의 서로 다른 값을 그대로 적는다.
+호선 열의 서로 다른 값을 그대로 적는다. **운영 호선이 아니라 선로 이름이다.** 괄호 안은 빌드가 바꾸는 운영 호선이다(`normalize.LINE_ALIASES`).
 
--
+- 1호선, 2호선, 3호선, 4호선, 5호선, 6호선, 7호선, 8호선, 9호선, 경의중앙선, 경춘선, 경강선, 서해선, 신분당선, 우이신설선, 신림선, 인천1호선, 인천2호선, 김포골드라인, 에버라인선, 의정부선
+- 경부선·경인선·장항선(1호선), 경원선(1호선. 단 이촌·서빙고·한남·옥수·응봉·왕십리·청량리 행은 경의중앙선), 일산선(3호선), 과천선·안산선·진접선(4호선), 별내선(8호선), 9호선(연장)(9호선), 7호선(인천)(7호선), 신분당선(연장)·신분당선(연장2)(신분당선), 중앙선(경의중앙선), 분당선·수인선(수인분당선), 공항철도1호선(공항철도), 수도권 광역급행철도(GTX-A)
+- 빌드 결과: 역 655개, 호선 연결 784개, 별칭 132개
 
 ### 실시간 API 이름 예외
 
 | 역 id | api_name | 근거 |
 |---|---|---|
-| | | |
+| 응암 | 응암순환(상선) | 데이터셋 안내(스펙 6.5) |
+| 공릉 | 공릉(서울산업대입구) | 〃 |
+| 남한산성입구 | 남한산성입구(성남법원, 검찰청) | 〃 |
+| 대모산입구 | 대모산 | 〃 |
+| 천호 | 천호(풍납토성) | 〃 |
+| 몽촌토성 | 몽촌토성(평화의문) | 〃 |
+
+실제 조회로는 아직 확인하지 못했다. 2026-11-12 새벽에는 모든 역이 `INFO-200`이었다. 낮에 다시 확인한다.
 
 ### 같은 이름·1km 넘게 떨어진 역
 
 | 이름 | 호선 | 좌표 | 나눌 id |
 |---|---|---|---|
-| | | | |
+| 양평 | 경의중앙선(원본 "중앙선") | 37.4928, 127.4918 (5호선 양평과 53.6km) | `양평(경의중앙선)` |
+| 운정 | GTX-A(원본 "수도권 광역급행철도") | 37.7161, 126.7284 (경의중앙선 운정과 3.6km) | 이름을 `운정중앙`으로 고침(`ROW_FIXES`) |
 
 ### 이용허락 문구
 
@@ -95,7 +105,7 @@
 | 항목 | 값 |
 |---|---|
 | 앱 이름 | |
-| 카카오맵 무료 쿼터 적용 여부 | |
+| 카카오맵 무료 쿼터 적용 여부 | 2026-11-12 본인 REST 키로 키워드 검색·좌표→주소·경로 조회 모두 HTTP 200 (쿼터 수치는 콘솔 [통계] > [쿼터]에서 확인) |
 
 ### API별 일일 쿼터
 
@@ -121,24 +131,24 @@
 
 | 서버 필드 | 카카오 응답 경로 | 변환 규칙 |
 |---|---|---|
-| 경로 목록 | `routes[]` (문서 기준, 샘플로 확인 전) | `status`가 `OK`일 때만 있다 |
-| `totalSec` | | |
-| `distanceM` | | |
-| `fare` | | |
-| `transfers` | | |
-| 단계 목록 | | |
-| `step.mode` 판별 | `routes[].steps[].properties`의 단계 타입 `BUS`·`SUBWAY`·`WALKING` (문서 기준) | `WALKING` → `WALK` |
-| `durationSec` | | |
-| 단계 `distanceM` | | |
-| `guidance` | | |
-| `path` 좌표 형식 | `steps[].path.points` = `[x, y]` 배열 (문서 기준) | `[위도, 경도]`로 뒤집는다 |
-| `lineName` | | |
-| `routeName` | | |
-| `stops` | `steps[].properties.stops[].name` (문서 기준) | 이름만 있고 역 id와 좌표는 없다 |
+| 경로 목록 | `routes[]` | `status`가 `OK`일 때만 있다 |
+| `totalSec` | `routes[].properties.totalTime` | 초 |
+| `distanceM` | `routes[].properties.totalDistance` | m |
+| `fare` | `routes[].properties.fare.value` | 원 |
+| `transfers` | `routes[].properties.transfers` | |
+| 단계 목록 | `routes[].steps[]` | |
+| `step.mode` 판별 | `steps[].properties.type` = `SUBWAY`·`BUS`·`WALKING` | `WALKING` → `WALK`. 환승 도보도 `WALKING` 단계로 온다 |
+| `durationSec` | `steps[].properties.time` | 초 |
+| 단계 `distanceM` | `steps[].properties.distance` | m |
+| `guidance` | `steps[].properties.guidance` | 예: `2호선 (홍대입구 > 을지로3가)` |
+| `path` 좌표 형식 | `steps[].path.points` = `[x, y]` 배열 | `[위도, 경도]`로 뒤집는다 |
+| `lineName` | `steps[].properties.vehicles[0].name` (지하철) | 예: `2호선`. `vehicles[].type`은 `일반` 등 |
+| `routeName` | `steps[].properties.vehicles[].name` (버스) | `kakao_route_bus_subway.json`으로 변환을 만들 때 확정 |
+| `stops` | `steps[].properties.stops[].name` | 이름만 있다. 괄호 이름도 온다(`경복궁(정부서울청사)`) |
 
 ### 오류 응답 형식과 코드
 
-- 형식: 경로를 못 찾은 경우는 응답 본문의 `status` 값으로 온다(`OK`, `STARTNODES_NULL`, `ENDNODES_NULL`, `EQUAL_POINTS`, `INVALID_REQUEST`, `NO_RESULTS`). HTTP 상태는 샘플로 확인한다.
+- 형식: **HTTP 200**에 본문 `status`로 온다(2026-11-12 실제 샘플: 같은 지점 `EQUAL_POINTS`, 너무 먼 곳 `NO_RESULTS`). `routes`는 없고 `properties.total`이 0이다.
 - **테스트앱 주의:** 카카오 앱이 "테스트앱" 설정이면 하루 쿼터가 아주 작아 HTTP 400, `code: -10`("API limit has been exceeded.")이 온다(카카오 데브톡 2026-07-27 답변). 일반 앱인지 먼저 확인한다.
 
 | 카카오 코드 | HTTP 상태 | 서버 오류 (스펙 6.3) |

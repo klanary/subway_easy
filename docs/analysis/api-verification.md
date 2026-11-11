@@ -8,7 +8,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 확인일 | |
+| 확인일 | 2026-11-11 (공식 샘플 키 `sample`, '서울'역 5행. 본인 키로 다시 확인할 것) |
 | 요청 URL 형식 | `http://swopenapi.seoul.go.kr/api/subway/{키}/json/realtimeStationArrival/{시작}/{끝}/{역 이름}` |
 | 샘플 | `server/tests/fixtures/seoul_realtime_*.json` |
 
@@ -16,30 +16,43 @@
 
 | 스펙 이름 | 실제 이름 | 값 예시 | 비고 |
 |---|---|---|---|
-| `barvlDt` | | | |
-| `recptnDt` | | | |
-| `arvlMsg2` | | | |
-| `trainLineNm` | | | |
-| `updnLine` | | | |
-| `btrainSttus` | | | |
-| 막차 표시 | | | |
-| `subwayId` | | | |
-| `arvlCd` | | | |
+| `barvlDt` | `barvlDt` | `"0"`, `"120"` | 문자열. 5행 중 4행이 `"0"`이라 안내 문구로 추정해야 한다 |
+| `recptnDt` | `recptnDt` | `"2026-11-11 21:03:10"` | 한국 시간, 초 단위. 같은 응답 안에서도 6분 넘게 차이 나는 행이 있다 |
+| `arvlMsg2` | `arvlMsg2` | `"서울 도착"`, `"서울 출발"`, `"전역 출발"`, `"[8]번째 전역 (한남)"`, `"4분 후 (삼각지)"` | |
+| `trainLineNm` | `trainLineNm` | `"청량리행 - 시청방면"`, `"문산행 - 신촌(경의중앙선)방면 (급행)"` | 뒤에 ` (급행)`이 붙을 수 있다 |
+| `updnLine` | `updnLine` | `"상행"` | |
+| `btrainSttus` | `btrainSttus` | `"일반"`, `"급행"` | |
+| 막차 표시 | `lstcarAt` | `"0"` | `"1"`이면 막차 |
+| `subwayId` | `subwayId` | `"1001"` | 아래 호선 코드표 |
+| `arvlCd` | `arvlCd` | `"1"`, `"2"`, `"3"`, `"99"` | 0 진입, 1 도착, 2 출발, 3 전역출발, 4 전역진입, 5 전역도착, 99 운행중(데이터셋 안내) |
+| (열차 번호) | `btrainNo` | `"0492"`, `"A2231"` | 위치정보와 잇는 열쇠(위치 결합 스펙) |
+| (종착역) | `bstatnNm` | `"청량리"` | `trainLineNm`의 "OO행"과 같다 |
+| (지금 위치) | `arvlMsg3` | `"숙대입구"` | |
+| (역 코드) | `statnId` | `"1004000426"` | 호선마다 다르다 |
 
 ### 호선 코드표 (`subwayId` → 호선)
 
 | `subwayId` | 호선 |
 |---|---|
-| | |
+| 1001 | 1호선 |
+| 1004 | 4호선 |
+| 1063 | 경의중앙선 |
+| 1065 | 공항철도 |
+
+샘플에서 본 값만 적었다. 나머지는 본인 키로 받은 뒤 채운다.
 
 ### 응답 코드표
 
 | 경우 | 코드 | 메시지 | 서버 처리 (스펙 6.3) |
 |---|---|---|---|
-| 정상 | | | 그대로 변환 |
+| 정상 | `INFO-000` | 정상 처리되었습니다. | 그대로 변환. `errorMessage` 안에 들어 있다 |
 | 데이터 없음 | | | 빈 `groups` (200) |
 | 일일 한도 초과 | | | 만료 캐시가 있으면 `stale`, 없으면 `QUOTA_EXCEEDED` (503) |
-| 그 밖 | | | `UPSTREAM_ERROR` (502) |
+| 그 밖 | `ERROR-336` 등 | (요청 범위 오류 등) | `UPSTREAM_ERROR` (502) |
+
+- **오류도 HTTP 200으로 온다.** 정상 응답은 `{"errorMessage": {...}, "realtimeArrivalList": [...]}`이고, 오류 응답은 `errorMessage` 없이 `{"status": 500, "code": "ERROR-336", "message": ...}`처럼 납작하게 온다. 클라이언트는 두 형식을 모두 읽어야 한다(`tests/fixtures/seoul_realtime_sample_error.json`).
+- 샘플 키는 '서울'역, 0~5행만 된다. 다른 역이나 더 넓은 범위는 `ERROR-336`이 온다.
+- "데이터 없음"과 "일일 한도 초과" 코드는 본인 키로 확인한다.
 
 ## §2 서울시 역사마스터 정보
 
@@ -97,9 +110,9 @@
 
 | 항목 | 값 |
 |---|---|
-| 전체 URL | |
-| 메서드 | |
-| 파라미터 | |
+| 전체 URL | `https://dapi.kakao.com/v2/routing/publictraffic` (2026-11-11, 카카오맵 REST API 문서) |
+| 메서드 | GET |
+| 파라미터 | 필수 `start_x`, `start_y`, `end_x`, `end_y`(경도·위도). 선택 `s_name`, `e_name`, `input_coord`, `output_coord`(기본 WGS84). 경유지와 출발 시각 파라미터는 없다 |
 | 인증 헤더 | `Authorization: KakaoAK {키}` |
 
 ### 경로 필드 대응표
@@ -108,24 +121,25 @@
 
 | 서버 필드 | 카카오 응답 경로 | 변환 규칙 |
 |---|---|---|
-| 경로 목록 | | |
+| 경로 목록 | `routes[]` (문서 기준, 샘플로 확인 전) | `status`가 `OK`일 때만 있다 |
 | `totalSec` | | |
 | `distanceM` | | |
 | `fare` | | |
 | `transfers` | | |
 | 단계 목록 | | |
-| `step.mode` 판별 | | |
+| `step.mode` 판별 | `routes[].steps[].properties`의 단계 타입 `BUS`·`SUBWAY`·`WALKING` (문서 기준) | `WALKING` → `WALK` |
 | `durationSec` | | |
 | 단계 `distanceM` | | |
 | `guidance` | | |
-| `path` 좌표 형식 | | |
+| `path` 좌표 형식 | `steps[].path.points` = `[x, y]` 배열 (문서 기준) | `[위도, 경도]`로 뒤집는다 |
 | `lineName` | | |
 | `routeName` | | |
-| `stops` | | |
+| `stops` | `steps[].properties.stops[].name` (문서 기준) | 이름만 있고 역 id와 좌표는 없다 |
 
 ### 오류 응답 형식과 코드
 
-- 형식:
+- 형식: 경로를 못 찾은 경우는 응답 본문의 `status` 값으로 온다(`OK`, `STARTNODES_NULL`, `ENDNODES_NULL`, `EQUAL_POINTS`, `INVALID_REQUEST`, `NO_RESULTS`). HTTP 상태는 샘플로 확인한다.
+- **테스트앱 주의:** 카카오 앱이 "테스트앱" 설정이면 하루 쿼터가 아주 작아 HTTP 400, `code: -10`("API limit has been exceeded.")이 온다(카카오 데브톡 2026-07-27 답변). 일반 앱인지 먼저 확인한다.
 
 | 카카오 코드 | HTTP 상태 | 서버 오류 (스펙 6.3) |
 |---|---|---|

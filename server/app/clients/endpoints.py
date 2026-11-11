@@ -6,7 +6,6 @@ SEOUL_REALTIME_BASE = "http://swopenapi.seoul.go.kr/api/subway"
 
 KAKAO_LOCAL_BASE = "https://dapi.kakao.com/v2/local"
 
-# 대중교통 경로 조회(/v2/routing/publictraffic)의 전체 URL.
-# 스펙 부록 A의 카카오 문서에서 확인한 뒤 채운다(P1 Task 4 Step 6).
-# 비어 있으면 샘플 수집이 경로 항목을 건너뛴다.
-KAKAO_ROUTE_URL = ""
+# 대중교통 경로 조회. 카카오맵 REST API 문서에서 확인(2026-11-11, api-verification.md §3).
+# GET, 헤더 Authorization: KakaoAK {REST 키}, 파라미터 start_x/start_y/end_x/end_y.
+KAKAO_ROUTE_URL = "https://dapi.kakao.com/v2/routing/publictraffic"

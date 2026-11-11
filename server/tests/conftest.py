@@ -3,11 +3,12 @@ from datetime import datetime
 import httpx
 import pytest
 
+from app.clients.endpoints import SEOUL_REALTIME_BASE
 from app.core.clock import KST
 from app.core.config import Settings
 from app.main import create_app
 from app.services.station_index import StationIndex
-from tests.helpers import FIXTURES_DIR, FakeClock
+from tests.helpers import FIXTURES_DIR, FakeClock, fixture_response
 
 
 @pytest.fixture
@@ -98,3 +99,15 @@ async def sample_client(test_settings, clock, sample_db):
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as c:
         yield c
+
+
+@pytest.fixture
+def seoul(respx_mock):
+    """seoul("샘플.json"): 서울시 실시간 요청에 그 샘플로 답하게 하고 route를 돌려준다."""
+
+    def use(name: str):
+        return respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
+            return_value=fixture_response(name)
+        )
+
+    return use

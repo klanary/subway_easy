@@ -7,10 +7,13 @@ import httpx
 from fastapi import Request
 
 from app.cache.quota_guard import QuotaGuard
+from app.cache.ttl_cache import TtlCache
+from app.clients.seoul_subway import SeoulSubwayClient
 from app.core.clock import now_kst
 from app.core.config import Settings
 from app.core.metrics import Metrics
 from app.core.rate_limit import SlidingWindowRateLimiter
+from app.services.arrival_service import ARRIVALS_TTL_SEC, ArrivalService
 from app.services.station_index import StationIndex
 
 
@@ -23,6 +26,7 @@ class AppServices:
     http: httpx.AsyncClient
     rate_limiter: SlidingWindowRateLimiter
     stations: StationIndex
+    arrivals: ArrivalService
 
 
 def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, QuotaGuard]:
@@ -41,14 +45,32 @@ def build_services(
     transport: httpx.AsyncBaseTransport | None,
 ) -> AppServices:
     """transport를 주면(테스트) 외부 호출이 그 transport로 간다."""
+    metrics = Metrics(since=now_kst(clock))
+    quotas = build_quotas(settings, clock)
+    http = httpx.AsyncClient(transport=transport, timeout=settings.upstream_timeout_sec)
+    stations = StationIndex.load(settings.stations_db_path)
+    seoul_guard = quotas["seoulRealtime"]
+    arrivals = ArrivalService(
+        SeoulSubwayClient(http, seoul_guard, settings),
+        stations,
+        # 한도의 80%를 넘으면 유효 시간이 3배가 된다(스펙 6.4).
+        TtlCache(
+            ARRIVALS_TTL_SEC,
+            clock=clock,
+            metrics=metrics,
+            ttl_multiplier=seoul_guard.ttl_multiplier,
+        ),
+        clock,
+    )
     return AppServices(
         settings=settings,
         clock=clock,
-        metrics=Metrics(since=now_kst(clock)),
-        quotas=build_quotas(settings, clock),
-        http=httpx.AsyncClient(transport=transport, timeout=settings.upstream_timeout_sec),
+        metrics=metrics,
+        quotas=quotas,
+        http=http,
         rate_limiter=SlidingWindowRateLimiter(settings.rate_limit_per_minute),
-        stations=StationIndex.load(settings.stations_db_path),
+        stations=stations,
+        arrivals=arrivals,
     )
 
 

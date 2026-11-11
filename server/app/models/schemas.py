@@ -45,3 +45,27 @@ class StationItem(ApiModel):
 
 class StationSearchResponse(ApiModel):
     items: list[StationItem]
+
+
+class Train(ApiModel):
+    destination: str | None
+    remaining_sec: int | None
+    message: str
+    is_last: bool
+    is_express: bool
+    # 열차 번호. 열차 위치정보와 같은 열차를 잇는 열쇠다(위치 결합 스펙 6.3).
+    train_no: str | None = None
+
+
+class ArrivalGroup(ApiModel):
+    line: str
+    direction: str
+    towards: str | None
+    trains: list[Train]
+
+
+class ArrivalsResponse(ApiModel):
+    station_id: str
+    updated_at: datetime
+    stale: bool
+    groups: list[ArrivalGroup]

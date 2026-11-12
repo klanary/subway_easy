@@ -13,8 +13,8 @@ class RouteCardUiTest {
     @Test fun cardTexts() {
         val ui = route.toCardUi(receivedAt = 0, now = 0)
         assertEquals(
-            listOf("33분", "환승 1회", "1,550원", "다음 열차 3분"),
-            listOf(ui.totalText, ui.transfersText, ui.fareText, ui.nextTrainText),
+            listOf("33분", "환승 1회", "1,550원", "2호선 홍대입구 승차 · 다음 열차 3분"),
+            listOf(ui.totalText, ui.transfersText, ui.fareText, ui.boardingText),
         )
     }
 
@@ -26,10 +26,20 @@ class RouteCardUiTest {
     }
 
     @Test fun nextTrainCountsDownFromReceivedAt() =
-        assertEquals("다음 열차 2분", route.toCardUi(receivedAt = 0, now = 60_000).nextTrainText)
+        assertEquals("2호선 홍대입구 승차 · 다음 열차 2분", route.toCardUi(receivedAt = 0, now = 60_000).boardingText)
 
-    @Test fun noFirstBoardingHidesNextTrain() =
-        assertNull(route.copy(firstBoarding = null).toCardUi(0, 0).nextTrainText)
+    @Test fun noFirstBoardingHidesBoardingLine() =
+        assertNull(route.copy(firstBoarding = null).toCardUi(0, 0).boardingText)
+
+    @Test fun noNextTrainShowsBoardingOnly() {
+        val noTrains = route.copy(firstBoarding = route.firstBoarding!!.copy(nextTrains = null))
+        assertEquals("2호선 홍대입구 승차", noTrains.toCardUi(0, 0).boardingText)
+    }
+
+    @Test fun cardShowsDepartAndArriveWhenScheduled() {
+        val scheduled = route.copy(departAt = "2026-11-13T08:14:00+09:00", arriveAt = "2026-11-13T08:46:30+09:00")
+        assertEquals("08:14 출발 · 도착 약 08:46", scheduled.toCardUi(0, 0).boardingText)
+    }
 
     @Test fun lineColorTable() {
         assertEquals(0xFF00A84D, lineColor("2호선"))

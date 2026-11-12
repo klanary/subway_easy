@@ -22,9 +22,9 @@ interface SessionNotifierPort {
     fun alert(content: AlertContent)
 }
 
-/** 세션 서비스(대기 조회, 탑승 중 열차 추적·탑승 감지)를 켜고 끈다(위치 결합 스펙 7.3). */
+/** 세션 서비스(대기 단계의 도착 조회)를 켜고 끈다. [start]는 시작하지 못하면(백그라운드 시작 제한) false. */
 interface SessionServiceLauncher {
-    fun start()
+    fun start(): Boolean
 
     fun stop()
 }
@@ -49,7 +49,7 @@ object NoopNotifier : SessionNotifierPort {
 }
 
 object NoopLauncher : SessionServiceLauncher {
-    override fun start() = Unit
+    override fun start(): Boolean = true
 
     override fun stop() = Unit
 }

@@ -13,7 +13,9 @@ import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -87,5 +89,29 @@ class StationSheetViewModelTest {
         val vm = vm()
         advanceUntilIdle()
         assertEquals(UiState.Error(Copy.NO_TRAIN_INFO), vm.state.value)
+    }
+
+    @Test fun linesRecoverWhenFirstSearchFailedOrWasCancelled() = runTest { // 리뷰 Important 4(a)
+        val saved = stations.searchByQuery
+        stations.searchByQuery = emptyMap()
+        stations.result = ApiResult.Err(io.github.klanary.jigeumchulbal.data.remote.ApiError.Network)
+        val vm = vm()
+        vm.select(SheetTime.PLUS_1H) // 첫 호선 조회가 끝나기 전에 누름
+        advanceUntilIdle()
+        stations.searchByQuery = saved
+        stations.result = null
+        vm.select(SheetTime.PLUS_1H)
+        advanceUntilIdle()
+        assertEquals(listOf("2호선", "5호선"), content(vm).lines)
+        assertTrue(stations.timetableCalls.isNotEmpty())
+    }
+
+    @Test fun autoRefreshLoadsImmediately() = runTest { // 리뷰 Important 4(b): 다시 연 시트가 옛 시각을 보이지 않게
+        val vm = vm()
+        advanceUntilIdle()
+        val before = stations.arrivalCalls.size
+        backgroundScope.launch { vm.runAutoRefresh() }
+        runCurrent()
+        assertEquals(before + 1, stations.arrivalCalls.size)
     }
 }

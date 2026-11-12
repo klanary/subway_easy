@@ -123,7 +123,9 @@ class SessionController(
                     if (inApp) _uiEvents.emit(SessionUiEvent.InAppAlert(effect.content)) else notices.alert(effect.content)
                 SessionEffect.UpdateOngoing -> notices.showOngoing(newState, clock())
                 SessionEffect.ClearOngoing -> notices.clearOngoing()
-                SessionEffect.StartSessionService -> service.start()
+                // 백그라운드에서 서비스를 못 켜면(정확하지 않은 알람으로 깬 루틴 등) 눌러서 앱을 열라고 알린다.
+                // 앱을 열면 MainActivity의 복원이 서비스를 다시 켠다(재설계 스펙 13).
+                SessionEffect.StartSessionService -> if (!service.start()) notices.alert(AlertContent.TapToStart)
                 SessionEffect.StopSessionService -> service.stop()
                 is SessionEffect.Finished -> _uiEvents.emit(SessionUiEvent.Finished(effect.reason))
             }

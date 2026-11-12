@@ -222,3 +222,39 @@ async def test_timetable_failure_keeps_realtime(client, seoul, clock, respx_mock
     r = await client.get(ARRIVALS.format("시청"))
     assert r.status_code == 200 and {g["source"] for g in r.json()["groups"]} == {"realtime"}
     assert tt.called
+
+
+# --- 리뷰 Important 2·3: 세션이 묻는 방면에도 시간표 대체, 느린 시간표 API ---
+
+
+async def test_towards_filter_keeps_timetable_group_of_that_direction(
+    client, seoul, timetable_mock, clock
+):
+    """세션은 line·towards로 묻는다. 실시간이 없으면 그 방면 쪽 방향의 시간표 그룹을 준다."""
+    clock.set(CITYHALL_TIME.timestamp())
+    seoul("seoul_realtime_nodata.json")
+    params = {"line": "5호선", "towards": "영등포시장"}
+    groups = (await client.get(ARRIVALS.format("영등포구청"), params=params)).json()["groups"]
+    assert [(g["line"], g["direction"], g["source"]) for g in groups] == [
+        ("5호선", "하행", "timetable")
+    ]
+
+
+async def test_line_filter_applies_before_timetable_fill(client, seoul, timetable_mock, clock):
+    clock.set(CITYHALL_TIME.timestamp())
+    seoul("seoul_realtime_nodata.json")
+    await client.get(ARRIVALS.format("영등포구청"), params={"line": "5호선"})
+    urls = [str(c.request.url) for c in timetable_mock.calls]
+    assert urls and all("/2524/" in u for u in urls)  # 2호선(0236) 시간표는 묻지 않는다
+
+
+async def test_timetable_failure_is_not_retried_every_request(client, seoul, clock, respx_mock):
+    clock.set(CITYHALL_TIME.timestamp())
+    seoul("seoul_realtime_nodata.json")
+    tt = respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=httpx.Response(500)
+    )
+    await client.get(ARRIVALS.format("영등포구청"), params={"line": "5호선"})
+    first = tt.call_count
+    await client.get(ARRIVALS.format("영등포구청"), params={"line": "5호선"})
+    assert first > 0 and tt.call_count == first  # 실패는 잠시 기억해 다시 부르지 않는다

@@ -239,8 +239,12 @@ class FakeLauncher : SessionServiceLauncher {
     var starts = 0
     var stops = 0
 
-    override fun start() {
+    /** true면 백그라운드 시작 제한에 걸린 것처럼 시작에 실패한다. */
+    var failStart = false
+
+    override fun start(): Boolean {
         starts++
+        return !failStart
     }
 
     override fun stop() {

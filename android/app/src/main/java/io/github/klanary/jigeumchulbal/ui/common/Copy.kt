@@ -128,5 +128,15 @@ object Copy {
     const val OK = "확인"
     const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'·" +
         "'서울시 지하철역 시간표'와 카카오 길찾기 API를 사용합니다."
+    // 노선도 홈(재설계 스펙 4.1)
+    const val LOCATE = "현재 위치"
+    const val STATION_NOT_ON_MAP = "노선도에 없는 역이에요"
+    const val LOCATION_UNAVAILABLE = "현재 위치를 알 수 없어요"
+    const val ROUTINES = "루틴"
+    const val NO_ROUTINES = "등록한 루틴이 없어요"
+    const val NO_FAVORITE_ROUTES = "자주 가는 경로가 없어요"
+    const val FIND_ROUTE = "경로 찾기"
+    const val EXPAND = "펼치기"
+    const val COLLAPSE = "접기"
     const val LINEMAP_SOURCE = "노선도: 위키미디어 공용 Seoul_subway_linemap_ko.svg (퍼블릭 도메인, IRTC1015, 2025-06-29 판)"
 }

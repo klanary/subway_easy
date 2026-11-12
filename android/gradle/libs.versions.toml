@@ -10,6 +10,7 @@ lifecycle = "2.9.1"
 kotlinxSerializationJson = "1.9.0"
 retrofit = "2.11.0"
 okhttp = "4.12.0"
+androidsvg = "1.4"
 room = "2.7.1"
 datastorePreferences = "1.1.7"
 playServicesLocation = "21.3.0"
@@ -19,6 +20,7 @@ robolectric = "4.16"
 androidxTestCore = "1.6.1"
 
 [libraries]
+androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }

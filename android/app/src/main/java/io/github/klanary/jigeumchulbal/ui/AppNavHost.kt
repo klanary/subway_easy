@@ -22,7 +22,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
-import io.github.klanary.jigeumchulbal.ui.home.HomeScreen
+import io.github.klanary.jigeumchulbal.ui.linemap.LineMapScreen
 import io.github.klanary.jigeumchulbal.ui.routedetail.RouteDetailScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
@@ -50,7 +50,7 @@ fun AppNavHost(
 
 /** 앱의 모든 화면. 아직 만들지 않은 화면은 제목만 있는 자리 표시 화면이고, 각 작업이 바꾼다. */
 fun NavGraphBuilder.appGraph(navController: NavController) {
-    composable<HomeDest> { HomeScreen(navController) }
+    composable<HomeDest> { LineMapScreen(navController) }
     navigation<RouteFlowGraph>(startDestination = RouteEditDest) {
         composable<RouteEditDest> { entry ->
             val flow = routeFlowEntry(navController, entry)

@@ -84,4 +84,11 @@ class RoutineRunnerTest {
         runner().run(99)
         assertEquals(SessionState.Idle, controller.state.value)
     }
+
+    @Test fun unreadableRouteTellsTheUser() = runTest { // 리뷰 사소한 문제 7
+        repo.save(routine.copy(routeJson = "{망가진"))
+        runner().run(7)
+        assertEquals(SessionState.Idle, controller.state.value)
+        assertEquals(listOf<AlertContent>(AlertContent.RoutineFailed), notifier.alerts)
+    }
 }

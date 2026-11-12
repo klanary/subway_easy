@@ -9,6 +9,7 @@ fun alertText(content: AlertContent): Pair<String, String> = when (content) {
     AlertContent.WaitingInterrupted ->
         "대기 알림이 중단됐어요" to "기기가 다시 켜져 승차 전 알림을 멈췄어요. 필요하면 다시 시작해 주세요"
     AlertContent.RoutineSkipped -> "루틴을 건너뛰었어요" to "진행 중인 통학 알림이 있어 루틴을 건너뛰었어요"
+    AlertContent.RoutineFailed -> "루틴을 시작하지 못했어요" to "저장된 경로를 읽지 못했어요. 경로를 다시 골라 루틴을 만들어 주세요"
     AlertContent.TapToStart -> "통학 알림을 시작하려면 누르세요" to "앱을 열면 열차 정보를 받아 출발할 때를 알려 드려요"
 }
 

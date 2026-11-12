@@ -94,4 +94,12 @@ class LineMapViewModelTest {
         vm.cancelTrip()
         assertEquals(TripDraft(), vm.state.value.draft)
     }
+
+    @Test fun mapPositionSurvivesReturningHome() = runTest { // 리뷰 사소한 문제 5
+        val vm = vm()
+        advanceUntilIdle()
+        assertNull(vm.savedTransform)
+        vm.saveTransform(MapTransform(1.5f, -10f, -20f))
+        assertEquals(MapTransform(1.5f, -10f, -20f), vm.savedTransform)
+    }
 }

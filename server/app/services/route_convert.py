@@ -135,6 +135,15 @@ def rank(routes: list[Route], limit: int = MAX_ROUTES) -> list[Route]:
 VIA_TOP = 3  # 경유 구간마다 조합에 쓰는 경로 수(3 × 3 = 9개 조합)
 
 
+def _via_boarding(a: Route, b: Route):
+    """첫 탑승이 둘째 구간에 있으면(첫 구간이 걷기뿐) 첫 구간 시간을 탑승 전 시간에 더한다."""
+    if a.first_boarding is not None or b.first_boarding is None:
+        return a.first_boarding
+    return b.first_boarding.model_copy(
+        update={"sec_to_boarding": a.total_sec + b.first_boarding.sec_to_boarding}
+    )
+
+
 def combine_via(first: list[Route], second: list[Route], limit: int = MAX_ROUTES) -> list[Route]:
     """출발→경유, 경유→도착 경로를 이어 붙인다. 경유역에서 내리는 것은 환승으로 세지 않는다."""
     combined = []
@@ -152,7 +161,7 @@ def combine_via(first: list[Route], second: list[Route], limit: int = MAX_ROUTES
                     transfers=a.transfers + b.transfers,
                     fare=None if None in fares else sum(fares),
                     legs=legs,
-                    first_boarding=a.first_boarding or b.first_boarding,
+                    first_boarding=_via_boarding(a, b),
                 )
             )
     return rank(combined, limit)

@@ -171,3 +171,16 @@ def test_combine_via_sums_and_orders(real_index, fresh_metrics):
 
 def test_combine_via_empty_side():
     assert combine_via([], []) == []
+
+
+def test_combine_via_walk_only_first_leg_counts_walk_before_boarding(real_index, fresh_metrics):
+    """경유 첫 구간이 걷기뿐이면 탑승 전 시간에 그 걷기를 더한다(리뷰 사소한 문제 1)."""
+    _, body = load_fixture("kakao_route_subway_only.json")
+    subway = rank(subway_only(convert_routes(body, real_index, fresh_metrics, limit=None)))
+    walk = subway[0].model_copy(
+        update={"type": "WALK", "first_boarding": None, "total_sec": 300, "transfers": 0}
+    )
+    out = combine_via([walk], subway[:1])
+    fb = out[0].first_boarding
+    assert fb.sec_to_boarding == 300 + subway[0].first_boarding.sec_to_boarding
+    assert fb.all_walk_before_boarding == subway[0].first_boarding.all_walk_before_boarding

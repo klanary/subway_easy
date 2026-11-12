@@ -66,8 +66,12 @@ class FakeStationRepository : StationRepository {
     /** 역별로 다른 응답을 줄 때. 없는 역은 [arrivalsResult]. */
     var arrivalsByStation: Map<String, ApiResult<ArrivalsDto>> = emptyMap()
 
+    /** 도착 조회 응답을 늦춘다(밀리초). */
+    var arrivalsDelayMs = 0L
+
     override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> {
         arrivalCalls += Triple(stationId, line, towards)
+        if (arrivalsDelayMs > 0) delay(arrivalsDelayMs)
         return arrivalsByStation[stationId] ?: arrivalsResult
     }
 

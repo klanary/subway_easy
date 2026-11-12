@@ -39,7 +39,7 @@ class TimetableService:
         self._clock = clock
         self._failed_until: dict[str, float] = {}
 
-    async def _rows(self, code: str, week: int, tag: int) -> list[dict]:
+    async def _rows(self, code: str, week: int, tag: int) -> tuple[list[dict], str]:
         key = f"{code}|{week}|{tag}"
         if self._failed_until.get(key, 0) > self._clock():
             raise UpstreamError(reason="RECENT_FAILURE")
@@ -50,12 +50,19 @@ class TimetableService:
         except UpstreamFailure:
             self._failed_until[key] = self._clock() + FAILURE_MEMORY_SEC
             raise
-        return cached.value
+        return cached.value, cached.status
 
     async def trains(
         self, station_id: str, line: str, direction: str, after: datetime, count: int
     ) -> list[TimetableTrain]:
         """`after` 이후 열차 `count`대. 비서울 노선이나 역 코드가 없으면 빈 목록."""
+        found, _ = await self.trains_with_status(station_id, line, direction, after, count)
+        return found
+
+    async def trains_with_status(
+        self, station_id: str, line: str, direction: str, after: datetime, count: int
+    ) -> tuple[list[TimetableTrain], str]:
+        """[trains]와 같고, 두 번째 값은 캐시 상태(모두 캐시면 hit, 하나라도 새로 받았으면 miss)."""
         station = self._index.get(station_id)
         if station is None:
             raise NotFound()
@@ -63,11 +70,12 @@ class TimetableService:
         line = normalize_line(line)
         code = self._index.station_code(station.id, line)
         if code is None or not StationIndex.realtime_supported(line):
-            return []
+            return [], "none"
         days = service_days(after)
         tables = await asyncio.gather(*(self._rows(code, week, tag) for _, week in days))
         found: list[TimetableTrain] = []
-        for (day, _), rows in zip(days, tables, strict=True):
+        for (day, _), (rows, _) in zip(days, tables, strict=True):
             found.extend(departures(rows, code, day, after, count))
         found.sort(key=lambda t: t.departs_at)
-        return found[:count]
+        status = "hit" if all(s == "hit" for _, s in tables) else "miss"
+        return found[:count], status

@@ -59,6 +59,7 @@ class StationSheetViewModel(
     private var time = SheetTime.NOW
     private var custom: Instant? = null
     private var job: Job? = null
+    private var loads = 0
 
     init {
         job = viewModelScope.launch { load() }
@@ -88,7 +89,11 @@ class StationSheetViewModel(
         if (lines.isEmpty()) {
             lines = (stations.search(stationId) as? ApiResult.Ok)?.value?.firstOrNull { it.id == stationId }?.lines.orEmpty()
         }
-        _state.value = if (time == SheetTime.NOW) loadNow() else loadTimetable(startAt())
+        // 늦게 끝난 불러오기(예: [+1시간]을 누르기 전에 시작한 "지금" 새로 고침)가 새 결과를 덮지 않게 한다.
+        val generation = ++loads
+        val requested = time
+        val result = if (requested == SheetTime.NOW) loadNow() else loadTimetable(startAt())
+        if (generation == loads && requested == time) _state.value = result
     }
 
     private fun startAt(): Instant {

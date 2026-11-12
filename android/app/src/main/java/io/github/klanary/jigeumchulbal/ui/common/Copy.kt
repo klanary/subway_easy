@@ -153,6 +153,7 @@ object Copy {
     const val AS_TO = "도착으로"
     const val AS_VIA = "경유로"
     // 루틴(재설계 스펙 4.6)
+    const val PICK_A_DAY = "요일을 하나 이상 골라 주세요"
     const val NEED_NOTIFICATION_PERMISSION = "알림 권한이 없어 루틴을 켜지 못했어요"
     const val ROUTINE_TITLE = "루틴"
     const val ROUTINE_NAME = "이름"

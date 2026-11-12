@@ -32,9 +32,8 @@ private fun restoreWaiting(state: SessionState.Waiting, now: Long, onBoot: Boole
 }
 
 private fun restoreRiding(state: SessionState.Riding, now: Long, onBoot: Boolean): Pair<SessionState, List<SessionEffect>> {
-    // 탄 열차를 따라가던 중이면 세션 서비스를 다시 켠다. 재부팅 직후에는 포그라운드 서비스를 켜지 않고 알람만 되살린다
-    // (위치 결합 스펙 7.3). 서비스가 없으면 알람은 마지막으로 옮겨진 시각대로 울린다.
-    val service = listOfNotNull(SessionEffect.StartSessionService.takeIf { state.tracking != null && !onBoot })
+    // 탑승 단계에는 세션 서비스를 쓰지 않는다(재설계 스펙 5.5). 알람만 되살린다.
+    val service = emptyList<SessionEffect>()
     val points = state.points
     val first = (state.nextIndex until points.size).firstOrNull { points[it].alightAt > now }
     if (first == null) {

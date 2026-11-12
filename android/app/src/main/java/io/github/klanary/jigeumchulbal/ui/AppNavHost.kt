@@ -34,16 +34,16 @@ import io.github.klanary.jigeumchulbal.ui.station.StationScreen
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
-/** [openSessionRequests]: 알림·알람 아이콘을 누를 때마다 통학 세션 화면으로 간다(스펙 8.5). true면 탄 열차 고르기를 연다. */
+/** [openSessionRequests]: 알림·알람 아이콘을 누를 때마다 통학 세션 화면으로 간다(스펙 8.5). */
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
-    openSessionRequests: Flow<Boolean> = emptyFlow(),
+    openSessionRequests: Flow<Unit> = emptyFlow(),
 ) {
     NavHost(navController = navController, startDestination = HomeDest) { appGraph(navController) }
     LaunchedEffect(navController, openSessionRequests) {
-        openSessionRequests.collect { pickTrain ->
-            navController.navigate(SessionDest(pickTrain = pickTrain)) { launchSingleTop = true }
+        openSessionRequests.collect {
+            navController.navigate(SessionDest) { launchSingleTop = true }
         }
     }
 }
@@ -72,7 +72,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
     composable<StationDest> { entry -> StationScreen(entry.toRoute<StationDest>().stationId, navController) }
     composable<SettingsDest> { SettingsScreen(navController) }
-    composable<SessionDest> { entry -> SessionScreen(navController, pickTrain = entry.toRoute<SessionDest>().pickTrain) }
+    composable<SessionDest> { SessionScreen(navController) }
 }
 
 /** 경로 흐름(편집·결과·상세)이 공유하는 중첩 그래프의 back stack entry. */

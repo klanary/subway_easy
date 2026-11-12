@@ -45,14 +45,8 @@ class SessionNotifier(
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            // 탄 열차를 모를 때는 누르면 바로 고르기 목록을 연다(위치 결합 스펙 7.1).
-            .setContentIntent(if (content == AlertContent.PickTrain) pickTrainPendingIntent(context) else openSessionPendingIntent(context))
+            .setContentIntent(openSessionPendingIntent(context))
             .setAutoCancel(true)
-        if (content is AlertContent.TrainDetected) {
-            // 자동 감지가 틀렸을 때 바로 고칠 수 있게 [다른 열차였어요]를 단다.
-            val icon = Icon.createWithResource(context, R.drawable.ic_notification)
-            builder.addAction(Notification.Action.Builder(icon, Copy.OTHER_TRAIN, pickTrainPendingIntent(context)).build())
-        }
         manager.notify(ALERT_ID_BASE + alertCount.getAndIncrement() % ALERT_SLOTS, builder.build())
     }
 

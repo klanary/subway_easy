@@ -18,13 +18,11 @@ import io.github.klanary.jigeumchulbal.data.repository.DefaultRecentSearchReposi
 import io.github.klanary.jigeumchulbal.data.repository.DefaultRouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultStationRepository
-import io.github.klanary.jigeumchulbal.data.repository.DefaultTrainRepository
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
-import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
 import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.session.AlarmScheduler
@@ -76,7 +74,6 @@ class AppContainer(context: Context) {
     val stationRepository: StationRepository = DefaultStationRepository(api, apiCaller)
     val routeRepository: RouteRepository = DefaultRouteRepository(api, apiCaller)
     val serverRepository: ServerRepository = DefaultServerRepository(api, apiCaller)
-    val trainRepository: TrainRepository = DefaultTrainRepository(api, apiCaller)
 
     // 기기 저장소: 자주 가는 경로·최근 검색은 기기에만 둔다(스펙 5.4).
     // 배포 전이라 버전이 바뀌면 옛 데이터를 지운다(재설계 스펙 7).

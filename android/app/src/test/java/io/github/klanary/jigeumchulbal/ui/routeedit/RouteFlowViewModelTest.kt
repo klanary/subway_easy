@@ -1,22 +1,21 @@
 package io.github.klanary.jigeumchulbal.ui.routeedit
 
 import io.github.klanary.jigeumchulbal.MainDispatcherRule
-import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
-import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.EndpointKind
 import io.github.klanary.jigeumchulbal.data.model.GeoPoint
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.remote.ApiError
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
+import io.github.klanary.jigeumchulbal.data.remote.NearestStationDto
 import io.github.klanary.jigeumchulbal.fakes.FakeFavoriteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeLocationProvider
-import io.github.klanary.jigeumchulbal.fakes.FakeMyPlaceRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeRouteRepository
+import io.github.klanary.jigeumchulbal.fakes.FakeStationRepository
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.ui.PickResult
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
+import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -32,71 +31,83 @@ class RouteFlowViewModelTest {
     @get:Rule val main = MainDispatcherRule()
     private val here = GeoPoint(37.5571, 126.9245)
     private val routes = FakeRouteRepository()
-    private val myPlaces = FakeMyPlaceRepository(
-        listOf(MyPlaceEntity(7, MyPlaceType.SCHOOL, "학교", 37.4979, 127.0276, null, "강남")),
-    )
-
+    private val stations = FakeStationRepository().apply {
+        nearestResult = ApiResult.Ok(NearestStationDto("홍대입구", "홍대입구", 120))
+    }
     private val favorites = FakeFavoriteRepository()
-    private fun vm(location: LocationProvider) = RouteFlowViewModel(routes, myPlaces, location, favorites) { 1_000L }
-    private val school = Endpoint("학교", GeoPoint(37.4979, 127.0276), EndpointKind.MY_PLACE, "강남")
+    private val hongdae = StationRef("홍대입구", "홍대입구")
+    private val gangnam = StationRef("강남", "강남")
+    private val cityHall = StationRef("시청", "시청")
 
-    @Test fun originDefaultsToCurrentLocationWhenPermitted() = runTest {
+    private fun vm(location: LocationProvider) = RouteFlowViewModel(routes, stations, location, favorites) { 1_000L }
+
+    private suspend fun RouteFlowViewModel.withEnds() {
+        apply(PickResult(Slot.ORIGIN, hongdae))
+        apply(PickResult(Slot.DEST, gangnam))
+    }
+
+    @Test fun originDefaultsToNearestStationWhenPermitted() = runTest {
         val vm = vm(FakeLocationProvider(true, here))
-        vm.init(null)
+        vm.init()
         advanceUntilIdle()
-        assertEquals(Endpoint("현재 위치", here, EndpointKind.CURRENT_LOCATION), vm.state.value.origin)
+        assertEquals(hongdae, vm.state.value.origin)
+        assertEquals(listOf(here.lat to here.lng), stations.nearestCalls)
     }
 
     @Test fun originEmptyWhenPermissionMissing() = runTest {
         val vm = vm(FakeLocationProvider(false, here))
-        vm.init(null)
+        vm.init()
         advanceUntilIdle()
         assertNull(vm.state.value.origin)
         assertEquals(Copy.ORIGIN_HINT, vm.state.value.originHint)
     }
 
-    @Test fun originEmptyWhenLocationUnavailable() = runTest {
-        val vm = vm(FakeLocationProvider(true, null))
-        vm.init(null)
-        advanceUntilIdle()
-        assertNull(vm.state.value.origin)
-        assertEquals(Copy.ORIGIN_HINT, vm.state.value.originHint)
-    }
-
-    @Test fun destPrefilledFromMyPlaceAndSwap() = runTest {
+    @Test fun originEmptyWhenNoStationNearby() = runTest {
+        stations.nearestResult = ApiResult.Ok(null)
         val vm = vm(FakeLocationProvider(true, here))
-        vm.init(7)
+        vm.init()
         advanceUntilIdle()
-        assertEquals("학교", vm.state.value.dest!!.label)
-        vm.swap()
-        assertEquals("학교", vm.state.value.origin!!.label)
-        assertEquals("현재 위치", vm.state.value.dest!!.label)
+        assertNull(vm.state.value.origin)
+        assertEquals(Copy.NO_STATION_NEARBY, vm.state.value.originHint)
     }
 
-    @Test fun searchNeedsBothEndsAndShowsServerMessage() = runTest {
+    @Test fun swapExchangesEnds() = runTest {
         val vm = vm(FakeLocationProvider(false, null))
-        vm.init(7)
-        advanceUntilIdle()
+        vm.withEnds()
+        vm.swap()
+        assertEquals(gangnam to hongdae, vm.state.value.origin to vm.state.value.dest)
+    }
+
+    @Test fun sameStationCannotBeSearched() = runTest {
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.apply(PickResult(Slot.ORIGIN, hongdae))
+        vm.apply(PickResult(Slot.DEST, hongdae))
         assertFalse(vm.state.value.canSearch)
-        vm.apply(PickResult(Slot.ORIGIN, Endpoint("홍대입구", here, EndpointKind.STATION, "홍대입구")))
-        routes.result = ApiResult.Err(ApiError.Server("NO_ROUTE", "NO_RESULTS", "대중교통 경로를 찾지 못했어요."))
+        vm.apply(PickResult(Slot.DEST, gangnam))
+        vm.apply(PickResult(Slot.VIA, gangnam))
+        assertFalse(vm.state.value.canSearch)
+    }
+
+    @Test fun searchShowsServerMessage() = runTest {
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
+        routes.result = ApiResult.Err(ApiError.Server("NO_ROUTE", "NO_SUBWAY", "지하철로 갈 수 있는 경로가 없어요."))
         vm.search()
         advanceUntilIdle()
-        assertEquals(UiState.Error("대중교통 경로를 찾지 못했어요."), vm.state.value.results)
+        assertEquals(UiState.Error("지하철로 갈 수 있는 경로가 없어요."), vm.state.value.results)
     }
 
     @Test fun autoOpenSearchOnlyOnce() = runTest {
         val vm = vm(FakeLocationProvider(true, here))
-        vm.init(null)
+        vm.init()
         advanceUntilIdle()
         assertTrue(vm.consumeAutoOpenSearch())
         assertFalse(vm.consumeAutoOpenSearch())
     }
 
     @Test fun successfulSearchKeepsReceiveTimeAndSelectsRoute() = runTest {
-        val vm = vm(FakeLocationProvider(true, here))
-        vm.init(7)
-        advanceUntilIdle()
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
         vm.search()
         advanceUntilIdle()
         assertEquals(1_000L, vm.state.value.receivedAt)
@@ -104,77 +115,81 @@ class RouteFlowViewModelTest {
         assertEquals("r_3f9a", vm.state.value.selectedRoute!!.id)
     }
 
-    @Test fun viaHiddenByDefaultAndToggles() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(null); advanceUntilIdle()
+    @Test fun searchSendsViaAndHidingClearsIt() = runTest {
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
         assertFalse(vm.state.value.viaVisible)
-        vm.toggleVia()
-        assertTrue(vm.state.value.viaVisible)
-    }
-
-    @Test fun searchSendsVia() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
-        val via = Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.STATION, "경복궁")
-        vm.apply(PickResult(Slot.VIA, via)); vm.search(); advanceUntilIdle()
-        assertEquals(via, routes.lastVia)
-    }
-
-    @Test fun hidingViaClearsIt() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(null); advanceUntilIdle()
-        vm.apply(PickResult(Slot.VIA, Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.PIN)))
+        vm.apply(PickResult(Slot.VIA, cityHall))
+        vm.search()
+        advanceUntilIdle()
+        assertEquals(cityHall, routes.lastVia)
         vm.toggleVia()
         assertNull(vm.state.value.via)
     }
 
-    @Test fun searchRecordsUsageWhenEndpointsMatchFavorite() = runTest {
-        favorites.addRoute(Endpoint("집", here, EndpointKind.PIN), null, school)
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
-        vm.search(); advanceUntilIdle()
+    @Test fun departAtIsSentAndCleared() = runTest {
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
+        val at = Instant.parse("2026-11-12T23:00:00Z")
+        vm.setDepartAt(at)
+        advanceUntilIdle()
+        assertEquals(at, routes.calls.last().departAt)
+        vm.setDepartAt(null)
+        advanceUntilIdle()
+        assertNull(routes.calls.last().departAt)
+    }
+
+    @Test fun searchRecordsUsageWhenStationsMatchFavorite() = runTest {
+        favorites.add(hongdae, null, gangnam)
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
+        vm.search()
+        advanceUntilIdle()
         assertEquals(listOf(1L to 1_000L), favorites.usages.value.map { it.routeId to it.usedAt })
         assertTrue(vm.state.value.isFavorite)
     }
 
     @Test fun searchOfNonFavoriteRecordsNothing() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
-        vm.search(); advanceUntilIdle()
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
+        vm.search()
+        advanceUntilIdle()
         assertTrue(favorites.usages.value.isEmpty())
         assertFalse(vm.state.value.isFavorite)
     }
 
     @Test fun toggleFavoriteAddsThenRemoves() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
-        vm.toggleFavorite(); advanceUntilIdle()
-        assertTrue(vm.state.value.isFavorite); assertEquals(1, favorites.routes.value.size)
-        vm.toggleFavorite(); advanceUntilIdle()
-        assertFalse(vm.state.value.isFavorite); assertTrue(favorites.routes.value.isEmpty())
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
+        vm.toggleFavorite()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.isFavorite)
+        assertEquals("홍대입구", favorites.routes.value.single().fromId)
+        vm.toggleFavorite()
+        advanceUntilIdle()
+        assertFalse(vm.state.value.isFavorite)
+        assertTrue(favorites.routes.value.isEmpty())
     }
 
-    @Test fun currentLocationIsNotSavedUnderItsLiveLabel() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
-        vm.toggleFavorite(); advanceUntilIdle()
-        assertEquals(Copy.SAVED_LOCATION, favorites.routes.value.single().originLabel)
-    }
-
-    @Test fun initFromFavoriteFillsEndpointsAndSearches() = runTest {
-        val via = Endpoint("경복궁", GeoPoint(37.5759, 126.9735), EndpointKind.STATION, "경복궁")
-        favorites.addRoute(Endpoint("집", here, EndpointKind.PIN), via, school)
-        val vm = vm(FakeLocationProvider(false, null)); vm.init(destMyPlaceId = null, favoriteRouteId = 1); advanceUntilIdle()
+    @Test fun initFromFavoriteFillsStationsAndSearches() = runTest {
+        favorites.add(hongdae, cityHall, gangnam)
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.init(favoriteRouteId = 1)
+        advanceUntilIdle()
         val s = vm.state.value
-        assertEquals(listOf("집", "경복궁", "학교"), listOf(s.origin?.label, s.via?.label, s.dest?.label))
+        assertEquals(listOf(hongdae, cityHall, gangnam), listOf(s.origin, s.via, s.dest))
         assertTrue(s.viaVisible)
         assertEquals(1, routes.calls.size)
         assertTrue(s.results is UiState.Content)
-    }
-
-    @Test fun resultsFromFavoriteOpenOnlyOnce() = runTest {
-        favorites.addRoute(Endpoint("집", here, EndpointKind.PIN), null, school)
-        val vm = vm(FakeLocationProvider(false, null)); vm.init(destMyPlaceId = null, favoriteRouteId = 1); advanceUntilIdle()
         // 결과에서 뒤로 와 편집 화면이 다시 그려져도 결과로 또 보내지 않는다.
         assertTrue(vm.consumeOpenResults())
         assertFalse(vm.consumeOpenResults())
     }
 
     @Test fun plainEntryNeverOpensResults() = runTest {
-        val vm = vm(FakeLocationProvider(true, here)); vm.init(7); advanceUntilIdle()
+        val vm = vm(FakeLocationProvider(true, here))
+        vm.init()
+        advanceUntilIdle()
         assertFalse(vm.consumeOpenResults())
     }
 }

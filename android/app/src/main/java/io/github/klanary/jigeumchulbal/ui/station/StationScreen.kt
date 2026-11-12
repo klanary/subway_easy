@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,7 +52,7 @@ fun StationScreen(
     stationId: String,
     navController: NavController,
     viewModel: StationViewModel = appViewModel {
-        StationViewModel(stationId, it.stationRepository, it.favoriteRepository)
+        StationViewModel(stationId, it.stationRepository)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -76,19 +75,6 @@ fun StationScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = viewModel::toggleFavorite) {
-                        Icon(
-                            Icons.Filled.Star,
-                            contentDescription = Copy.FAVORITE,
-                            tint = if (state.isFavorite) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.outlineVariant
-                            },
-                        )
                     }
                 },
             )

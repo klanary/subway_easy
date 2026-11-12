@@ -1,59 +1,78 @@
 package io.github.klanary.jigeumchulbal.data.repository
 
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.EndpointKind
-import io.github.klanary.jigeumchulbal.data.model.GeoPoint
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.remote.ApiCaller
 import io.github.klanary.jigeumchulbal.data.remote.ApiService
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
 import io.github.klanary.jigeumchulbal.data.remote.LineTrainsDto
+import io.github.klanary.jigeumchulbal.data.remote.NearestDto
 import io.github.klanary.jigeumchulbal.data.remote.NetworkMonitor
-import io.github.klanary.jigeumchulbal.data.remote.PlaceSearchDto
-import io.github.klanary.jigeumchulbal.data.remote.ReverseDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationSearchDto
+import io.github.klanary.jigeumchulbal.data.remote.TimetableDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainEtaDto
+import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-data class RoutesArgs(
-    val from: String,
-    val to: String,
-    val via: String?,
-    val fromName: String?,
-    val toName: String?,
-    val viaName: String?,
-)
+data class RoutesArgs(val from: String, val to: String, val via: String?, val departAt: String?)
 
-/** 마지막 routes 호출의 인자를 기록하는 테스트용 ApiService. 다른 호출은 쓰지 않는다. */
+data class TimetableArgs(val id: String, val line: String, val direction: String, val from: String?, val count: Int)
+
+/** 마지막 호출의 인자를 기록하는 테스트용 ApiService. 다른 호출은 쓰지 않는다. */
 class RecordingApiService : ApiService {
     var lastRoutes: RoutesArgs? = null
+    var lastTimetable: TimetableArgs? = null
+    var lastNearest: Pair<Double, Double>? = null
 
-    override suspend fun routes(
-        from: String, to: String, via: String?, fromName: String?, toName: String?, viaName: String?,
-    ): RoutesDto {
-        lastRoutes = RoutesArgs(from, to, via, fromName, toName, viaName)
+    override suspend fun routes(from: String, to: String, via: String?, departAt: String?): RoutesDto {
+        lastRoutes = RoutesArgs(from, to, via, departAt)
         return RoutesDto(updatedAt = "2026-11-03T08:00:00+09:00", routes = emptyList())
+    }
+
+    override suspend fun timetable(id: String, line: String, direction: String, from: String?, count: Int): TimetableDto {
+        lastTimetable = TimetableArgs(id, line, direction, from, count)
+        return TimetableDto(id, line, direction, emptyList())
+    }
+
+    override suspend fun nearestStation(lat: Double, lng: Double): NearestDto {
+        lastNearest = lat to lng
+        return NearestDto(null)
     }
 
     override suspend fun health(): Map<String, String> = error("not used")
     override suspend fun searchStations(q: String, limit: Int): StationSearchDto = error("not used")
     override suspend fun arrivals(id: String, line: String?, towards: String?): ArrivalsDto = error("not used")
-    override suspend fun searchPlaces(q: String, lat: Double?, lng: Double?): PlaceSearchDto = error("not used")
-    override suspend fun reverse(lat: Double, lng: Double): ReverseDto = error("not used")
     override suspend fun lineTrains(line: String, station: String, toward: String?): LineTrainsDto = error("not used")
     override suspend fun trainEta(trainNo: String, line: String, to: String): TrainEtaDto = error("not used")
 }
 
 class RouteRepositoryTest {
-    @Test fun currentLocationSendsNoNameButOthersDo() = runTest {
-        val api = RecordingApiService()
-        DefaultRouteRepository(api, ApiCaller(Json, NetworkMonitor { true })).routes(
-            Endpoint("현재 위치", GeoPoint(37.5571, 126.9245), EndpointKind.CURRENT_LOCATION),
-            Endpoint("강남", GeoPoint(37.4979, 127.0276), EndpointKind.STATION, "강남"),
-        )
-        assertEquals(RoutesArgs("37.5571,126.9245", "37.4979,127.0276", null, null, "강남", null), api.lastRoutes)
+    private val api = RecordingApiService()
+    private val caller = ApiCaller(Json, NetworkMonitor { true })
+    private val mapo = StationRef("마포", "마포")
+    private val gongdeok = StationRef("공덕", "공덕")
+    private val hongdae = StationRef("홍대입구", "홍대입구")
+
+    @Test fun sendsStationIds() = runTest {
+        DefaultRouteRepository(api, caller).routes(mapo, hongdae, via = gongdeok)
+        assertEquals(RoutesArgs("마포", "홍대입구", "공덕", null), api.lastRoutes)
+    }
+
+    @Test fun departAtIsKstIso() = runTest {
+        DefaultRouteRepository(api, caller).routes(mapo, gongdeok, departAt = Instant.parse("2026-11-12T23:00:00.123Z"))
+        assertEquals("2026-11-13T08:00:00+09:00", api.lastRoutes!!.departAt)
+    }
+
+    @Test fun timetableSendsLineDirectionAndTime() = runTest {
+        DefaultStationRepository(api, caller).timetable("영등포구청", "5호선", "상행", Instant.parse("2026-11-12T23:00:00Z"), 4)
+        assertEquals(TimetableArgs("영등포구청", "5호선", "상행", "2026-11-13T08:00:00+09:00", 4), api.lastTimetable)
+    }
+
+    @Test fun nearestSendsLatLng() = runTest {
+        DefaultStationRepository(api, caller).nearest(37.5665, 126.978)
+        assertEquals(37.5665 to 126.978, api.lastNearest)
     }
 }

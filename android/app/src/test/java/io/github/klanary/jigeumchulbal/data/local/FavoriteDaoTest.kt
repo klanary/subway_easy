@@ -5,7 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -24,17 +24,14 @@ class FavoriteDaoTest {
     @After fun tearDown() = db.close()
 
     private fun route() = FavoriteRouteEntity(
-        originLabel = "집", originLat = 37.55, originLng = 126.92,
-        viaLabel = null, viaLat = null, viaLng = null,
-        destLabel = "학교", destLat = 37.50, destLng = 127.03, createdAt = 1,
+        fromId = "마포", fromName = "마포", viaId = null, viaName = null,
+        toId = "공덕", toName = "공덕", createdAt = 1,
     )
 
-    @Test fun stationFavoriteToggles() = runTest {
-        val dao = db.favoriteStationDao()
-        dao.insert(FavoriteStationEntity(stationId = "홍대입구", createdAt = 1))
-        assertTrue(dao.observeIsFavorite("홍대입구").first())
-        dao.delete("홍대입구")
-        assertFalse(dao.observeIsFavorite("홍대입구").first())
+    @Test fun routeStoresStationIds() = runTest {
+        val dao = db.favoriteRouteDao()
+        dao.insert(route())
+        assertEquals(listOf("마포" to "공덕"), dao.observeAll().first().map { it.fromId to it.toId })
     }
 
     @Test fun deletingRouteDeletesItsUsages() = runTest {

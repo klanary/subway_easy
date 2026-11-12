@@ -23,7 +23,7 @@ abstract class RecentSearchDao {
     @Query("SELECT COUNT(*) FROM recent_searches")
     abstract suspend fun count(): Int
 
-    /** dedupeKey가 같은 행이 있으면 지우고 새로 넣는다(유일 색인 충돌 → REPLACE). */
+    /** 같은 역(stationId 유일 색인)이 있으면 지우고 새로 넣는다(충돌 → REPLACE). */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun upsertByKey(entry: RecentSearchEntity)
 

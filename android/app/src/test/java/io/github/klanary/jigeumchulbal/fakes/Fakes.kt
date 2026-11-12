@@ -2,30 +2,25 @@ package io.github.klanary.jigeumchulbal.fakes
 
 import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
 import io.github.klanary.jigeumchulbal.data.local.RouteUsageEntity
-import io.github.klanary.jigeumchulbal.data.repository.favoriteRouteOf
-import io.github.klanary.jigeumchulbal.ui.home.sameEndpoints
+import io.github.klanary.jigeumchulbal.data.model.StationRef
+import io.github.klanary.jigeumchulbal.data.remote.NearestStationDto
+import io.github.klanary.jigeumchulbal.data.remote.TimetableDto
+import io.github.klanary.jigeumchulbal.data.repository.sameStations
+import java.time.Instant
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
 import io.github.klanary.jigeumchulbal.data.local.SettingsStore
-import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
-import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
 import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
 import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
 import io.github.klanary.jigeumchulbal.data.remote.LineTrainsDto
-import io.github.klanary.jigeumchulbal.data.remote.PlaceDto
-import io.github.klanary.jigeumchulbal.data.remote.ReverseDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainEtaDto
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
-import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
-import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
@@ -78,43 +73,62 @@ class FakeStationRepository : StationRepository {
         arrivalCalls += Triple(stationId, line, towards)
         return arrivalsByStation[stationId] ?: arrivalsResult
     }
-}
 
-class FakeFavoriteRepository(stations: List<FavoriteStationEntity> = emptyList()) : FavoriteRepository {
-    override val stations = MutableStateFlow(stations)
+    /** 시간표 호출 기록: (역, 호선, 방향, 기준 시각, 대수). */
+    data class TimetableCall(val stationId: String, val line: String, val direction: String, val from: Instant?, val count: Int)
 
-    override fun isFavorite(stationId: String): Flow<Boolean> = stations.map { list -> list.any { it.stationId == stationId } }
+    val timetableCalls = mutableListOf<TimetableCall>()
+    var timetableResult: (TimetableCall) -> ApiResult<TimetableDto> =
+        { ApiResult.Ok(TimetableDto(it.stationId, it.line, it.direction, emptyList())) }
 
-    override suspend fun toggleStation(stationId: String) {
-        val list = stations.value
-        stations.value = if (list.any { it.stationId == stationId }) {
-            list.filterNot { it.stationId == stationId }
-        } else {
-            list + FavoriteStationEntity(stationId = stationId, createdAt = 0)
-        }
+    override suspend fun timetable(
+        stationId: String,
+        line: String,
+        direction: String,
+        from: Instant?,
+        count: Int,
+    ): ApiResult<TimetableDto> {
+        val call = TimetableCall(stationId, line, direction, from, count)
+        timetableCalls += call
+        return timetableResult(call)
     }
 
+    /** 기본은 가까운 역 없음. */
+    var nearestResult: ApiResult<NearestStationDto?> = ApiResult.Ok(null)
+    val nearestCalls = mutableListOf<Pair<Double, Double>>()
+
+    override suspend fun nearest(lat: Double, lng: Double): ApiResult<NearestStationDto?> {
+        nearestCalls += lat to lng
+        return nearestResult
+    }
+}
+
+class FakeFavoriteRepository : FavoriteRepository {
     override val routes = MutableStateFlow<List<FavoriteRouteEntity>>(emptyList())
     val usages = MutableStateFlow<List<RouteUsageEntity>>(emptyList())
 
     override fun usagesSince(sinceMillis: Long): Flow<List<RouteUsageEntity>> =
         usages.map { list -> list.filter { it.usedAt >= sinceMillis } }
 
-    override suspend fun addRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint) {
+    override suspend fun add(from: StationRef, via: StationRef?, to: StationRef) {
+        if (find(from, via, to) != null) return
         val id = (routes.value.maxOfOrNull { it.id } ?: 0) + 1
-        routes.value = routes.value + favoriteRouteOf(origin, via, dest, createdAt = 0).copy(id = id)
+        routes.value = routes.value + FavoriteRouteEntity(
+            id = id, fromId = from.id, fromName = from.name, viaId = via?.id, viaName = via?.name,
+            toId = to.id, toName = to.name, createdAt = 0,
+        )
     }
 
-    override suspend fun removeRoute(id: Long) {
+    override suspend fun remove(id: Long) {
         routes.value = routes.value.filterNot { it.id == id }
         usages.value = usages.value.filterNot { it.routeId == id }
     }
 
-    override suspend fun findRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint): FavoriteRouteEntity? =
-        routes.value.find { sameEndpoints(it, origin, via, dest) }
+    override suspend fun find(from: StationRef, via: StationRef?, to: StationRef): FavoriteRouteEntity? =
+        routes.value.find { it.sameStations(from, via, to) }
 
-    override suspend fun recordUsageIfFavorite(origin: Endpoint, via: Endpoint?, dest: Endpoint, at: Long) {
-        findRoute(origin, via, dest)?.let { usages.value = usages.value + RouteUsageEntity(routeId = it.id, usedAt = at) }
+    override suspend fun recordUsageIfFavorite(from: StationRef, via: StationRef?, to: StationRef, at: Long) {
+        find(from, via, to)?.let { usages.value = usages.value + RouteUsageEntity(routeId = it.id, usedAt = at) }
     }
 }
 
@@ -127,57 +141,12 @@ class FakeServerRepository : ServerRepository {
     }
 }
 
-/** 검색어 q에 대해 PlaceDto("$q 결과")를 돌려준다. [delays]로 검색어별 응답 지연을 줄 수 있다. */
-class FakePlaceRepository : PlaceRepository {
-    val searchCalls = mutableListOf<String>()
-    var delays: Map<String, Long> = emptyMap()
-    var lastNear: GeoPoint? = null
-    var reverseResult: ApiResult<ReverseDto> = ApiResult.Ok(ReverseDto())
-    val reverseCalls = mutableListOf<GeoPoint>()
-
-    override suspend fun search(q: String, near: GeoPoint?): ApiResult<List<PlaceDto>> {
-        searchCalls += q
-        lastNear = near
-        delays[q]?.let { delay(it) }
-        return ApiResult.Ok(listOf(PlaceDto(name = "$q 결과", lat = 37.55, lng = 126.92)))
-    }
-
-    override suspend fun reverse(point: GeoPoint): ApiResult<ReverseDto> {
-        reverseCalls += point
-        return reverseResult
-    }
-}
-
-class FakeMyPlaceRepository(initial: List<MyPlaceEntity> = emptyList()) : MyPlaceRepository {
-    override val places = MutableStateFlow(initial)
-    private var nextId = (initial.maxOfOrNull { it.id } ?: 0) + 1
-
-    /** save 호출 기록: (종류, 이름, 주소) */
-    val saved = mutableListOf<Triple<MyPlaceType, String, String?>>()
-
-    override suspend fun save(type: MyPlaceType, label: String, endpoint: Endpoint, address: String?) {
-        saved += Triple(type, label, address)
-        val kept = if (type == MyPlaceType.CUSTOM) places.value else places.value.filterNot { it.type == type }
-        val entity = MyPlaceEntity(
-            id = nextId++, type = type, label = label, lat = endpoint.point.lat, lng = endpoint.point.lng,
-            address = address, stationId = endpoint.stationId,
-        )
-        places.value = kept + entity
-    }
-
-    override suspend fun delete(id: Long) {
-        places.value = places.value.filterNot { it.id == id }
-    }
-
-    override suspend fun get(id: Long): MyPlaceEntity? = places.value.find { it.id == id }
-}
-
 class FakeRecentSearchRepository(initial: List<RecentSearchEntity> = emptyList()) : RecentSearchRepository {
     override val recent = MutableStateFlow(initial)
-    val recorded = mutableListOf<Endpoint>()
+    val recorded = mutableListOf<StationRef>()
 
-    override suspend fun record(endpoint: Endpoint) {
-        recorded += endpoint
+    override suspend fun record(station: StationRef) {
+        recorded += station
     }
 }
 
@@ -185,11 +154,13 @@ class FakeRecentSearchRepository(initial: List<RecentSearchEntity> = emptyList()
 class FakeRouteRepository : RouteRepository {
     var result: ApiResult<RoutesDto> =
         ApiResult.Ok(RoutesDto(updatedAt = "2026-11-03T08:00:00+09:00", routes = listOf(specRoute())))
-    val calls = mutableListOf<Triple<Endpoint, Endpoint, Endpoint?>>()
-    val lastVia: Endpoint? get() = calls.lastOrNull()?.third
+    data class Call(val from: StationRef, val to: StationRef, val via: StationRef?, val departAt: Instant?)
 
-    override suspend fun routes(origin: Endpoint, dest: Endpoint, via: Endpoint?): ApiResult<RoutesDto> {
-        calls += Triple(origin, dest, via)
+    val calls = mutableListOf<Call>()
+    val lastVia: StationRef? get() = calls.lastOrNull()?.via
+
+    override suspend fun routes(from: StationRef, to: StationRef, via: StationRef?, departAt: Instant?): ApiResult<RoutesDto> {
+        calls += Call(from, to, via, departAt)
         return result
     }
 }

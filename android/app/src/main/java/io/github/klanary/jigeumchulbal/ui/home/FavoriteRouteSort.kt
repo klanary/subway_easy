@@ -2,12 +2,10 @@ package io.github.klanary.jigeumchulbal.ui.home
 
 import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
 import io.github.klanary.jigeumchulbal.data.local.RouteUsageEntity
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
 import java.time.Instant
 import java.time.ZonedDateTime
 import kotlin.math.abs
 import kotlin.math.min
-import kotlin.math.roundToLong
 
 private const val MINUTES_PER_DAY = 24 * 60
 private const val WINDOW_MINUTES = 60
@@ -42,16 +40,3 @@ fun sortFavoriteRoutes(
             .thenByDescending { it.createdAt },
     )
 }
-
-/** 즐겨찾기와 출발·경유·도착이 같은지. 좌표는 소수점 4자리(약 10m)로 비교하고, 경유지는 둘 다 없거나 같아야 한다. */
-fun sameEndpoints(fav: FavoriteRouteEntity, origin: Endpoint, via: Endpoint?, dest: Endpoint): Boolean {
-    fun same(lat: Double, lng: Double, e: Endpoint) = round4(lat) == round4(e.point.lat) && round4(lng) == round4(e.point.lng)
-    val viaMatches = when {
-        via == null -> fav.viaLat == null && fav.viaLng == null
-        fav.viaLat == null || fav.viaLng == null -> false
-        else -> same(fav.viaLat, fav.viaLng, via)
-    }
-    return same(fav.originLat, fav.originLng, origin) && same(fav.destLat, fav.destLng, dest) && viaMatches
-}
-
-private fun round4(value: Double): Long = (value * 10_000).roundToLong()

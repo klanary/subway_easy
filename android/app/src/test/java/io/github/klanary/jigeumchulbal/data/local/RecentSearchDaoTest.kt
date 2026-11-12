@@ -22,21 +22,18 @@ class RecentSearchDaoTest {
 
     @After fun tearDown() = db.close()
 
-    private fun station(id: String, at: Long) = RecentSearchEntity(
-        kind = RecentKind.STATION, label = id, lat = 37.5, lng = 127.0, stationId = id, usedAt = at,
-        dedupeKey = recentDedupeKey(RecentKind.STATION, id, 37.5, 127.0, id),
-    )
+    private fun station(id: String, at: Long) = RecentSearchEntity(stationId = id, name = id, usedAt = at)
 
     @Test fun keepsOnlyTwentyNewest() = runTest {
         repeat(25) { db.recentSearchDao().record(station("역$it", it.toLong())) }
         assertEquals(20, db.recentSearchDao().count())
-        assertEquals("역24", db.recentSearchDao().observeRecent().first().first().label)
+        assertEquals("역24", db.recentSearchDao().observeRecent().first().first().name)
     }
 
     @Test fun sameStationTwiceKeepsOneRowOnTop() = runTest {
         listOf("홍대입구" to 1L, "합정" to 2L, "홍대입구" to 3L).forEach { (id, at) ->
             db.recentSearchDao().record(station(id, at))
         }
-        assertEquals(listOf("홍대입구", "합정"), db.recentSearchDao().observeRecent().first().map { it.label })
+        assertEquals(listOf("홍대입구", "합정"), db.recentSearchDao().observeRecent().first().map { it.name })
     }
 }

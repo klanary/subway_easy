@@ -14,7 +14,6 @@ room = "2.7.1"
 datastorePreferences = "1.1.7"
 playServicesLocation = "21.3.0"
 coroutines = "1.10.2"
-kakaoMap = "2.15.2"
 junit = "4.13.2"
 robolectric = "4.16"
 androidxTestCore = "1.6.1"
@@ -40,7 +39,6 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
-kakao-map = { group = "com.kakao.maps.open", name = "android", version.ref = "kakaoMap" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }

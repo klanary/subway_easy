@@ -31,9 +31,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.toEndpoint
-import io.github.klanary.jigeumchulbal.ui.MapPickDest
+import io.github.klanary.jigeumchulbal.data.model.StationRef
+import io.github.klanary.jigeumchulbal.data.model.toRef
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.StationDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
@@ -42,17 +41,14 @@ import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.returnPick
 import kotlinx.coroutines.launch
 
-/** 통합 검색. 고른 항목은 이전 화면(경로 편집, 설정)에 돌려준다. */
+/** 역 검색. [slot]이 있으면 고른 역을 경로 편집에 돌려주고, 없으면 그 역의 상세를 연다. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     slot: Slot?,
     navController: NavController,
     viewModel: SearchViewModel = appViewModel {
-        SearchViewModel(
-            slot, it.stationRepository, it.placeRepository, it.myPlaceRepository,
-            it.recentSearchRepository, it.locationProvider,
-        )
+        SearchViewModel(slot, it.stationRepository, it.recentSearchRepository)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -60,8 +56,15 @@ fun SearchScreen(
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
 
-    fun pick(endpoint: Endpoint) {
-        scope.launch { navController.returnPick(viewModel.select(endpoint)) }
+    fun pick(station: StationRef) {
+        scope.launch {
+            val result = viewModel.select(station)
+            if (slot == null) {
+                navController.navigate(StationDest(station.id))
+            } else {
+                navController.returnPick(result)
+            }
+        }
     }
 
     Scaffold(
@@ -85,27 +88,12 @@ fun SearchScreen(
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item {
-                TextButton(onClick = { navController.navigate(MapPickDest(slot)) }, modifier = Modifier.padding(8.dp)) {
-                    Text(Copy.PICK_ON_MAP)
-                }
-            }
-            if (state.myPlaces.isNotEmpty()) {
-                sectionHeader(Copy.MY_PLACES)
-                items(state.myPlaces, key = { "my-${it.id}" }) { place ->
-                    ListItem(
-                        headlineContent = { Text(place.label) },
-                        supportingContent = place.address?.let { address -> { Text(address) } },
-                        modifier = Modifier.clickable { pick(place.toEndpoint()) },
-                    )
-                }
-            }
             if (state.recents.isNotEmpty()) {
                 sectionHeader(Copy.RECENT_SEARCHES)
                 items(state.recents, key = { "recent-${it.id}" }) { recent ->
                     ListItem(
-                        headlineContent = { Text(recent.label) },
-                        modifier = Modifier.clickable { pick(recent.toEndpoint()) },
+                        headlineContent = { Text(recent.name) },
+                        modifier = Modifier.clickable { pick(StationRef(recent.stationId, recent.name)) },
                     )
                 }
             }
@@ -122,17 +110,7 @@ fun SearchScreen(
                                     Text(Copy.REALTIME)
                                 }
                             },
-                            modifier = Modifier.clickable { pick(station.toEndpoint()) },
-                        )
-                    }
-                }
-                sectionHeader(Copy.PLACES)
-                resultSection(state.places, viewModel::retry) { places ->
-                    items(places, key = { "place-${it.name}-${it.lat}-${it.lng}" }) { place ->
-                        ListItem(
-                            headlineContent = { Text(place.name) },
-                            supportingContent = place.address?.let { address -> { Text(address) } },
-                            modifier = Modifier.clickable { pick(place.toEndpoint()) },
+                            modifier = Modifier.clickable { pick(station.toRef()) },
                         )
                     }
                 }

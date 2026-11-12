@@ -1,0 +1,31 @@
+{
+ "stationId": "영등포구청",
+ "line": "5호선",
+ "direction": "상행",
+ "trains": [
+  {
+   "departsAt": "2026-11-13T08:01:10+09:00",
+   "destination": "방화",
+   "isExpress": false,
+   "trainNo": "5518"
+  },
+  {
+   "departsAt": "2026-11-13T08:05:40+09:00",
+   "destination": "방화",
+   "isExpress": false,
+   "trainNo": "5032"
+  },
+  {
+   "departsAt": "2026-11-13T08:10:10+09:00",
+   "destination": "방화",
+   "isExpress": false,
+   "trainNo": "5520"
+  },
+  {
+   "departsAt": "2026-11-13T08:14:40+09:00",
+   "destination": "방화",
+   "isExpress": false,
+   "trainNo": "5034"
+  }
+ ]
+}

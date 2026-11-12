@@ -34,6 +34,14 @@ subway_easy/
 - [원본 대비 UX 측정](docs/measurements/ux-comparison.md)
 - [학습 노트](docs/learning/README.md)
 
+## 배포
+
+- 서버: https://jigeumchulbal-server.onrender.com (Render 무료 요금제, `render.yaml` 블루프린트, `develop` 브랜치, 2026-11-12)
+- 공개 저장소 주소로 연결해 자동 배포는 꺼져 있다. 새 커밋은 Render 대시보드의 [Manual Deploy]로 올린다.
+- 키 3개(`SEOUL_REALTIME_API_KEY`, `SEOUL_OPENAPI_KEY`, `KAKAO_REST_API_KEY`)는 대시보드 환경 변수에만 있다.
+- 2026-11-12 배포 직후 확인: `/health`, 역 검색, 영등포구청 실시간 도착, 마포→공덕 경로, 영등포구청 5호선 시간표 모두 정상.
+- 앱은 `android/local.properties`의 `server.baseUrl`을 이 주소로 둔다. 무료 서버는 쉬다가 깨어나는 데 1분 가까이 걸린다.
+
 ## 데이터 출처
 
 - 서울 열린데이터광장: 서울시 지하철 실시간 도착정보, 서울시 역사마스터 정보, 서울시 지하철역 정보, 서울시 지하철역 시간표

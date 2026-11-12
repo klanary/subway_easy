@@ -63,3 +63,11 @@ interface RoutineDao {
     @Query("DELETE FROM routines WHERE id = :id")
     suspend fun delete(id: Long)
 }
+
+/** 경로 상세에서 [루틴으로 만들기]를 누를 때의 출발·경유·도착과 고른 경로(좌표를 뺀 JSON). */
+data class RoutineDraft(
+    val from: StationRef,
+    val via: StationRef?,
+    val to: StationRef,
+    val routeJson: String,
+)

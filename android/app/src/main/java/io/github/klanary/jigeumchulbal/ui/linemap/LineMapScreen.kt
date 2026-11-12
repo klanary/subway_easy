@@ -66,6 +66,12 @@ import io.github.klanary.jigeumchulbal.ui.SearchDest
 import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.SettingsDest
 import io.github.klanary.jigeumchulbal.ui.OnPickResult
+import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
+import io.github.klanary.jigeumchulbal.ui.routine.RoutineList
+import io.github.klanary.jigeumchulbal.ui.routine.RoutineListViewModel
+import io.github.klanary.jigeumchulbal.ui.routine.nextRoutineLine
+import java.time.LocalDate
+import java.time.LocalTime
 import io.github.klanary.jigeumchulbal.ui.toGraph
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
@@ -158,6 +164,7 @@ fun LineMapScreen(
         BottomPanel(
             favoriteRoutes = homeState.favoriteRoutes,
             onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
+            onEditRoutine = { navController.navigate(RoutineEditDest(it)) },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
@@ -273,13 +280,15 @@ private fun TopBar(onSearch: () -> Unit, onLocate: () -> Unit, onRoute: () -> Un
     }
 }
 
-/** 접히는 아래 패널: [루틴] [자주 가는 경로]. 루틴은 A10에서 채운다. */
+/** 접히는 아래 패널: [루틴] [자주 가는 경로]. 접혀 있으면 오늘의 다음 루틴 한 줄을 보인다. */
 @Composable
 private fun BottomPanel(
     favoriteRoutes: List<FavoriteRouteEntity>,
     onFavorite: (FavoriteRouteEntity) -> Unit,
+    onEditRoutine: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val routines by appViewModel { RoutineListViewModel(it.routineRepository) }.list.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Surface(modifier.fillMaxWidth(), tonalElevation = 3.dp, shadowElevation = 6.dp) {
@@ -296,10 +305,16 @@ private fun BottomPanel(
                     )
                 }
             }
+            if (!expanded) {
+                val now = LocalTime.now()
+                nextRoutineLine(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)?.let { line ->
+                    Text(line, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             if (expanded) {
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 280.dp)) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
                     when (tab) {
-                        0 -> item { ListItem(headlineContent = { Text(Copy.NO_ROUTINES) }) }
+                        0 -> item { RoutineList(onEdit = onEditRoutine) }
                         else -> if (favoriteRoutes.isEmpty()) {
                             item { ListItem(headlineContent = { Text(Copy.NO_FAVORITE_ROUTES) }) }
                         } else {

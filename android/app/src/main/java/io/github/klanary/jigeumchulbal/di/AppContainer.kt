@@ -27,7 +27,9 @@ import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.routine.AndroidRoutineAlarmScheduler
 import io.github.klanary.jigeumchulbal.routine.DefaultRoutineRepository
+import io.github.klanary.jigeumchulbal.routine.RoutineDraft
 import io.github.klanary.jigeumchulbal.routine.RoutineRepository
+import io.github.klanary.jigeumchulbal.routine.RoutineRunner
 import io.github.klanary.jigeumchulbal.session.AlarmScheduler
 import io.github.klanary.jigeumchulbal.session.AndroidAlarmScheduler
 import io.github.klanary.jigeumchulbal.session.AndroidServiceLauncher
@@ -108,4 +110,9 @@ class AppContainer(context: Context) {
         launcher = AndroidServiceLauncher(appContext),
         clock = System::currentTimeMillis,
     )
+
+    val routineRunner = RoutineRunner(sessionController, routineRepository, sessionNotifier, settingsStore.settings, json)
+
+    /** 경로 상세의 [루틴으로 만들기]가 루틴 편집 화면에 넘기는 경로(재설계 스펙 4.6). */
+    var pendingRoutine: RoutineDraft? = null
 }

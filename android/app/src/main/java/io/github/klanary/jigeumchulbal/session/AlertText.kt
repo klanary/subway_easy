@@ -8,6 +8,7 @@ fun alertText(content: AlertContent): Pair<String, String> = when (content) {
     is AlertContent.AlightSoon -> "곧 ${stopLabel(content.point)}이에요" to alightText(content.point)
     AlertContent.WaitingInterrupted ->
         "대기 알림이 중단됐어요" to "기기가 다시 켜져 승차 전 알림을 멈췄어요. 필요하면 다시 시작해 주세요"
+    AlertContent.RoutineSkipped -> "루틴을 건너뛰었어요" to "진행 중인 통학 알림이 있어 루틴을 건너뛰었어요"
 }
 
 private fun trainText(minutes: Int, destination: String?): String =

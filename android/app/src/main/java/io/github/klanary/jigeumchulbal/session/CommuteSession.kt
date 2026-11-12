@@ -109,6 +109,9 @@ sealed interface AlertContent {
 
     /** "대기 알림이 중단됐어요"(재부팅 등) */
     data object WaitingInterrupted : AlertContent
+
+    /** "진행 중인 통학 알림이 있어 루틴을 건너뛰었어요"(재설계 스펙 5.4) */
+    data object RoutineSkipped : AlertContent
 }
 
 enum class EndReason { CANCELLED, TIMEOUT, ARRIVED, BOARDED_AT_STATION, INTERRUPTED }

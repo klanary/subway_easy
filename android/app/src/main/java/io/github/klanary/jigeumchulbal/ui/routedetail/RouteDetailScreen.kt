@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -47,7 +48,11 @@ import io.github.klanary.jigeumchulbal.session.SessionEvent
 import io.github.klanary.jigeumchulbal.session.hasTransit
 import io.github.klanary.jigeumchulbal.session.waitStartFromRoute
 import io.github.klanary.jigeumchulbal.session.withoutPaths
+import io.github.klanary.jigeumchulbal.App
+import io.github.klanary.jigeumchulbal.routine.RoutineDraft
+import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
 import io.github.klanary.jigeumchulbal.ui.SessionDest
+import kotlinx.serialization.json.Json
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.color
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
@@ -67,6 +72,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
     LaunchedEffect(routeId) { viewModel.select(routeId) }
     val route = state.selectedRoute
     val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest) })
+    val container = (LocalContext.current.applicationContext as App).container
 
     Scaffold(
         topBar = {
@@ -91,8 +97,19 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
             item {
                 // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
                 if (route.hasTransit()) SessionButtons(route, startSession)
-                TextButton(onClick = viewModel::toggleFavorite, modifier = Modifier.padding(horizontal = 8.dp)) {
-                    Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
+                Row(Modifier.padding(horizontal = 8.dp)) {
+                    TextButton(onClick = viewModel::toggleFavorite) {
+                        Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
+                    }
+                    val origin = state.origin
+                    val dest = state.dest
+                    if (route.hasTransit() && origin != null && dest != null) {
+                        TextButton(onClick = {
+                            // 루틴 편집 화면에 이 경로를 넘긴다(재설계 스펙 4.5, 4.6).
+                            container.pendingRoutine = RoutineDraft(origin, state.via, dest, routeJson(route))
+                            navController.navigate(RoutineEditDest())
+                        }) { Text(Copy.MAKE_ROUTINE) }
+                    }
                 }
                 HorizontalDivider()
             }
@@ -160,3 +177,8 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
         }
     }
 }
+
+private val routeJsonFormat = Json { encodeDefaults = false }
+
+/** 루틴에 저장할 경로: 지도 좌표(path)를 뺀 JSON. */
+private fun routeJson(route: RouteDto): String = routeJsonFormat.encodeToString(route.withoutPaths())

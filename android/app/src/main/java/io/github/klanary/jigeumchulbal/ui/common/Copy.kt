@@ -151,5 +151,15 @@ object Copy {
     const val AS_FROM = "출발로"
     const val AS_TO = "도착으로"
     const val AS_VIA = "경유로"
+    // 루틴(재설계 스펙 4.6)
+    const val NEED_NOTIFICATION_PERMISSION = "알림 권한이 없어 루틴을 켜지 못했어요"
+    const val ROUTINE_TITLE = "루틴"
+    const val ROUTINE_NAME = "이름"
+    const val ROUTINE_TIME = "시각"
+    const val ROUTINE_WALK = "역까지 걷는 시간"
+    const val ROUTINE_PREVIEW = "이 시각에 타게 될 열차"
+    const val ROUTINE_SAVE = "저장"
+    const val MAKE_ROUTINE = "루틴으로 만들기"
+    const val DELETE_ROUTINE_ASK = "이 루틴을 지울까요?"
     const val LINEMAP_SOURCE = "노선도: 위키미디어 공용 Seoul_subway_linemap_ko.svg (퍼블릭 도메인, IRTC1015, 2025-06-29 판)"
 }

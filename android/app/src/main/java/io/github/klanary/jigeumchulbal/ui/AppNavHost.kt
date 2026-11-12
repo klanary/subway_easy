@@ -24,6 +24,7 @@ import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.ui.linemap.LineMapScreen
+import io.github.klanary.jigeumchulbal.ui.routine.RoutineEditScreen
 import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
 import io.github.klanary.jigeumchulbal.ui.routedetail.RouteDetailScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
@@ -73,6 +74,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
     composable<SettingsDest> { SettingsScreen(navController) }
+    composable<RoutineEditDest> { entry -> RoutineEditScreen(entry.toRoute<RoutineEditDest>().routineId, navController) }
     composable<SessionDest> { SessionScreen(navController) }
 }
 

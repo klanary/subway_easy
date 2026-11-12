@@ -42,6 +42,10 @@ data class SearchDest(val slot: Slot? = null)
 @Serializable
 object SettingsDest
 
+/** 루틴 등록·편집. [routineId]가 없으면 새 루틴(경로 상세의 [루틴으로 만들기]가 경로를 넘긴다). */
+@Serializable
+data class RoutineEditDest(val routineId: Long? = null)
+
 /** 통학 세션 화면. 알림이나 알람 아이콘을 눌러도 열린다(MainActivity). */
 @Serializable
 object SessionDest

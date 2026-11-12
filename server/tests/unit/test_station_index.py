@@ -66,3 +66,16 @@ def test_real_data_resolves_names_from_other_sources(real_index):
     assert real_index.resolve("운정").id == "운정" and real_index.get("운정중앙").lines == (
         "GTX-A",
     )
+
+
+def test_real_api_names_verified_against_the_live_api(real_index):
+    """2026-11-12 낮에 실시간 API로 전 역을 조회해 확인한 조회 이름(api-verification.md §2)."""
+    assert real_index.get("군자").api_name == "군자(능동)"
+    assert real_index.get("남한산성입구").api_name == "남한산성입구(성남법원,검찰청)"
+    assert real_index.get("상도").api_name == "상도(중앙대앞)"
+    # 스펙의 "대모산"은 조회되지 않았다
+    assert real_index.get("대모산입구").api_name == "대모산입구"
+    # 7호선 이수와 4호선 총신대입구는 한 이름으로 조회되고 두 호선이 함께 온다.
+    shared = "총신대입구(이수)"
+    assert real_index.get("이수").api_name == real_index.get("총신대입구").api_name == shared
+    assert real_index.shares_api_name(real_index.get("이수"))

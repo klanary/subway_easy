@@ -8,8 +8,6 @@ async def test_metrics_on_fresh_server(client):
     assert list(body["upstream"]) == [
         "seoulRealtime",
         "kakaoRoute",
-        "kakaoKeyword",
-        "kakaoCoord2Address",
     ]
     assert body["upstream"]["seoulRealtime"] == {
         "callsToday": 0,

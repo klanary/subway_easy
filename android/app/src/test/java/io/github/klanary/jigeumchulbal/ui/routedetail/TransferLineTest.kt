@@ -14,12 +14,12 @@ class TransferLineTest {
     )
 
     @Test fun showsCatchableAndNextTrain() = assertEquals(
-        "을지로3가 도착 08:15 · 탈 수 있는 열차 08:18 대화행 · 놓치면 08:21 구파발행",
+        "을지로3가 도착 08:15 · 환승 열차 08:18 대화행 · 그다음 08:21 구파발행",
         transferLine(step(listOf(TransferTrainDto("2026-11-13T08:18:00+09:00", "대화"), TransferTrainDto("2026-11-13T08:21:00+09:00", "구파발")))),
     )
 
     @Test fun oneTrainOnly() = assertEquals(
-        "을지로3가 도착 08:15 · 탈 수 있는 열차 08:18 대화행",
+        "을지로3가 도착 08:15 · 환승 열차 08:18 대화행",
         transferLine(step(listOf(TransferTrainDto("2026-11-13T08:18:00+09:00", "대화")))),
     )
 

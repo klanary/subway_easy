@@ -122,17 +122,16 @@ class RouteService:
             await self._attach_transfers(route, first, now)
 
     async def _attach_transfers(self, route: Route, first: datetime, now: datetime) -> None:
-        """환승해서 타는 지하철 단계마다 그 역에 걸어 도착하는 시각과 그 뒤 열차 2대를 붙인다.
+        """환승해서 타는 지하철 단계마다 타고 온 열차의 도착 시각과 그 뒤 출발 열차 2대를 붙인다.
 
-        시각은 첫 열차 출발부터 단계 시간(탑승, 환승 걷기)을 더해 간다. 환승역에서 실제로 탈 열차가
-        정해지면 그 열차 출발부터 다시 더한다.
+        시각은 첫 열차 출발부터 탑승 시간만 더해 간다.
+        환승 걷기는 더하지 않는다(2026-11-13 사용자 요청).
+        환승역에서 탈 열차가 정해지면 그 열차 출발부터 다시 더한다.
         """
         clock: datetime | None = None
         for step in (s for leg in route.legs for s in leg.steps):
             if step.mode != "SUBWAY":
-                if clock is not None:
-                    clock += timedelta(seconds=step.duration_sec)
-                continue
+                continue  # 걷기는 더하지 않는다: 타고 온 열차의 도착 시각이 기준
             if clock is None:  # 첫 탑승
                 clock = first + timedelta(seconds=step.duration_sec)
                 continue

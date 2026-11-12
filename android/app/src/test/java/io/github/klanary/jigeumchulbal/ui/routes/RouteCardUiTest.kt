@@ -57,7 +57,7 @@ class RouteCardUiTest {
             transferTrains = listOf(TransferTrainDto("2026-11-13T08:18:00+09:00", "대화"), TransferTrainDto("2026-11-13T08:21:00+09:00", "구파발")),
         )
         val withTransfer = route.copy(legs = listOf(LegDto(route.legs[0].steps + transfer)))
-        assertEquals("을지로3가 환승 08:18 · 놓치면 08:21", withTransfer.toCardUi(0, 0).transferText)
+        assertEquals("을지로3가 환승 08:18 · 그다음 08:21", withTransfer.toCardUi(0, 0).transferText)
         assertNull(route.toCardUi(0, 0).transferText)
     }
 }

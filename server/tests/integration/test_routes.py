@@ -216,8 +216,8 @@ async def test_transfer_trains_with_depart_at(client, kakao_route, respx_mock):
     trains = step["transferTrains"]
     assert len(trains) == 2
     ready = datetime.fromisoformat(step["boardAfter"])
-    # 첫 열차 출발 + 2호선 탑승 810초 + 환승 걷기 148초
-    assert ready == datetime.fromisoformat(route["departAt"]) + timedelta(seconds=810 + 148)
+    # 첫 열차 출발 + 2호선 탑승 810초. 환승 걷기는 더하지 않는다(사용자 요청).
+    assert ready == datetime.fromisoformat(route["departAt"]) + timedelta(seconds=810)
     first, second = (datetime.fromisoformat(t["departsAt"]) for t in trains)
     assert ready <= first < second
     assert {t["source"] for t in trains} == {"timetable"}

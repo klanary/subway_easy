@@ -91,7 +91,7 @@ data class StepDto(
     val transferTrains: List<TransferTrainDto>? = null,
 )
 
-/** 환승역에서 탈 열차. 첫째가 걸어서 탈 수 있는 빠른 열차, 둘째가 그다음 열차다. */
+/** 환승역에서 타고 온 열차가 도착한 뒤 출발하는 열차. 첫째와 그다음 열차. */
 @Serializable
 data class TransferTrainDto(
     val departsAt: String,

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from app.services.geo import haversine_m
 from app.services.normalize import normalize_line, normalize_station_name, to_chosung
+from app.services.station_index import StationIndex
 
 # 칸마다 받아들이는 열 이름. 앞은 내려받은 파일, 뒤는 OpenAPI다
 # (2026-11-11 확인, api-verification.md §2).
@@ -234,7 +235,64 @@ CREATE TABLE station_lines (station_id TEXT NOT NULL, line_name TEXT NOT NULL,
                             master_id TEXT NOT NULL,
                             PRIMARY KEY (station_id, line_name, master_id));
 CREATE TABLE aliases (alias TEXT PRIMARY KEY, station_id TEXT NOT NULL);
+CREATE TABLE station_codes (station_id TEXT NOT NULL, line_name TEXT NOT NULL,
+                            station_cd TEXT NOT NULL, fr_code TEXT,
+                            PRIMARY KEY (station_id, line_name));
 """
+
+
+# 역 정보와 역사마스터의 이름이 다른 역(새 이름 → 역사마스터 이름, 2026-11-12 실제 데이터 비교)
+INFO_NAME_EXCEPTIONS: dict[str, str] = {
+    "자양": "뚝섬유원지",
+    "용인중앙시장": "김량장",
+    "4·19민주묘지": "4.19민주묘지",
+}
+
+
+@dataclass(frozen=True)
+class StationCodeRow:
+    station_id: str
+    line_name: str
+    station_cd: str
+    fr_code: str | None
+
+
+def link_station_codes(
+    info: list[dict], index: StationIndex
+) -> tuple[list[StationCodeRow], list[str]]:
+    """서울시 지하철역 정보 행을 우리 역 id·호선에 잇는다.
+
+    호선이 맞는 역을 먼저 고른다. 역사마스터는 운영 호선이 아니라 선로를 적어서(4호선 선로를
+    달리는 수인분당선 등) 우리 역에 그 호선이 없을 수 있다. 그때는 이름이 같은 역에 잇는다.
+    돌려주는 두 번째 값은 잇지 못한 "이름(호선)" 목록이다.
+    """
+    rows: dict[tuple[str, str], StationCodeRow] = {}
+    unmatched: list[str] = []
+    for item in info:
+        line = normalize_line(item["LINE_NUM"])
+        name = INFO_NAME_EXCEPTIONS.get(item["STATION_NM"], item["STATION_NM"])
+        station = index.resolve(name, line)
+        if station is None:
+            unmatched.append(f"{item['STATION_NM']}({line})")
+            continue
+        rows.setdefault(
+            (station.id, line),
+            StationCodeRow(station.id, line, item["STATION_CD"], item.get("FR_CODE")),
+        )
+    return sorted(rows.values(), key=lambda r: (r.station_id, r.line_name)), unmatched
+
+
+def write_station_codes(rows: list[StationCodeRow], out: Path) -> None:
+    con = sqlite3.connect(out)
+    try:
+        con.execute("DELETE FROM station_codes")
+        con.executemany(
+            "INSERT INTO station_codes VALUES (?, ?, ?, ?)",
+            [(r.station_id, r.line_name, r.station_cd, r.fr_code) for r in rows],
+        )
+        con.commit()
+    finally:
+        con.close()
 
 
 def write_sqlite(result: BuildResult, out: Path) -> None:
@@ -258,8 +316,11 @@ def write_sqlite(result: BuildResult, out: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
-    if len(args) != 2:
-        print("사용법: python -m scripts.build_stations <원본 CSV 또는 JSON> <stations.sqlite>")
+    if len(args) not in (2, 3):
+        print(
+            "사용법: python -m scripts.build_stations <원본 CSV 또는 JSON> <stations.sqlite>"
+            " [역 정보 JSON]"
+        )
         return 2
     rows, skipped = read_master(Path(args[0]))
     try:
@@ -272,6 +333,11 @@ def main(argv: list[str] | None = None) -> int:
         f"역 {len(result.stations)}개, 호선 연결 {len(result.lines)}개, "
         f"별칭 {len(result.aliases)}개, 좌표가 없어 건너뛴 행 {skipped}개"
     )
+    if len(args) == 3:
+        info = json.loads(Path(args[2]).read_text(encoding="utf-8"))
+        codes, unmatched = link_station_codes(info, StationIndex.load(args[1]))
+        write_station_codes(codes, Path(args[1]))
+        print(f"역 코드 {len(codes)}개, 잇지 못한 행 {len(unmatched)}개: {', '.join(unmatched)}")
     return 0
 
 

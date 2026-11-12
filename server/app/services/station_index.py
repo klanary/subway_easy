@@ -11,6 +11,11 @@ from app.services.normalize import is_chosung_query, normalize_station_name
 
 _NUMBERED_LINE = re.compile(r"^(\d+)호선$")
 
+# 서울시 실시간 도착·시간표가 다루지 않는 노선(재설계 스펙 D4). 노선도에는 그리되 열차 정보는 없다.
+NON_SEOUL_LINES: frozenset[str] = frozenset(
+    {"인천1호선", "인천2호선", "에버라인선", "의정부선", "김포골드라인"}
+)
+
 
 @dataclass(frozen=True)
 class Station:
@@ -39,8 +44,14 @@ def _rank(key: str, q: str) -> int | None:
 
 
 class StationIndex:
-    def __init__(self, stations: list[Station], aliases: dict[str, str]):
+    def __init__(
+        self,
+        stations: list[Station],
+        aliases: dict[str, str],
+        codes: dict[tuple[str, str], str] | None = None,
+    ):
         self._by_id = {s.id: s for s in stations}
+        self._codes = codes or {}
         self._aliases = aliases
         # 정규화한 화면 이름 → 그 이름을 쓰는 역들(나뉜 역 포함, id순)
         self._by_name: dict[str, list[Station]] = defaultdict(list)
@@ -80,12 +91,29 @@ class StationIndex:
                 )
             ]
             aliases = dict(con.execute("SELECT alias, station_id FROM aliases"))
+            codes = {
+                (station_id, line): code
+                for station_id, line, code in con.execute(
+                    "SELECT station_id, line_name, station_cd FROM station_codes"
+                )
+            }
         finally:
             con.close()
-        return cls(stations, aliases)
+        return cls(stations, aliases, codes)
 
     def get(self, station_id: str) -> Station | None:
         return self._by_id.get(station_id)
+
+    def all(self) -> list[Station]:
+        return list(self._by_id.values())
+
+    def station_code(self, station_id: str, line: str) -> str | None:
+        """서울시 시간표 API의 역 코드(STATION_CD). 없으면 None."""
+        return self._codes.get((station_id, line))
+
+    @staticmethod
+    def realtime_supported(line: str) -> bool:
+        return line not in NON_SEOUL_LINES
 
     def resolve(self, raw_name: str, line: str | None = None) -> Station | None:
         """다른 출처(경로 응답, 실시간 응답)의 역 이름을 역으로 바꾼다. 못 찾으면 None."""

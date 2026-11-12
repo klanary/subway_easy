@@ -57,6 +57,7 @@ def test_snapshot(late_clock):
 def test_app_has_guards_in_spec_order_with_settings_limits(services):
     assert list(services.quotas) == [
         "seoulRealtime",
+        "seoulTimetable",
         "kakaoRoute",
     ]
     assert services.quotas["kakaoRoute"].daily_limit == 1000

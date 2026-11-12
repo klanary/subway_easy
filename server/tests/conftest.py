@@ -16,6 +16,7 @@ def test_settings() -> Settings:
     return Settings(
         _env_file=None,
         seoul_realtime_api_key="TESTSEOULKEY",
+        seoul_openapi_key="TESTOPENAPIKEY",
         kakao_rest_api_key="TESTKAKAOKEY",
         upstream_retry_delay_sec=0,
     )

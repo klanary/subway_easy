@@ -1,7 +1,9 @@
+from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
+from app.core.clock import KST, now_kst
 from app.core.container import AppServices, get_services
 from app.core.errors import InvalidRequest
 from app.models.schemas import (
@@ -10,12 +12,14 @@ from app.models.schemas import (
     NearestStation,
     StationItem,
     StationSearchResponse,
+    TimetableResponse,
 )
 
 router = APIRouter()
 
 MAX_QUERY_LENGTH = 50
 MAX_LIMIT = 50
+MAX_TIMETABLE_COUNT = 10
 
 
 @router.get("/v1/stations/search", response_model=StationSearchResponse)
@@ -66,3 +70,31 @@ async def station_arrivals(
     response, cache_status = await services.arrivals.get_arrivals(station_id, line, towards)
     request.state.cache_status = cache_status
     return response
+
+
+def parse_time(value: str | None, services: AppServices) -> datetime:
+    """ISO 시각. 생략하면 지금, 시간대가 없으면 한국 시간으로 본다. 형식이 틀리면 400."""
+    if value is None:
+        return now_kst(services.clock)
+    try:
+        at = datetime.fromisoformat(value)
+    except ValueError as e:
+        raise InvalidRequest("PARAMS") from e
+    return at if at.tzinfo else at.replace(tzinfo=KST)
+
+
+@router.get("/v1/stations/{station_id}/timetable", response_model=TimetableResponse)
+async def station_timetable(
+    station_id: str,
+    services: Annotated[AppServices, Depends(get_services)],
+    line: str,
+    direction: str,
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    count: int = 4,
+) -> TimetableResponse:
+    """`from` 이후 시간표 열차 `count`대(기본 4, 최대 10). 재설계 스펙 6."""
+    if not 1 <= count <= MAX_TIMETABLE_COUNT:
+        raise InvalidRequest("PARAMS")
+    after = parse_time(from_, services)
+    trains = await services.timetable.trains(station_id, line, direction, after, count)
+    return TimetableResponse(station_id=station_id, line=line, direction=direction, trains=trains)

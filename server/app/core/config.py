@@ -9,9 +9,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     seoul_realtime_api_key: str = ""
+    seoul_openapi_key: str = ""  # 일반 인증키(시간표)
     kakao_rest_api_key: str = ""
 
     seoul_realtime_daily_limit: int = 1000
+    seoul_timetable_daily_limit: int = 1000
     kakao_route_daily_limit: int = 1000
 
     rate_limit_per_minute: int = 60

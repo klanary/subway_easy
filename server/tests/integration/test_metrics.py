@@ -7,6 +7,7 @@ async def test_metrics_on_fresh_server(client):
     assert r.status_code == 200 and body["cache"] == {"hits": 0, "misses": 0, "hitRate": 0.0}
     assert list(body["upstream"]) == [
         "seoulRealtime",
+        "seoulTimetable",
         "kakaoRoute",
     ]
     assert body["upstream"]["seoulRealtime"] == {

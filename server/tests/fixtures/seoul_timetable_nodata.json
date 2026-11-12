@@ -1,0 +1,9 @@
+{
+ "status": 200,
+ "body": {
+  "RESULT": {
+   "CODE": "INFO-200",
+   "MESSAGE": "해당하는 데이터가 없습니다."
+  }
+ }
+}

@@ -15,7 +15,7 @@ from app.core.errors import QuotaExceeded, UpstreamError, UpstreamFailure, Upstr
 
 logger = logging.getLogger("app.upstream")
 
-_SEOUL_KEY_IN_PATH = re.compile(r"(/api/subway/)[^/]+(/)")
+_SEOUL_KEY_IN_PATH = re.compile(r"(/api/subway/|\.seoul\.go\.kr:8088/)[^/]+(/)")
 _COORD_PARAM = re.compile(r"([?&](?:x|y|start_x|start_y|end_x|end_y|lat|lng)=)(-?\d+(?:\.\d+)?)")
 
 

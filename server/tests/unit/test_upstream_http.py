@@ -82,3 +82,8 @@ def test_mask_url_rounds_coordinates():
         mask_url("https://dapi.kakao.com/v2/local/geo/coord2address.json?x=126.924512&y=37.557112")
         == "https://dapi.kakao.com/v2/local/geo/coord2address.json?x=126.925&y=37.557"
     )
+
+
+def test_mask_url_hides_openapi_key():
+    url = "http://openapi.seoul.go.kr:8088/SECRET9/json/SearchSTNTimeTableByIDService/1/1000/2524/1/1/"
+    assert "SECRET9" not in mask_url(url) and "/2524/1/1/" in mask_url(url)

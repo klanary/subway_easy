@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지금출발 — 다음 지하철</title>
+<meta name="description" content="역 이름을 검색하면 서울 지하철 호선·방향별 다음 열차를 큰 글씨로 보여 줍니다.">
+<link rel="icon" type="image/png" href="/logo.png">
+<style>
+  :root {
+    --bg: #f6f7f5; --card: #ffffff; --ink: #16201a; --sub: #5d6b62; --line: #dfe4df;
+    --brand: #0a8f4a; --accent: #ffd43b; --warn: #c2410c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1411; --card: #18201b; --ink: #eef3ef; --sub: #9fb0a5; --line: #2a352e; --brand: #34c47a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  header img { width: 44px; height: 44px; border-radius: 10px; }
+  header h1 { margin: 0; font-size: 24px; }
+  header p { margin: 2px 0 0; color: var(--sub); font-size: 14px; }
+  .search { position: relative; }
+  input { width: 100%; font-size: 20px; padding: 14px 16px; border: 2px solid var(--line);
+    border-radius: 14px; background: var(--card); color: var(--ink); outline: none; }
+  input:focus { border-color: var(--brand); }
+  ul.hits { list-style: none; margin: 8px 0 0; padding: 0; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  ul.hits:empty { display: none; }
+  ul.hits li button { all: unset; display: block; width: 100%; box-sizing: border-box;
+    padding: 14px 16px; font-size: 18px; cursor: pointer; border-bottom: 1px solid var(--line); }
+  ul.hits li:last-child button { border-bottom: 0; }
+  ul.hits li button:hover, ul.hits li button:focus { background: var(--bg); }
+  .lines { color: var(--sub); font-size: 14px; margin-left: 6px; }
+  .station { margin-top: 20px; }
+  .station h2 { font-size: 30px; margin: 0 0 4px; }
+  .meta { color: var(--sub); font-size: 14px; margin-bottom: 12px; }
+  .group { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px 16px; margin-bottom: 12px; }
+  .ghead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .badge { color: #fff; font-weight: 700; font-size: 14px; padding: 3px 10px; border-radius: 999px; }
+  .towards { font-size: 18px; font-weight: 700; }
+  .src { margin-left: auto; font-size: 12px; color: var(--sub); border: 1px solid var(--line);
+    border-radius: 999px; padding: 2px 8px; }
+  .train { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; }
+  .train + .train { border-top: 1px dashed var(--line); }
+  .when { font-size: 26px; font-weight: 800; min-width: 92px; }
+  .dest { font-size: 17px; }
+  .tag { font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 4px; }
+  .tag.last { background: var(--warn); color: #fff; }
+  .tag.exp { background: var(--accent); color: #222; }
+  .empty { color: var(--sub); font-size: 16px; }
+  .note { color: var(--sub); font-size: 15px; line-height: 1.6; }
+  footer { margin-top: 28px; color: var(--sub); font-size: 13px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="/logo.png" alt="">
+    <div>
+      <h1>지금출발</h1>
+      <p>타려는 역의 다음 열차를 큰 글씨로</p>
+    </div>
+  </header>
+
+  <div class="search">
+    <input id="q" type="search" placeholder="역 이름 (예: 시청, ㅅㅊ)" autocomplete="off" aria-label="역 이름 검색">
+    <ul id="hits" class="hits"></ul>
+  </div>
+
+  <section id="station" class="station">
+    <p class="note">역 이름이나 초성을 입력하고 역을 고르면 호선·방향별로 다음 열차 두 대를 보여 줍니다.
+      실시간 정보가 없는 방향은 서울시 시간표로 채우고, 20초마다 새로 고칩니다.</p>
+  </section>
+
+  <footer>
+    데이터: 서울 열린데이터광장 — 서울시 지하철 실시간 도착정보, 서울시 역코드로 지하철역별 열차 시간표 정보.<br>
+    안드로이드 앱 "지금출발"은 같은 서버로 노선도, 경로, 출퇴근 루틴 알림을 제공합니다.
+  </footer>
+</main>
+<script>
+const LINE_COLORS = {
+  "1호선": "#0052A4", "2호선": "#00A84D", "3호선": "#EF7C1C", "4호선": "#00A5DE", "5호선": "#996CAC",
+  "6호선": "#CD7C2F", "7호선": "#747F00", "8호선": "#E6186C", "9호선": "#BDB092", "경의중앙선": "#77C4A3",
+  "수인분당선": "#FABE00", "공항철도": "#0090D2", "신분당선": "#D4003B", "경춘선": "#0C8E72",
+  "우이신설선": "#B0CE18", "신림선": "#6789CA", "서해선": "#81A914", "경강선": "#0054A6", "GTX-A": "#9A6292",
+};
+const SOURCE_LABEL = { realtime: "실시간", timetable: "시간표", none: "정보 없음" };
+const $ = (id) => document.getElementById(id);
+let timer = null, current = null, searchSeq = 0;
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function api(path) {
+  const r = await fetch(path, { headers: { Accept: "application/json" } });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+
+let debounce = null;
+$("q").addEventListener("input", () => {
+  clearTimeout(debounce);
+  debounce = setTimeout(search, 200);
+});
+
+async function search() {
+  const q = $("q").value.trim();
+  const seq = ++searchSeq;
+  if (!q) { $("hits").innerHTML = ""; return; }
+  try {
+    const data = await api("/v1/stations/search?q=" + encodeURIComponent(q) + "&limit=8");
+    if (seq !== searchSeq) return;
+    $("hits").innerHTML = data.items.map((s) =>
+      `<li><button data-id="${esc(s.id)}">${esc(s.name)}<span class="lines">${esc(s.lines.join(" · "))}</span></button></li>`
+    ).join("");
+  } catch (e) {
+    if (seq === searchSeq) $("hits").innerHTML = "";
+  }
+}
+
+$("hits").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-id]");
+  if (!b) return;
+  $("hits").innerHTML = "";
+  $("q").value = "";
+  openStation(b.dataset.id);
+});
+
+function whenText(t, source) {
+  if (source === "timetable") return t.message.replace(/ 출발$/, "");
+  if (t.remainingSec == null) return t.message;
+  if (t.remainingSec < 60) return "곧";
+  return Math.round(t.remainingSec / 60) + "분";
+}
+
+function render(data) {
+  const time = new Date(data.updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  const groups = data.groups.map((g) => {
+    const source = g.source || "realtime";
+    const color = LINE_COLORS[g.line] || "#6b7280";
+    const trains = g.trains.length
+      ? g.trains.map((t) => `<div class="train"><span class="when">${esc(whenText(t, source))}</span>
+          <span class="dest">${t.destination ? esc(t.destination) + "행" : ""}${t.isLast ? '<span class="tag last">막차</span>' : ""}${t.isExpress ? '<span class="tag exp">급행</span>' : ""}</span></div>`).join("")
+      : `<p class="empty">지금은 열차 정보가 없어요.</p>`;
+    return `<div class="group"><div class="ghead"><span class="badge" style="background:${color}">${esc(g.line)}</span>
+      <span class="towards">${g.towards ? esc(g.towards) + " 방면" : ""}</span><span class="src">${SOURCE_LABEL[source] || ""}</span></div>${trains}</div>`;
+  }).join("");
+  $("station").innerHTML = `<h2>${esc(data.stationId)}</h2>
+    <div class="meta">${time} 기준${data.stale ? " · 잠시 전 정보" : ""}</div>${groups || '<p class="empty">이 역의 열차 정보가 없어요.</p>'}`;
+}
+
+async function openStation(id) {
+  current = id;
+  clearInterval(timer);
+  history.replaceState(null, "", "?station=" + encodeURIComponent(id));
+  $("station").innerHTML = `<h2>${esc(id)}</h2><p class="empty">불러오는 중…</p>`;
+  await refresh();
+  timer = setInterval(refresh, 20000);
+}
+
+async function refresh() {
+  const id = current;
+  try {
+    const data = await api("/v1/stations/" + encodeURIComponent(id) + "/arrivals");
+    if (id === current) render(data);
+  } catch (e) {
+    if (id === current) $("station").innerHTML = `<h2>${esc(id)}</h2><p class="empty">열차 정보를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.</p>`;
+  }
+}
+
+const start = new URLSearchParams(location.search).get("station");
+if (start) openStation(start);
+</script>
+</body>
+</html>

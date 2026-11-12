@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+  <rect width="140" height="140" rx="30" fill="#0A8F4A"/>
+  <text x="70" y="70" text-anchor="middle" font-family="'Malgun Gothic', sans-serif" font-weight="700" font-size="46" fill="#FFFFFF">지금</text>
+  <line x1="24" y1="98" x2="116" y2="98" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="44" cy="98" r="9" fill="#0A8F4A" stroke="#FFFFFF" stroke-width="6"/>
+  <path d="M84 86 L100 98 L84 110" fill="none" stroke="#FFD43B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

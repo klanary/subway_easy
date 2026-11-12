@@ -3,7 +3,7 @@ from datetime import datetime
 import httpx
 import pytest
 
-from app.clients.endpoints import KAKAO_ROUTE_URL, SEOUL_REALTIME_BASE
+from app.clients.endpoints import KAKAO_ROUTE_URL, SEOUL_OPENAPI_BASE, SEOUL_REALTIME_BASE
 from app.core.clock import KST
 from app.core.config import Settings
 from app.main import create_app
@@ -122,3 +122,11 @@ def kakao_route(respx_mock):
         return respx_mock.get(KAKAO_ROUTE_URL).mock(return_value=fixture_response(name))
 
     return use
+
+
+@pytest.fixture
+def timetable_mock(respx_mock):
+    """서울시 시간표 요청에 영등포구청 5호선 평일 상행 실제 샘플로 답한다(역·방향 무관)."""
+    return respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
+    )

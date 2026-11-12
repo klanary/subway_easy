@@ -5,7 +5,7 @@ from datetime import datetime
 import httpx
 import pytest
 
-from app.clients.endpoints import SEOUL_REALTIME_BASE
+from app.clients.endpoints import SEOUL_OPENAPI_BASE, SEOUL_REALTIME_BASE
 from app.core.clock import KST
 from tests.helpers import fixture_response, load_fixture, quota_exceeded_response
 
@@ -22,6 +22,14 @@ def at_sample_time(clock):
     clock.set(generated.timestamp() + 10)
 
 
+@pytest.fixture(autouse=True)
+def no_timetable(respx_mock):
+    """기본은 시간표 데이터 없음. 같은 이름(seoul_timetable)으로 다시 등록하면 바뀐다."""
+    return respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=fixture_response("seoul_timetable_nodata.json")
+    )
+
+
 async def test_groups_and_trains(client, seoul):
     seoul(SAMPLE)
     r = await client.get(ARRIVALS.format("서울"))
@@ -32,7 +40,7 @@ async def test_groups_and_trains(client, seoul):
     for g in body["groups"]:
         secs = [t["remainingSec"] for t in g["trains"]]
         assert len(secs) <= 2 and secs == sorted(secs, key=lambda s: (s is None, s or 0))
-        assert set(g) == {"line", "direction", "towards", "trains"}
+        assert set(g) == {"line", "direction", "towards", "trains", "source"}
     train = body["groups"][0]["trains"][0]
     assert {"destination", "remainingSec", "message", "isLast", "isExpress", "trainNo"} <= set(
         train
@@ -139,3 +147,78 @@ async def test_separate_station_keeps_only_own_lines(sample_client, respx_mock):
     )
     groups = (await sample_client.get(ARRIVALS.format("양평"))).json()["groups"]
     assert groups and {g["line"] for g in groups} == {"5호선"}
+
+
+# --- 실시간이 없으면 시간표로 대신한다(재설계 스펙 5.1) ---
+
+CITYHALL_TIME = datetime(2026, 11, 12, 16, 46, 50, tzinfo=KST)  # 시청 샘플을 받은 시각(목)
+
+
+async def test_realtime_groups_marked(client, seoul):
+    seoul(SAMPLE)
+    groups = (await client.get(ARRIVALS.format("서울"))).json()["groups"]
+    assert {g["source"] for g in groups} == {"realtime"}
+
+
+async def test_no_realtime_falls_back_to_timetable(client, seoul, timetable_mock, clock):
+    clock.set(CITYHALL_TIME.timestamp())
+    seoul("seoul_realtime_nodata.json")
+    groups = (await client.get(ARRIVALS.format("영등포구청"))).json()["groups"]
+    assert {(g["line"], g["direction"]) for g in groups} == {
+        ("2호선", "내선"),
+        ("2호선", "외선"),
+        ("5호선", "상행"),
+        ("5호선", "하행"),
+    }
+    assert {g["source"] for g in groups} == {"timetable"}
+    assert all(1 <= len(g["trains"]) <= 2 and g["towards"] is None for g in groups)
+    train = groups[0]["trains"][0]
+    assert train["remainingSec"] >= 0 and train["destination"] == "방화"
+
+
+async def test_missing_direction_only_is_filled(client, seoul, timetable_mock, clock, respx_mock):
+    clock.set(CITYHALL_TIME.timestamp())
+
+    def keep_up(body):
+        body["realtimeArrivalList"] = [
+            x for x in body["realtimeArrivalList"] if x["updnLine"] in ("상행", "외선")
+        ]
+
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
+        return_value=fixture_response("seoul_realtime_cityhall.json", keep_up)
+    )
+    groups = (await client.get(ARRIVALS.format("시청"))).json()["groups"]
+    assert {(g["line"], g["direction"], g["source"]) for g in groups} == {
+        ("1호선", "상행", "realtime"),
+        ("1호선", "하행", "timetable"),
+        ("2호선", "외선", "realtime"),
+        ("2호선", "내선", "timetable"),
+    }
+
+
+async def test_non_seoul_line_is_none(client, seoul, timetable_mock, clock):
+    clock.set(CITYHALL_TIME.timestamp())
+    seoul("seoul_realtime_nodata.json")
+    groups = (await client.get(ARRIVALS.format("계양"))).json()["groups"]
+    none = [g for g in groups if g["source"] == "none"]
+    assert [(g["line"], g["direction"], g["trains"]) for g in none] == [("인천1호선", None, [])]
+
+
+async def test_timetable_failure_keeps_realtime(client, seoul, clock, respx_mock):
+    clock.set(CITYHALL_TIME.timestamp())
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
+        return_value=fixture_response(
+            "seoul_realtime_cityhall.json",
+            lambda b: b.update(
+                realtimeArrivalList=[
+                    x for x in b["realtimeArrivalList"] if x["updnLine"] in ("상행", "외선")
+                ]
+            ),
+        )
+    )
+    tt = respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=httpx.Response(500)
+    )
+    r = await client.get(ARRIVALS.format("시청"))
+    assert r.status_code == 200 and {g["source"] for g in r.json()["groups"]} == {"realtime"}
+    assert tt.called

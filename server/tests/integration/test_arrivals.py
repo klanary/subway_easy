@@ -258,3 +258,18 @@ async def test_timetable_failure_is_not_retried_every_request(client, seoul, clo
     first = tt.call_count
     await client.get(ARRIVALS.format("영등포구청"), params={"line": "5호선"})
     assert first > 0 and tt.call_count == first  # 실패는 잠시 기억해 다시 부르지 않는다
+
+
+async def test_meaningless_destination_is_dropped(client, seoul, respx_mock):
+    """서울시가 밤에 행선지를 "-2"로 줄 때가 있다(2026-11-13 경복궁). 글자 없는 행선지는 비운다."""
+
+    def broken(body):
+        for x in body["realtimeArrivalList"]:
+            x["trainLineNm"] = "-2행 - 종각방면"
+            x["bstatnNm"] = "-2"
+
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
+        return_value=fixture_response(SAMPLE, broken)
+    )
+    groups = (await client.get(ARRIVALS.format("서울"))).json()["groups"]
+    assert groups and all(t["destination"] is None for g in groups for t in g["trains"])

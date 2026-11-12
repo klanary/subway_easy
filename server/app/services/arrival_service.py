@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 from collections.abc import Callable
 from datetime import datetime
 
@@ -31,6 +32,13 @@ FILL_BUDGET_SEC = 3.0  # 시간표 대체 전체에 쓰는 시간 상한
 def directions(line: str) -> tuple[str, str]:
     """2호선은 내선·외선, 그 밖은 상행·하행(서울시 실시간 updnLine 표기)."""
     return ("내선", "외선") if line == "2호선" else ("상행", "하행")
+
+
+def readable(name: str | None) -> str | None:
+    """글자(한글·영문)가 없는 행선지("-2" 등, 2026-11-13 밤 실제 응답)는 모르는 것으로 본다."""
+    if name and re.search(r"[가-힣A-Za-z]", name):
+        return name
+    return None
 
 
 def timetable_train(t: TimetableTrain, now: datetime) -> Train:
@@ -104,7 +112,7 @@ class ArrivalService:
                 continue  # 이미 이 역을 떠난 열차(스펙 6.7 규칙 5)
             trains.append(
                 Train(
-                    destination=destination or item.get("bstatnNm") or None,
+                    destination=readable(destination) or readable(item.get("bstatnNm")),
                     remaining_sec=compute_remaining_sec(item, now),
                     message=message,
                     is_last=is_last(item),

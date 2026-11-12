@@ -25,3 +25,18 @@ fun stepTitle(step: StepDto): String {
         }
     }
 }
+
+/**
+ * 환승역 열차 줄(2026-11-12 사용자 요청): "을지로3가 도착 08:15 · 탈 수 있는 열차 08:18 대화행 · 놓치면 08:21 구파발행".
+ * 걸어서 갈아타는 시간 때문에 첫 열차를 놓칠 수 있어 그다음 열차도 함께 보인다. 정보가 없으면 null.
+ */
+fun transferLine(step: StepDto): String? {
+    val trains = step.transferTrains?.takeIf { it.isNotEmpty() } ?: return null
+    fun train(t: io.github.klanary.jigeumchulbal.data.remote.TransferTrainDto) =
+        listOfNotNull(t.departsAt.substring(11, 16), t.destination?.let { "${it}행" }).joinToString(" ")
+    return listOfNotNull(
+        step.boardAfter?.let { "${step.stops?.firstOrNull() ?: ""} 도착 ${it.substring(11, 16)}".trim() },
+        "탈 수 있는 열차 ${train(trains[0])}",
+        trains.getOrNull(1)?.let { "놓치면 ${train(it)}" },
+    ).joinToString(" · ")
+}

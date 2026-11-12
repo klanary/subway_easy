@@ -86,6 +86,17 @@ data class StepDto(
     val stops: List<String>? = null,
     val boardStationId: String? = null,
     val alightStationId: String? = null,
+    /** 환승해서 타는 지하철 단계만: 이 역에 걸어 도착하는 예상 시각(ISO)과 그 뒤 열차 2대. */
+    val boardAfter: String? = null,
+    val transferTrains: List<TransferTrainDto>? = null,
+)
+
+/** 환승역에서 탈 열차. 첫째가 걸어서 탈 수 있는 빠른 열차, 둘째가 그다음 열차다. */
+@Serializable
+data class TransferTrainDto(
+    val departsAt: String,
+    val destination: String? = null,
+    val source: String = "timetable",
 )
 
 @Serializable

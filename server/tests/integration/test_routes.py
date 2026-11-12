@@ -5,7 +5,7 @@
 카카오 샘플은 2026-11-12 본인 키로 받은 실제 응답(홍대입구 → 강남 등)이다.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import httpx
 import pytest
@@ -192,3 +192,54 @@ async def test_without_depart_at_fields_are_null(client, kakao_route):
 async def test_bad_depart_at(client):
     r = await client.get(ROUTES, params={**TRIP, "departAt": "내일"})
     assert r.status_code == 400
+
+
+# --- 환승역 열차: 걸어서 탈 수 있는 빠른 열차와 그다음 열차(2026-11-12 사용자 요청) ---
+
+GYEONGBOKGUNG = {"from": "홍대입구", "to": "경복궁"}
+
+
+def transfer_steps(route: dict) -> list[dict]:
+    subway = [s for leg in route["legs"] for s in leg["steps"] if s["mode"] == "SUBWAY"]
+    return subway[1:]
+
+
+async def test_transfer_trains_with_depart_at(client, kakao_route, respx_mock):
+    kakao_route("kakao_route_transfer.json")
+    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
+    )
+    depart = datetime(2026, 11, 13, 8, 0, tzinfo=KST)
+    r = await client.get(ROUTES, params={**GYEONGBOKGUNG, "departAt": depart.isoformat()})
+    route = r.json()["routes"][0]
+    step = transfer_steps(route)[0]  # 을지로3가 3호선
+    trains = step["transferTrains"]
+    assert len(trains) == 2
+    ready = datetime.fromisoformat(step["boardAfter"])
+    # 첫 열차 출발 + 2호선 탑승 810초 + 환승 걷기 148초
+    assert ready == datetime.fromisoformat(route["departAt"]) + timedelta(seconds=810 + 148)
+    first, second = (datetime.fromisoformat(t["departsAt"]) for t in trains)
+    assert ready <= first < second
+    assert {t["source"] for t in trains} == {"timetable"}
+
+
+async def test_transfer_trains_now_fall_back_to_timetable(client, kakao_route, respx_mock):
+    kakao_route("kakao_route_transfer.json")
+    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
+    )
+    route = (await client.get(ROUTES, params=GYEONGBOKGUNG)).json()["routes"][0]
+    step = transfer_steps(route)[0]
+    assert step["boardAfter"] and 1 <= len(step["transferTrains"]) <= 2
+    assert datetime.fromisoformat(step["transferTrains"][0]["departsAt"]) >= datetime.fromisoformat(
+        step["boardAfter"]
+    )
+
+
+async def test_no_transfer_trains_without_first_train(client, kakao_route, respx_mock):
+    kakao_route("kakao_route_transfer.json")
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE, name="seoul_realtime").mock(
+        return_value=httpx.Response(500)
+    )
+    route = (await client.get(ROUTES, params=GYEONGBOKGUNG)).json()["routes"][0]
+    assert all(s.get("transferTrains") is None for s in transfer_steps(route))

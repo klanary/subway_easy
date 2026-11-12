@@ -116,6 +116,9 @@ private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
             ui.boardingText?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
+            ui.transferText?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }

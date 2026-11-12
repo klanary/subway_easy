@@ -98,6 +98,14 @@ class NearestResponse(ApiModel):
     station: NearestStation | None
 
 
+class TransferTrain(ApiModel):
+    """환승역에서 탈 열차. 첫째가 걸어서 탈 수 있는 빠른 열차, 둘째가 그다음 열차다."""
+
+    departs_at: datetime
+    destination: str | None
+    source: Literal["realtime", "timetable"]
+
+
 class Step(ApiModel):
     mode: Literal["WALK", "SUBWAY", "BUS"]
     duration_sec: int
@@ -109,6 +117,9 @@ class Step(ApiModel):
     stops: list[str] | None = None
     board_station_id: str | None = None
     alight_station_id: str | None = None
+    # 환승해서 타는 지하철 단계만: 이 역에 걸어 도착하는 예상 시각과 그 뒤 열차 2대
+    board_after: datetime | None = None
+    transfer_trains: list[TransferTrain] | None = None
 
 
 class Leg(ApiModel):

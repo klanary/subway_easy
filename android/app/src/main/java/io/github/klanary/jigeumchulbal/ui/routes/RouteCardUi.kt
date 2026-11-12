@@ -17,7 +17,7 @@ data class RouteCardUi(
     val segments: List<Segment>,
     /** "5호선 마포 승차 · 다음 열차 3분", 출발 시각을 골랐으면 "08:14 출발 · 도착 약 08:46"(재설계 스펙 4.4). */
     val boardingText: String?,
-    /** 첫 환승역의 탈 수 있는 열차와 그다음 열차: "을지로3가 환승 08:18 · 놓치면 08:21". */
+    /** 첫 환승역에서 도착 뒤 출발하는 열차 두 대: "을지로3가 환승 08:18 · 그다음 08:21". */
     val transferText: String? = null,
 )
 
@@ -61,6 +61,6 @@ private fun RouteDto.transferSummary(): String? {
     val station = step.stops?.firstOrNull() ?: return null
     return listOfNotNull(
         "$station 환승 ${clockOf(trains[0].departsAt)}",
-        trains.getOrNull(1)?.let { "놓치면 ${clockOf(it.departsAt)}" },
+        trains.getOrNull(1)?.let { "그다음 ${clockOf(it.departsAt)}" },
     ).joinToString(" · ")
 }

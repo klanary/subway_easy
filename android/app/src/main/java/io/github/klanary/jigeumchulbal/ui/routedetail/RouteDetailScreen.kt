@@ -175,7 +175,7 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
                 supportingContent = {
                     Column {
                         step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
-                        // 환승역에서 탈 수 있는 열차와 놓쳤을 때의 그다음 열차
+                        // 환승역에서 타고 온 열차가 도착한 뒤 출발하는 열차 두 대
                         transferLine(step)?.let {
                             Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
                         }

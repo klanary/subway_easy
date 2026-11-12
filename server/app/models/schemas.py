@@ -117,7 +117,7 @@ class Step(ApiModel):
     stops: list[str] | None = None
     board_station_id: str | None = None
     alight_station_id: str | None = None
-    # 환승해서 타는 지하철 단계만: 이 역에 걸어 도착하는 예상 시각과 그 뒤 열차 2대
+    # 환승해서 타는 지하철 단계만: 타고 온 열차가 이 역에 도착하는 예상 시각과 그 뒤 출발 열차 2대
     board_after: datetime | None = None
     transfer_trains: list[TransferTrain] | None = None
 

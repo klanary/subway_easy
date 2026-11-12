@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Seoul_subway_linemap_ko.svg(위키미디어 공용, 퍼블릭 도메인)에서 역 몇 개만 잘라 낸 것 -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="5724px" height="6516px" viewBox="0 0 5724 6516">
+<symbol id="환승역" viewBox="-3.5 -3.5 7 7"><circle cx="0" cy="0" r="3"/></symbol>
+<use xlink:href="#환승역" width="7" height="7" x="-3.5" y="-3.5" transform="matrix(4 0 0 -4 3059.7617 2483.7813)"/>
+<line x1="3224" y1="2412" x2="3224" y2="2432"/>
+<line x1="3616" y1="2545.07" x2="3616" y2="2565.07"/>
+<line x1="2474" y1="2798" x2="2494" y2="2798"/>
+<line x1="5450" y1="2278" x2="5470" y2="2278"/>
+<line x1="100" y1="100" x2="400" y2="100"/>
+<text transform="matrix(1 0 0 1 3233.1523 2390)" class="st57 st52">을지로3가</text>
+<text transform="matrix(0.7071 -0.7071 0.7071 0.7071 3622.5715 2587.5923)" class="st57 st52">응봉</text>
+<text transform="matrix(1 0 0 1 3070 2470)" class="st57 st52">시청</text>
+<text transform="matrix(0.7071 -0.7071 0.7071 0.7071 2483.9451 2786.79)" class="st57 st52">양평</text>
+<text transform="matrix(0.7071 -0.7071 0.7071 0.7071 5447.1284 2328.2153)" class="st57 st52">양평</text>
+<text transform="matrix(1 0 0 1 4000 4000)" class="st57 st52">이수</text>
+<text transform="matrix(1 0 0 1 108 180)" class="st49 st50">250628 Not to scale</text>
+</svg>

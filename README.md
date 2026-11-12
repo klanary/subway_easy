@@ -33,3 +33,9 @@ subway_easy/
 - [원본 앱 분석](docs/analysis/original-app.md)
 - [원본 대비 UX 측정](docs/measurements/ux-comparison.md)
 - [학습 노트](docs/learning/README.md)
+
+## 데이터 출처
+
+- 서울 열린데이터광장: 서울시 지하철 실시간 도착정보, 서울시 역사마스터 정보, 서울시 지하철역 정보, 서울시 지하철역 시간표
+- 카카오 길찾기(대중교통 경로) API
+- 노선도: 위키미디어 공용 [Seoul_subway_linemap_ko.svg](https://commons.wikimedia.org/wiki/File:Seoul_subway_linemap_ko.svg) (퍼블릭 도메인, IRTC1015, 2025-06-29 판). `server/scripts/build_linemap.py`가 역 위치표를 만든다.

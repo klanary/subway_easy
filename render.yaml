@@ -1,0 +1,20 @@
+# Render 블루프린트: 대시보드 New > Blueprint에서 이 저장소를 고르면 서버를 만든다.
+# 키 값은 저장소에 넣지 않는다(sync: false → 대시보드에서 직접 입력).
+services:
+  - type: web
+    name: jigeumchulbal-server
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: develop
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SEOUL_REALTIME_API_KEY
+        sync: false
+      - key: SEOUL_OPENAPI_KEY
+        sync: false
+      - key: KAKAO_REST_API_KEY
+        sync: false

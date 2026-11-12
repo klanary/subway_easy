@@ -16,6 +16,15 @@ NON_SEOUL_LINES: frozenset[str] = frozenset(
     {"인천1호선", "인천2호선", "에버라인선", "의정부선", "김포골드라인"}
 )
 
+# 역 번호(FR_CODE)가 커지는 쪽의 방향. 2026-11-12 실시간 전 역 조회(1,237개)와 대조했다.
+# 대부분 하행, 2호선은 내선(순환이라 번호가 크게 뛰면 반대), 9호선·우이신설선은 상행.
+# 경의중앙선·공항철도는 구간마다 달라 규칙을 쓰지 않는다(실시간 조회 표에만 의존).
+_INCREASING: dict[str, tuple[str, str]] = {"2호선": ("내선", "외선")}
+_INCREASING_UP = frozenset({"9호선", "우이신설선"})
+_NO_RULE = frozenset({"경의중앙선", "공항철도"})
+_FR_CODE = re.compile(r"^([A-Z]*)(\d+)$")
+_WRAP_GAP = 30  # 순환선에서 이보다 크게 번호가 뛰면 한 바퀴를 넘은 것
+
 
 @dataclass(frozen=True)
 class Station:
@@ -49,9 +58,13 @@ class StationIndex:
         stations: list[Station],
         aliases: dict[str, str],
         codes: dict[tuple[str, str], str] | None = None,
+        fr_codes: dict[tuple[str, str], str] | None = None,
+        directions: dict[tuple[str, str, str], str] | None = None,
     ):
         self._by_id = {s.id: s for s in stations}
         self._codes = codes or {}
+        self._fr_codes = fr_codes or {}
+        self._directions = directions or {}
         self._aliases = aliases
         # 정규화한 화면 이름 → 그 이름을 쓰는 역들(나뉜 역 포함, id순)
         self._by_name: dict[str, list[Station]] = defaultdict(list)
@@ -91,15 +104,23 @@ class StationIndex:
                 )
             ]
             aliases = dict(con.execute("SELECT alias, station_id FROM aliases"))
-            codes = {
-                (station_id, line): code
-                for station_id, line, code in con.execute(
-                    "SELECT station_id, line_name, station_cd FROM station_codes"
+            codes: dict[tuple[str, str], str] = {}
+            fr_codes: dict[tuple[str, str], str] = {}
+            for station_id, line, code, fr in con.execute(
+                "SELECT station_id, line_name, station_cd, fr_code FROM station_codes"
+            ):
+                codes[(station_id, line)] = code
+                if fr:
+                    fr_codes[(station_id, line)] = fr
+            directions = {
+                (station_id, line, next_id): direction
+                for station_id, line, next_id, direction in con.execute(
+                    "SELECT station_id, line_name, next_id, direction FROM station_directions"
                 )
             }
         finally:
             con.close()
-        return cls(stations, aliases, codes)
+        return cls(stations, aliases, codes, fr_codes, directions)
 
     def get(self, station_id: str) -> Station | None:
         return self._by_id.get(station_id)
@@ -110,6 +131,28 @@ class StationIndex:
     def station_code(self, station_id: str, line: str) -> str | None:
         """서울시 시간표 API의 역 코드(STATION_CD). 없으면 None."""
         return self._codes.get((station_id, line))
+
+    def direction(self, station_id: str, line: str, next_id: str) -> str | None:
+        """이 역에서 `next_id` 역 쪽으로 가는 열차의 방향(상행·하행·내선·외선). 모르면 None.
+
+        실시간 조회 표를 먼저 보고, 없으면 역 번호 순서 규칙을 쓴다(이웃 역일 때만).
+        """
+        found = self._directions.get((station_id, line, next_id))
+        if found or line in _NO_RULE or not self.realtime_supported(line):
+            return found
+        here = _FR_CODE.match(self._fr_codes.get((station_id, line), ""))
+        there = _FR_CODE.match(self._fr_codes.get((next_id, line), ""))
+        if not (here and there) or here.group(1) != there.group(1):
+            return None
+        diff = int(there.group(2)) - int(here.group(2))
+        if line in _INCREASING and abs(diff) > _WRAP_GAP:
+            diff = -diff
+        if diff == 0 or abs(diff) > 2:  # 이웃 역(번호 하나 건너뜀까지)만 믿는다
+            return None
+        up, down = _INCREASING.get(line, ("하행", "상행"))
+        if line in _INCREASING_UP:
+            up, down = "상행", "하행"
+        return up if diff > 0 else down
 
     @staticmethod
     def realtime_supported(line: str) -> bool:

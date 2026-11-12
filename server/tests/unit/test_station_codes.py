@@ -59,3 +59,22 @@ def test_renamed_and_track_line_stations_are_linked(real_index):
     """역사마스터가 선로 이름만 적은 역(오이도 수인분당선)과 이름이 바뀐 역(자양)도 잇는다."""
     assert real_index.station_code("오이도", "수인분당선") is not None
     assert real_index.station_code("뚝섬유원지", "7호선") is not None
+
+
+def test_direction_from_realtime_sweep(real_index):
+    """2026-11-12 낮 실시간 전 역 조회로 모은 "방향 → 다음 역"."""
+    assert real_index.direction("홍대입구", "2호선", "신촌") == "내선"
+    assert real_index.direction("홍대입구", "2호선", "합정") == "외선"
+    assert real_index.direction("홍대입구", "경의중앙선", "가좌") == "상행"
+    assert real_index.direction("시청", "2호선", "충정로") == "외선"
+
+
+def test_direction_rule_without_realtime(real_index):
+    """실시간이 없는 역은 역 번호(FR_CODE) 순서로 정한다. 진접 405 → 오남 406."""
+    assert real_index.direction("진접", "4호선", "오남") == "하행"
+    assert real_index.direction("오남", "4호선", "진접") == "상행"
+
+
+def test_direction_unknown(real_index):
+    assert real_index.direction("홍대입구", "2호선", "강남") is None  # 이웃 역이 아님
+    assert real_index.direction("계양", "인천1호선", "귤현") is None

@@ -1,0 +1,7424 @@
+[
+ {
+  "stationId": "가능",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "녹양"
+ },
+ {
+  "stationId": "가능",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "의정부"
+ },
+ {
+  "stationId": "가락시장",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "수서"
+ },
+ {
+  "stationId": "가락시장",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "경찰병원"
+ },
+ {
+  "stationId": "가락시장",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "송파"
+ },
+ {
+  "stationId": "가락시장",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "문정"
+ },
+ {
+  "stationId": "가산디지털단지",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "구로"
+ },
+ {
+  "stationId": "가산디지털단지",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "독산"
+ },
+ {
+  "stationId": "가산디지털단지",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "남구로"
+ },
+ {
+  "stationId": "가산디지털단지",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "철산"
+ },
+ {
+  "stationId": "가양",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "증미"
+ },
+ {
+  "stationId": "가양",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "양천향교"
+ },
+ {
+  "stationId": "가오리",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "화계"
+ },
+ {
+  "stationId": "가좌",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "디지털미디어시티"
+ },
+ {
+  "stationId": "가좌",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "홍대입구"
+ },
+ {
+  "stationId": "가천대",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "복정"
+ },
+ {
+  "stationId": "가천대",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "태평"
+ },
+ {
+  "stationId": "가평",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "상천"
+ },
+ {
+  "stationId": "가평",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "굴봉산"
+ },
+ {
+  "stationId": "간석",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "동암"
+ },
+ {
+  "stationId": "간석",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "주안"
+ },
+ {
+  "stationId": "갈매",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "신내"
+ },
+ {
+  "stationId": "갈매",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "별내"
+ },
+ {
+  "stationId": "강남",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "교대"
+ },
+ {
+  "stationId": "강남",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "역삼"
+ },
+ {
+  "stationId": "강남",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "신논현"
+ },
+ {
+  "stationId": "강남",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "양재"
+ },
+ {
+  "stationId": "강남구청",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "청담"
+ },
+ {
+  "stationId": "강남구청",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "학동"
+ },
+ {
+  "stationId": "강남구청",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "압구정로데오"
+ },
+ {
+  "stationId": "강남구청",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "선정릉"
+ },
+ {
+  "stationId": "강동",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "천호"
+ },
+ {
+  "stationId": "강동",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "길동"
+ },
+ {
+  "stationId": "강동구청",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "천호"
+ },
+ {
+  "stationId": "강동구청",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "몽촌토성"
+ },
+ {
+  "stationId": "강매",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "행신"
+ },
+ {
+  "stationId": "강변",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "잠실나루"
+ },
+ {
+  "stationId": "강변",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "구의"
+ },
+ {
+  "stationId": "강일",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "상일동"
+ },
+ {
+  "stationId": "강일",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "미사"
+ },
+ {
+  "stationId": "강촌",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "백양리"
+ },
+ {
+  "stationId": "강촌",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "김유정"
+ },
+ {
+  "stationId": "개롱",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "오금"
+ },
+ {
+  "stationId": "개롱",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "거여"
+ },
+ {
+  "stationId": "개봉",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "구일"
+ },
+ {
+  "stationId": "개봉",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "오류동"
+ },
+ {
+  "stationId": "개포동",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "구룡"
+ },
+ {
+  "stationId": "개포동",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "대모산입구"
+ },
+ {
+  "stationId": "개화산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "방화"
+ },
+ {
+  "stationId": "개화산",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "김포공항"
+ },
+ {
+  "stationId": "거여",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "개롱"
+ },
+ {
+  "stationId": "거여",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "마천"
+ },
+ {
+  "stationId": "건대입구",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "구의"
+ },
+ {
+  "stationId": "건대입구",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "성수"
+ },
+ {
+  "stationId": "건대입구",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "어린이대공원"
+ },
+ {
+  "stationId": "건대입구",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "뚝섬유원지"
+ },
+ {
+  "stationId": "검암",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "청라국제도시"
+ },
+ {
+  "stationId": "검암",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "계양"
+ },
+ {
+  "stationId": "경기광주",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "삼동"
+ },
+ {
+  "stationId": "경기광주",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "초월"
+ },
+ {
+  "stationId": "경마공원",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "선바위"
+ },
+ {
+  "stationId": "경마공원",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "대공원"
+ },
+ {
+  "stationId": "경복궁",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "독립문"
+ },
+ {
+  "stationId": "경복궁",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "안국"
+ },
+ {
+  "stationId": "경찰병원",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "가락시장"
+ },
+ {
+  "stationId": "경찰병원",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "오금"
+ },
+ {
+  "stationId": "계양",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "검암"
+ },
+ {
+  "stationId": "계양",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "김포공항"
+ },
+ {
+  "stationId": "고덕",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "명일"
+ },
+ {
+  "stationId": "고덕",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "상일동"
+ },
+ {
+  "stationId": "고려대",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "안암"
+ },
+ {
+  "stationId": "고려대",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "월곡"
+ },
+ {
+  "stationId": "고색",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "수원"
+ },
+ {
+  "stationId": "고색",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "오목천"
+ },
+ {
+  "stationId": "고속터미널",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "잠원"
+ },
+ {
+  "stationId": "고속터미널",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "교대"
+ },
+ {
+  "stationId": "고속터미널",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "반포"
+ },
+ {
+  "stationId": "고속터미널",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "내방"
+ },
+ {
+  "stationId": "고속터미널",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "사평"
+ },
+ {
+  "stationId": "고속터미널",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "신반포"
+ },
+ {
+  "stationId": "고잔",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "중앙"
+ },
+ {
+  "stationId": "고잔",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "초지"
+ },
+ {
+  "stationId": "곡산",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "백마"
+ },
+ {
+  "stationId": "곡산",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "대곡"
+ },
+ {
+  "stationId": "곤지암",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "초월"
+ },
+ {
+  "stationId": "곤지암",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "신둔도예촌"
+ },
+ {
+  "stationId": "공덕",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "마포"
+ },
+ {
+  "stationId": "공덕",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "애오개"
+ },
+ {
+  "stationId": "공덕",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "대흥"
+ },
+ {
+  "stationId": "공덕",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "효창공원앞"
+ },
+ {
+  "stationId": "공덕",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "서강대"
+ },
+ {
+  "stationId": "공덕",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "효창공원앞"
+ },
+ {
+  "stationId": "공덕",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "홍대입구"
+ },
+ {
+  "stationId": "공덕",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "서울"
+ },
+ {
+  "stationId": "공릉",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "하계"
+ },
+ {
+  "stationId": "공릉",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "태릉입구"
+ },
+ {
+  "stationId": "공항시장",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "신방화"
+ },
+ {
+  "stationId": "공항시장",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "김포공항"
+ },
+ {
+  "stationId": "공항화물청사",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "인천공항1터미널"
+ },
+ {
+  "stationId": "공항화물청사",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "운서"
+ },
+ {
+  "stationId": "과천",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "대공원"
+ },
+ {
+  "stationId": "과천",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "정부과천청사"
+ },
+ {
+  "stationId": "관악",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "석수"
+ },
+ {
+  "stationId": "관악",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "안양"
+ },
+ {
+  "stationId": "광교",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "광교중앙"
+ },
+ {
+  "stationId": "광교중앙",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "상현"
+ },
+ {
+  "stationId": "광교중앙",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "광교"
+ },
+ {
+  "stationId": "광나루",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "아차산"
+ },
+ {
+  "stationId": "광나루",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "천호"
+ },
+ {
+  "stationId": "광명사거리",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "철산"
+ },
+ {
+  "stationId": "광명사거리",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "천왕"
+ },
+ {
+  "stationId": "광운대",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "월계"
+ },
+ {
+  "stationId": "광운대",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "석계"
+ },
+ {
+  "stationId": "광화문",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "서대문"
+ },
+ {
+  "stationId": "광화문",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "종로3가"
+ },
+ {
+  "stationId": "광흥창",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "상수"
+ },
+ {
+  "stationId": "광흥창",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "대흥"
+ },
+ {
+  "stationId": "교대",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "서초"
+ },
+ {
+  "stationId": "교대",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "강남"
+ },
+ {
+  "stationId": "교대",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "고속터미널"
+ },
+ {
+  "stationId": "교대",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "남부터미널"
+ },
+ {
+  "stationId": "구로",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "신도림"
+ },
+ {
+  "stationId": "구로",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "구일"
+ },
+ {
+  "stationId": "구로디지털단지",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "대림"
+ },
+ {
+  "stationId": "구로디지털단지",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신대방"
+ },
+ {
+  "stationId": "구룡",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "도곡"
+ },
+ {
+  "stationId": "구룡",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "개포동"
+ },
+ {
+  "stationId": "구리",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "동구릉"
+ },
+ {
+  "stationId": "구리",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "장자호수공원"
+ },
+ {
+  "stationId": "구리",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "양원"
+ },
+ {
+  "stationId": "구리",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "도농"
+ },
+ {
+  "stationId": "구반포",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "신반포"
+ },
+ {
+  "stationId": "구반포",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "동작"
+ },
+ {
+  "stationId": "구성",
+  "line": "GTX-A",
+  "direction": "상행",
+  "nextId": "성남"
+ },
+ {
+  "stationId": "구성",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "동탄"
+ },
+ {
+  "stationId": "구성",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "보정"
+ },
+ {
+  "stationId": "구성",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "신갈"
+ },
+ {
+  "stationId": "구의",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "강변"
+ },
+ {
+  "stationId": "구의",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "건대입구"
+ },
+ {
+  "stationId": "구일",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "구로"
+ },
+ {
+  "stationId": "구일",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "개봉"
+ },
+ {
+  "stationId": "구파발",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "지축"
+ },
+ {
+  "stationId": "구파발",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "연신내"
+ },
+ {
+  "stationId": "국수",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "신원"
+ },
+ {
+  "stationId": "국수",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "아신"
+ },
+ {
+  "stationId": "국회의사당",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "여의도"
+ },
+ {
+  "stationId": "국회의사당",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "당산"
+ },
+ {
+  "stationId": "군자",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "장한평"
+ },
+ {
+  "stationId": "군자",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "아차산"
+ },
+ {
+  "stationId": "군자",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "중곡"
+ },
+ {
+  "stationId": "군자",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "어린이대공원"
+ },
+ {
+  "stationId": "군포",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "금정"
+ },
+ {
+  "stationId": "군포",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "당정"
+ },
+ {
+  "stationId": "굴봉산",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "가평"
+ },
+ {
+  "stationId": "굴봉산",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "백양리"
+ },
+ {
+  "stationId": "굴포천",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "삼산체육관"
+ },
+ {
+  "stationId": "굴포천",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "부평구청"
+ },
+ {
+  "stationId": "굽은다리",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "길동"
+ },
+ {
+  "stationId": "굽은다리",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "명일"
+ },
+ {
+  "stationId": "금곡",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "사릉"
+ },
+ {
+  "stationId": "금곡",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "평내호평"
+ },
+ {
+  "stationId": "금릉",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "금촌"
+ },
+ {
+  "stationId": "금릉",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "운정"
+ },
+ {
+  "stationId": "금정",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "명학"
+ },
+ {
+  "stationId": "금정",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "군포"
+ },
+ {
+  "stationId": "금정",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "범계"
+ },
+ {
+  "stationId": "금정",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "산본"
+ },
+ {
+  "stationId": "금천구청",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "독산"
+ },
+ {
+  "stationId": "금천구청",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "석수"
+ },
+ {
+  "stationId": "금촌",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "월롱"
+ },
+ {
+  "stationId": "금촌",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "금릉"
+ },
+ {
+  "stationId": "금호",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "약수"
+ },
+ {
+  "stationId": "금호",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "옥수"
+ },
+ {
+  "stationId": "기흥",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "신갈"
+ },
+ {
+  "stationId": "기흥",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "상갈"
+ },
+ {
+  "stationId": "길동",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "강동"
+ },
+ {
+  "stationId": "길동",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "굽은다리"
+ },
+ {
+  "stationId": "길음",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "미아사거리"
+ },
+ {
+  "stationId": "길음",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "성신여대입구"
+ },
+ {
+  "stationId": "김유정",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "강촌"
+ },
+ {
+  "stationId": "김유정",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "남춘천"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "개화산"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "송정"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "공항시장"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "개화"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "계양"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "마곡나루"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "능곡"
+ },
+ {
+  "stationId": "김포공항",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "원종"
+ },
+ {
+  "stationId": "까치산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "화곡"
+ },
+ {
+  "stationId": "까치산",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "신정"
+ },
+ {
+  "stationId": "까치울",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "온수"
+ },
+ {
+  "stationId": "까치울",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "부천종합운동장"
+ },
+ {
+  "stationId": "낙성대",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "서울대입구"
+ },
+ {
+  "stationId": "낙성대",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "사당"
+ },
+ {
+  "stationId": "남구로",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "대림"
+ },
+ {
+  "stationId": "남구로",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "가산디지털단지"
+ },
+ {
+  "stationId": "남동인더스파크",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "호구포"
+ },
+ {
+  "stationId": "남동인더스파크",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "원인재"
+ },
+ {
+  "stationId": "남부터미널",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "교대"
+ },
+ {
+  "stationId": "남부터미널",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "양재"
+ },
+ {
+  "stationId": "남성",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "총신대입구"
+ },
+ {
+  "stationId": "남성",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "숭실대입구"
+ },
+ {
+  "stationId": "남영",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "서울"
+ },
+ {
+  "stationId": "남영",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "용산"
+ },
+ {
+  "stationId": "남위례",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "복정"
+ },
+ {
+  "stationId": "남위례",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "산성"
+ },
+ {
+  "stationId": "남춘천",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "김유정"
+ },
+ {
+  "stationId": "남춘천",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "춘천"
+ },
+ {
+  "stationId": "남태령",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "사당"
+ },
+ {
+  "stationId": "남태령",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "선바위"
+ },
+ {
+  "stationId": "남한산성입구",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "산성"
+ },
+ {
+  "stationId": "남한산성입구",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "단대오거리"
+ },
+ {
+  "stationId": "내방",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "고속터미널"
+ },
+ {
+  "stationId": "내방",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "총신대입구"
+ },
+ {
+  "stationId": "노들",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "흑석"
+ },
+ {
+  "stationId": "노들",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "노량진"
+ },
+ {
+  "stationId": "노량진",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "용산"
+ },
+ {
+  "stationId": "노량진",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "대방"
+ },
+ {
+  "stationId": "노량진",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "노들"
+ },
+ {
+  "stationId": "노량진",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "샛강"
+ },
+ {
+  "stationId": "노원",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "상계"
+ },
+ {
+  "stationId": "노원",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "창동"
+ },
+ {
+  "stationId": "노원",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "마들"
+ },
+ {
+  "stationId": "노원",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "중계"
+ },
+ {
+  "stationId": "녹번",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "불광"
+ },
+ {
+  "stationId": "녹번",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "홍제"
+ },
+ {
+  "stationId": "녹사평",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "삼각지"
+ },
+ {
+  "stationId": "녹사평",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "이태원"
+ },
+ {
+  "stationId": "녹양",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "양주"
+ },
+ {
+  "stationId": "녹양",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "가능"
+ },
+ {
+  "stationId": "녹천",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "창동"
+ },
+ {
+  "stationId": "녹천",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "월계"
+ },
+ {
+  "stationId": "논현",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "학동"
+ },
+ {
+  "stationId": "논현",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "반포"
+ },
+ {
+  "stationId": "논현",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "신사"
+ },
+ {
+  "stationId": "논현",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "신논현"
+ },
+ {
+  "stationId": "능곡",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "대곡"
+ },
+ {
+  "stationId": "능곡",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "행신"
+ },
+ {
+  "stationId": "다산",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "별내"
+ },
+ {
+  "stationId": "다산",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "동구릉"
+ },
+ {
+  "stationId": "단대오거리",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "남한산성입구"
+ },
+ {
+  "stationId": "단대오거리",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "신흥"
+ },
+ {
+  "stationId": "달미",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "시흥능곡"
+ },
+ {
+  "stationId": "달미",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "선부"
+ },
+ {
+  "stationId": "달월",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "오이도"
+ },
+ {
+  "stationId": "달월",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "월곶"
+ },
+ {
+  "stationId": "답십리",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "마장"
+ },
+ {
+  "stationId": "답십리",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "장한평"
+ },
+ {
+  "stationId": "당산",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "합정"
+ },
+ {
+  "stationId": "당산",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "영등포구청"
+ },
+ {
+  "stationId": "당산",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "국회의사당"
+ },
+ {
+  "stationId": "당산",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "선유도"
+ },
+ {
+  "stationId": "당정",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "군포"
+ },
+ {
+  "stationId": "당정",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "의왕"
+ },
+ {
+  "stationId": "대곡",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "백석"
+ },
+ {
+  "stationId": "대곡",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "화정"
+ },
+ {
+  "stationId": "대곡",
+  "line": "GTX-A",
+  "direction": "상행",
+  "nextId": "킨텍스"
+ },
+ {
+  "stationId": "대곡",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "연신내"
+ },
+ {
+  "stationId": "대공원",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "경마공원"
+ },
+ {
+  "stationId": "대공원",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "과천"
+ },
+ {
+  "stationId": "대림",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신도림"
+ },
+ {
+  "stationId": "대림",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "구로디지털단지"
+ },
+ {
+  "stationId": "대림",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "신풍"
+ },
+ {
+  "stationId": "대림",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "남구로"
+ },
+ {
+  "stationId": "대모산입구",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "개포동"
+ },
+ {
+  "stationId": "대모산입구",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "수서"
+ },
+ {
+  "stationId": "대방",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "노량진"
+ },
+ {
+  "stationId": "대방",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "신길"
+ },
+ {
+  "stationId": "대성리",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "마석"
+ },
+ {
+  "stationId": "대성리",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "청평"
+ },
+ {
+  "stationId": "대야미",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "수리산"
+ },
+ {
+  "stationId": "대야미",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "반월"
+ },
+ {
+  "stationId": "대청",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "학여울"
+ },
+ {
+  "stationId": "대청",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "일원"
+ },
+ {
+  "stationId": "대치",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "도곡"
+ },
+ {
+  "stationId": "대치",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "학여울"
+ },
+ {
+  "stationId": "대화",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "주엽"
+ },
+ {
+  "stationId": "대흥",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "광흥창"
+ },
+ {
+  "stationId": "대흥",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "덕계",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "덕정"
+ },
+ {
+  "stationId": "덕계",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "양주"
+ },
+ {
+  "stationId": "덕소",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "양정"
+ },
+ {
+  "stationId": "덕소",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "도심"
+ },
+ {
+  "stationId": "덕정",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "지행"
+ },
+ {
+  "stationId": "덕정",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "덕계"
+ },
+ {
+  "stationId": "도곡",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "매봉"
+ },
+ {
+  "stationId": "도곡",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "대치"
+ },
+ {
+  "stationId": "도곡",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "한티"
+ },
+ {
+  "stationId": "도곡",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "구룡"
+ },
+ {
+  "stationId": "도농",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "구리"
+ },
+ {
+  "stationId": "도농",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "양정"
+ },
+ {
+  "stationId": "도림천",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "양천구청"
+ },
+ {
+  "stationId": "도림천",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신도림"
+ },
+ {
+  "stationId": "도봉",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "도봉산"
+ },
+ {
+  "stationId": "도봉",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "방학"
+ },
+ {
+  "stationId": "도봉산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "망월사"
+ },
+ {
+  "stationId": "도봉산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "도봉"
+ },
+ {
+  "stationId": "도봉산",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "장암"
+ },
+ {
+  "stationId": "도봉산",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "수락산"
+ },
+ {
+  "stationId": "도심",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "덕소"
+ },
+ {
+  "stationId": "도심",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "팔당"
+ },
+ {
+  "stationId": "도원",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "제물포"
+ },
+ {
+  "stationId": "도원",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "동인천"
+ },
+ {
+  "stationId": "도화",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "주안"
+ },
+ {
+  "stationId": "도화",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "제물포"
+ },
+ {
+  "stationId": "독립문",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "무악재"
+ },
+ {
+  "stationId": "독립문",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "경복궁"
+ },
+ {
+  "stationId": "독바위",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "연신내"
+ },
+ {
+  "stationId": "독산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "가산디지털단지"
+ },
+ {
+  "stationId": "독산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "금천구청"
+ },
+ {
+  "stationId": "돌곶이",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "상월곡"
+ },
+ {
+  "stationId": "돌곶이",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "석계"
+ },
+ {
+  "stationId": "동구릉",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "다산"
+ },
+ {
+  "stationId": "동구릉",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "구리"
+ },
+ {
+  "stationId": "동대문",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "동묘앞"
+ },
+ {
+  "stationId": "동대문",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "종로5가"
+ },
+ {
+  "stationId": "동대문",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "혜화"
+ },
+ {
+  "stationId": "동대문",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "동대문역사문화공원"
+ },
+ {
+  "stationId": "동대문역사문화공원",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신당"
+ },
+ {
+  "stationId": "동대문역사문화공원",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "을지로4가"
+ },
+ {
+  "stationId": "동대문역사문화공원",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "동대문"
+ },
+ {
+  "stationId": "동대문역사문화공원",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "충무로"
+ },
+ {
+  "stationId": "동대문역사문화공원",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "을지로4가"
+ },
+ {
+  "stationId": "동대문역사문화공원",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "청구"
+ },
+ {
+  "stationId": "동대입구",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "충무로"
+ },
+ {
+  "stationId": "동대입구",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "약수"
+ },
+ {
+  "stationId": "동두천",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "소요산"
+ },
+ {
+  "stationId": "동두천",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "보산"
+ },
+ {
+  "stationId": "동두천중앙",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "보산"
+ },
+ {
+  "stationId": "동두천중앙",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "지행"
+ },
+ {
+  "stationId": "동묘앞",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "신설동"
+ },
+ {
+  "stationId": "동묘앞",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "동대문"
+ },
+ {
+  "stationId": "동묘앞",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "신당"
+ },
+ {
+  "stationId": "동묘앞",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "창신"
+ },
+ {
+  "stationId": "동암",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "백운"
+ },
+ {
+  "stationId": "동암",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "간석"
+ },
+ {
+  "stationId": "동인천",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "도원"
+ },
+ {
+  "stationId": "동인천",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "인천"
+ },
+ {
+  "stationId": "동작",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "이촌"
+ },
+ {
+  "stationId": "동작",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "총신대입구"
+ },
+ {
+  "stationId": "동작",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "구반포"
+ },
+ {
+  "stationId": "동작",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "흑석"
+ },
+ {
+  "stationId": "동천",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "미금"
+ },
+ {
+  "stationId": "동천",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "수지구청"
+ },
+ {
+  "stationId": "동탄",
+  "line": "GTX-A",
+  "direction": "상행",
+  "nextId": "구성"
+ },
+ {
+  "stationId": "두정",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "직산"
+ },
+ {
+  "stationId": "두정",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "천안"
+ },
+ {
+  "stationId": "둔촌동",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "강동"
+ },
+ {
+  "stationId": "둔촌동",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "올림픽공원"
+ },
+ {
+  "stationId": "둔촌오륜",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "중앙보훈병원"
+ },
+ {
+  "stationId": "둔촌오륜",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "올림픽공원"
+ },
+ {
+  "stationId": "등촌",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "염창"
+ },
+ {
+  "stationId": "등촌",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "증미"
+ },
+ {
+  "stationId": "디지털미디어시티",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "증산"
+ },
+ {
+  "stationId": "디지털미디어시티",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "월드컵경기장"
+ },
+ {
+  "stationId": "디지털미디어시티",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "수색"
+ },
+ {
+  "stationId": "디지털미디어시티",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "가좌"
+ },
+ {
+  "stationId": "디지털미디어시티",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "마곡나루"
+ },
+ {
+  "stationId": "디지털미디어시티",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "홍대입구"
+ },
+ {
+  "stationId": "뚝섬",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "성수"
+ },
+ {
+  "stationId": "뚝섬",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "한양대"
+ },
+ {
+  "stationId": "뚝섬유원지",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "건대입구"
+ },
+ {
+  "stationId": "뚝섬유원지",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "청담"
+ },
+ {
+  "stationId": "마곡",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "송정"
+ },
+ {
+  "stationId": "마곡",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "발산"
+ },
+ {
+  "stationId": "마곡나루",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "양천향교"
+ },
+ {
+  "stationId": "마곡나루",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "신방화"
+ },
+ {
+  "stationId": "마곡나루",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "김포공항"
+ },
+ {
+  "stationId": "마곡나루",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "디지털미디어시티"
+ },
+ {
+  "stationId": "마두",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "정발산"
+ },
+ {
+  "stationId": "마두",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "백석"
+ },
+ {
+  "stationId": "마들",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "수락산"
+ },
+ {
+  "stationId": "마들",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "노원"
+ },
+ {
+  "stationId": "마석",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "천마산"
+ },
+ {
+  "stationId": "마석",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "대성리"
+ },
+ {
+  "stationId": "마장",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "마장",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "답십리"
+ },
+ {
+  "stationId": "마천",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "거여"
+ },
+ {
+  "stationId": "마포",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "여의나루"
+ },
+ {
+  "stationId": "마포",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "마포구청",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "월드컵경기장"
+ },
+ {
+  "stationId": "마포구청",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "망원"
+ },
+ {
+  "stationId": "망우",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "상봉"
+ },
+ {
+  "stationId": "망우",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "양원"
+ },
+ {
+  "stationId": "망원",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "마포구청"
+ },
+ {
+  "stationId": "망원",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "합정"
+ },
+ {
+  "stationId": "망월사",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "회룡"
+ },
+ {
+  "stationId": "망월사",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "도봉산"
+ },
+ {
+  "stationId": "망포",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "영통"
+ },
+ {
+  "stationId": "망포",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "매탄권선"
+ },
+ {
+  "stationId": "매교",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "수원시청"
+ },
+ {
+  "stationId": "매교",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "수원"
+ },
+ {
+  "stationId": "매봉",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "양재"
+ },
+ {
+  "stationId": "매봉",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "도곡"
+ },
+ {
+  "stationId": "매탄권선",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "망포"
+ },
+ {
+  "stationId": "매탄권선",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "수원시청"
+ },
+ {
+  "stationId": "먹골",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "태릉입구"
+ },
+ {
+  "stationId": "먹골",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "중화"
+ },
+ {
+  "stationId": "면목",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "상봉"
+ },
+ {
+  "stationId": "면목",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "사가정"
+ },
+ {
+  "stationId": "명동",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "충무로"
+ },
+ {
+  "stationId": "명동",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "회현"
+ },
+ {
+  "stationId": "명일",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "굽은다리"
+ },
+ {
+  "stationId": "명일",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "고덕"
+ },
+ {
+  "stationId": "명학",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "안양"
+ },
+ {
+  "stationId": "명학",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "금정"
+ },
+ {
+  "stationId": "모란",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "수진"
+ },
+ {
+  "stationId": "모란",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "태평"
+ },
+ {
+  "stationId": "모란",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "야탑"
+ },
+ {
+  "stationId": "목동",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "신정"
+ },
+ {
+  "stationId": "목동",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "오목교"
+ },
+ {
+  "stationId": "몽촌토성",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "강동구청"
+ },
+ {
+  "stationId": "몽촌토성",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "잠실"
+ },
+ {
+  "stationId": "무악재",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "홍제"
+ },
+ {
+  "stationId": "무악재",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "독립문"
+ },
+ {
+  "stationId": "문래",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "영등포구청"
+ },
+ {
+  "stationId": "문래",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신도림"
+ },
+ {
+  "stationId": "문산",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "운천"
+ },
+ {
+  "stationId": "문산",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "파주"
+ },
+ {
+  "stationId": "문정",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "가락시장"
+ },
+ {
+  "stationId": "문정",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "장지"
+ },
+ {
+  "stationId": "미금",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "정자"
+ },
+ {
+  "stationId": "미금",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "오리"
+ },
+ {
+  "stationId": "미금",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "정자"
+ },
+ {
+  "stationId": "미금",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "동천"
+ },
+ {
+  "stationId": "미사",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "강일"
+ },
+ {
+  "stationId": "미사",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "하남풍산"
+ },
+ {
+  "stationId": "미아",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "수유"
+ },
+ {
+  "stationId": "미아",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "미아사거리"
+ },
+ {
+  "stationId": "미아사거리",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "미아"
+ },
+ {
+  "stationId": "미아사거리",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "길음"
+ },
+ {
+  "stationId": "반월",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "대야미"
+ },
+ {
+  "stationId": "반월",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "상록수"
+ },
+ {
+  "stationId": "반포",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "논현"
+ },
+ {
+  "stationId": "반포",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "고속터미널"
+ },
+ {
+  "stationId": "발산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "마곡"
+ },
+ {
+  "stationId": "발산",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "우장산"
+ },
+ {
+  "stationId": "방배",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "사당"
+ },
+ {
+  "stationId": "방배",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "서초"
+ },
+ {
+  "stationId": "방이",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "올림픽공원"
+ },
+ {
+  "stationId": "방이",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "오금"
+ },
+ {
+  "stationId": "방학",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "도봉"
+ },
+ {
+  "stationId": "방학",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "창동"
+ },
+ {
+  "stationId": "방화",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "개화산"
+ },
+ {
+  "stationId": "배방",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "탕정"
+ },
+ {
+  "stationId": "배방",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "온양온천"
+ },
+ {
+  "stationId": "백마",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "풍산"
+ },
+ {
+  "stationId": "백마",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "곡산"
+ },
+ {
+  "stationId": "백석",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "마두"
+ },
+ {
+  "stationId": "백석",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "대곡"
+ },
+ {
+  "stationId": "백양리",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "굴봉산"
+ },
+ {
+  "stationId": "백양리",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "강촌"
+ },
+ {
+  "stationId": "백운",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "부평"
+ },
+ {
+  "stationId": "백운",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "동암"
+ },
+ {
+  "stationId": "버티고개",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "한강진"
+ },
+ {
+  "stationId": "버티고개",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "약수"
+ },
+ {
+  "stationId": "범계",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "평촌"
+ },
+ {
+  "stationId": "범계",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "금정"
+ },
+ {
+  "stationId": "별내",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "다산"
+ },
+ {
+  "stationId": "별내",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "갈매"
+ },
+ {
+  "stationId": "별내",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "퇴계원"
+ },
+ {
+  "stationId": "병점",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "세류"
+ },
+ {
+  "stationId": "병점",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "세마"
+ },
+ {
+  "stationId": "보라매",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "신대방삼거리"
+ },
+ {
+  "stationId": "보라매",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "신풍"
+ },
+ {
+  "stationId": "보문",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "창신"
+ },
+ {
+  "stationId": "보문",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "안암"
+ },
+ {
+  "stationId": "보문",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "신설동"
+ },
+ {
+  "stationId": "보문",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "성신여대입구"
+ },
+ {
+  "stationId": "보산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "동두천"
+ },
+ {
+  "stationId": "보산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "동두천중앙"
+ },
+ {
+  "stationId": "보정",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "죽전"
+ },
+ {
+  "stationId": "보정",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "구성"
+ },
+ {
+  "stationId": "복정",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "장지"
+ },
+ {
+  "stationId": "복정",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "남위례"
+ },
+ {
+  "stationId": "복정",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "수서"
+ },
+ {
+  "stationId": "복정",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "가천대"
+ },
+ {
+  "stationId": "봉명",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "천안"
+ },
+ {
+  "stationId": "봉명",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "쌍용"
+ },
+ {
+  "stationId": "봉은사",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "종합운동장"
+ },
+ {
+  "stationId": "봉은사",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "삼성중앙"
+ },
+ {
+  "stationId": "봉천",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신림"
+ },
+ {
+  "stationId": "봉천",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "서울대입구"
+ },
+ {
+  "stationId": "봉화산",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "화랑대"
+ },
+ {
+  "stationId": "봉화산",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "신내"
+ },
+ {
+  "stationId": "부개",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "송내"
+ },
+ {
+  "stationId": "부개",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "부평"
+ },
+ {
+  "stationId": "부발",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "이천"
+ },
+ {
+  "stationId": "부천",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "소사"
+ },
+ {
+  "stationId": "부천",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "중동"
+ },
+ {
+  "stationId": "부천시청",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "신중동"
+ },
+ {
+  "stationId": "부천시청",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "상동"
+ },
+ {
+  "stationId": "부천종합운동장",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "까치울"
+ },
+ {
+  "stationId": "부천종합운동장",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "춘의"
+ },
+ {
+  "stationId": "부천종합운동장",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "원종"
+ },
+ {
+  "stationId": "부천종합운동장",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "소사"
+ },
+ {
+  "stationId": "부평",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "부개"
+ },
+ {
+  "stationId": "부평",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "백운"
+ },
+ {
+  "stationId": "부평구청",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "굴포천"
+ },
+ {
+  "stationId": "부평구청",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "산곡"
+ },
+ {
+  "stationId": "북한산보국문",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "정릉"
+ },
+ {
+  "stationId": "북한산보국문",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "솔샘"
+ },
+ {
+  "stationId": "북한산우이",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "솔밭공원"
+ },
+ {
+  "stationId": "불광",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "연신내"
+ },
+ {
+  "stationId": "불광",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "녹번"
+ },
+ {
+  "stationId": "불광",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "독바위"
+ },
+ {
+  "stationId": "사가정",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "면목"
+ },
+ {
+  "stationId": "사가정",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "용마산"
+ },
+ {
+  "stationId": "사당",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "낙성대"
+ },
+ {
+  "stationId": "사당",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "방배"
+ },
+ {
+  "stationId": "사당",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "총신대입구"
+ },
+ {
+  "stationId": "사당",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "남태령"
+ },
+ {
+  "stationId": "사릉",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "퇴계원"
+ },
+ {
+  "stationId": "사릉",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "금곡"
+ },
+ {
+  "stationId": "사리",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "야목"
+ },
+ {
+  "stationId": "사리",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "한대앞"
+ },
+ {
+  "stationId": "사평",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "신논현"
+ },
+ {
+  "stationId": "사평",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "고속터미널"
+ },
+ {
+  "stationId": "산곡",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "부평구청"
+ },
+ {
+  "stationId": "산곡",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "석남"
+ },
+ {
+  "stationId": "산본",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "금정"
+ },
+ {
+  "stationId": "산본",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "수리산"
+ },
+ {
+  "stationId": "산성",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "남위례"
+ },
+ {
+  "stationId": "산성",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "남한산성입구"
+ },
+ {
+  "stationId": "삼각지",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "숙대입구"
+ },
+ {
+  "stationId": "삼각지",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "신용산"
+ },
+ {
+  "stationId": "삼각지",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "효창공원앞"
+ },
+ {
+  "stationId": "삼각지",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "녹사평"
+ },
+ {
+  "stationId": "삼동",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "이매"
+ },
+ {
+  "stationId": "삼동",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "경기광주"
+ },
+ {
+  "stationId": "삼산체육관",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "상동"
+ },
+ {
+  "stationId": "삼산체육관",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "굴포천"
+ },
+ {
+  "stationId": "삼성",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "선릉"
+ },
+ {
+  "stationId": "삼성",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "종합운동장"
+ },
+ {
+  "stationId": "삼성중앙",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "봉은사"
+ },
+ {
+  "stationId": "삼성중앙",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "선정릉"
+ },
+ {
+  "stationId": "삼송",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "원흥"
+ },
+ {
+  "stationId": "삼송",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "지축"
+ },
+ {
+  "stationId": "삼양",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "삼양사거리"
+ },
+ {
+  "stationId": "삼양",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "화계"
+ },
+ {
+  "stationId": "삼양사거리",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "솔샘"
+ },
+ {
+  "stationId": "삼양사거리",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "삼양"
+ },
+ {
+  "stationId": "삼전",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "석촌고분"
+ },
+ {
+  "stationId": "삼전",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "종합운동장"
+ },
+ {
+  "stationId": "상갈",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "기흥"
+ },
+ {
+  "stationId": "상갈",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "청명"
+ },
+ {
+  "stationId": "상계",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "불암산"
+ },
+ {
+  "stationId": "상계",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "노원"
+ },
+ {
+  "stationId": "상도",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "숭실대입구"
+ },
+ {
+  "stationId": "상도",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "장승배기"
+ },
+ {
+  "stationId": "상동",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "부천시청"
+ },
+ {
+  "stationId": "상동",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "삼산체육관"
+ },
+ {
+  "stationId": "상록수",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "반월"
+ },
+ {
+  "stationId": "상록수",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "한대앞"
+ },
+ {
+  "stationId": "상봉",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "중화"
+ },
+ {
+  "stationId": "상봉",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "면목"
+ },
+ {
+  "stationId": "상봉",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "중랑"
+ },
+ {
+  "stationId": "상봉",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "망우"
+ },
+ {
+  "stationId": "상수",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "합정"
+ },
+ {
+  "stationId": "상수",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "광흥창"
+ },
+ {
+  "stationId": "상왕십리",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "상왕십리",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신당"
+ },
+ {
+  "stationId": "상월곡",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "월곡"
+ },
+ {
+  "stationId": "상월곡",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "돌곶이"
+ },
+ {
+  "stationId": "상일동",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "고덕"
+ },
+ {
+  "stationId": "상일동",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "강일"
+ },
+ {
+  "stationId": "상천",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "청평"
+ },
+ {
+  "stationId": "상천",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "가평"
+ },
+ {
+  "stationId": "상현",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "성복"
+ },
+ {
+  "stationId": "상현",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "광교중앙"
+ },
+ {
+  "stationId": "새절",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "증산"
+ },
+ {
+  "stationId": "샛강",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "노량진"
+ },
+ {
+  "stationId": "샛강",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "여의도"
+ },
+ {
+  "stationId": "서강대",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "홍대입구"
+ },
+ {
+  "stationId": "서강대",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "서대문",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "충정로"
+ },
+ {
+  "stationId": "서대문",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "광화문"
+ },
+ {
+  "stationId": "서빙고",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "이촌"
+ },
+ {
+  "stationId": "서빙고",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "한남"
+ },
+ {
+  "stationId": "서울",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "시청"
+ },
+ {
+  "stationId": "서울",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "남영"
+ },
+ {
+  "stationId": "서울",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "회현"
+ },
+ {
+  "stationId": "서울",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "숙대입구"
+ },
+ {
+  "stationId": "서울",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "신촌"
+ },
+ {
+  "stationId": "서울",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "서울대입구",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "봉천"
+ },
+ {
+  "stationId": "서울대입구",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "낙성대"
+ },
+ {
+  "stationId": "서울숲",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "서울숲",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "압구정로데오"
+ },
+ {
+  "stationId": "서정리",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "송탄"
+ },
+ {
+  "stationId": "서정리",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "지제"
+ },
+ {
+  "stationId": "서초",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "방배"
+ },
+ {
+  "stationId": "서초",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "교대"
+ },
+ {
+  "stationId": "서현",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "이매"
+ },
+ {
+  "stationId": "서현",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "수내"
+ },
+ {
+  "stationId": "석계",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "광운대"
+ },
+ {
+  "stationId": "석계",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "신이문"
+ },
+ {
+  "stationId": "석계",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "돌곶이"
+ },
+ {
+  "stationId": "석계",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "태릉입구"
+ },
+ {
+  "stationId": "석남",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "산곡"
+ },
+ {
+  "stationId": "석수",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "금천구청"
+ },
+ {
+  "stationId": "석수",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "관악"
+ },
+ {
+  "stationId": "석촌",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "잠실"
+ },
+ {
+  "stationId": "석촌",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "송파"
+ },
+ {
+  "stationId": "석촌",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "송파나루"
+ },
+ {
+  "stationId": "석촌",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "석촌고분"
+ },
+ {
+  "stationId": "석촌고분",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "석촌"
+ },
+ {
+  "stationId": "석촌고분",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "삼전"
+ },
+ {
+  "stationId": "선릉",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "역삼"
+ },
+ {
+  "stationId": "선릉",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "삼성"
+ },
+ {
+  "stationId": "선릉",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "선정릉"
+ },
+ {
+  "stationId": "선릉",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "한티"
+ },
+ {
+  "stationId": "선바위",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "남태령"
+ },
+ {
+  "stationId": "선바위",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "경마공원"
+ },
+ {
+  "stationId": "선부",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "달미"
+ },
+ {
+  "stationId": "선부",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "초지"
+ },
+ {
+  "stationId": "선유도",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "당산"
+ },
+ {
+  "stationId": "선유도",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "신목동"
+ },
+ {
+  "stationId": "선정릉",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "삼성중앙"
+ },
+ {
+  "stationId": "선정릉",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "언주"
+ },
+ {
+  "stationId": "선정릉",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "강남구청"
+ },
+ {
+  "stationId": "선정릉",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "선릉"
+ },
+ {
+  "stationId": "성균관대",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "의왕"
+ },
+ {
+  "stationId": "성균관대",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "화서"
+ },
+ {
+  "stationId": "성남",
+  "line": "GTX-A",
+  "direction": "상행",
+  "nextId": "수서"
+ },
+ {
+  "stationId": "성남",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "구성"
+ },
+ {
+  "stationId": "성남",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "판교"
+ },
+ {
+  "stationId": "성남",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "이매"
+ },
+ {
+  "stationId": "성복",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "수지구청"
+ },
+ {
+  "stationId": "성복",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "상현"
+ },
+ {
+  "stationId": "성수",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "건대입구"
+ },
+ {
+  "stationId": "성수",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "뚝섬"
+ },
+ {
+  "stationId": "성신여대입구",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "길음"
+ },
+ {
+  "stationId": "성신여대입구",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "한성대입구"
+ },
+ {
+  "stationId": "성신여대입구",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "보문"
+ },
+ {
+  "stationId": "성신여대입구",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "정릉"
+ },
+ {
+  "stationId": "성환",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "평택"
+ },
+ {
+  "stationId": "성환",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "직산"
+ },
+ {
+  "stationId": "세류",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "수원"
+ },
+ {
+  "stationId": "세류",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "병점"
+ },
+ {
+  "stationId": "세마",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "병점"
+ },
+ {
+  "stationId": "세마",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "오산대"
+ },
+ {
+  "stationId": "소래포구",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "월곶"
+ },
+ {
+  "stationId": "소래포구",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "인천논현"
+ },
+ {
+  "stationId": "소사",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "역곡"
+ },
+ {
+  "stationId": "소사",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "부천"
+ },
+ {
+  "stationId": "소사",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "부천종합운동장"
+ },
+ {
+  "stationId": "소사",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "소새울"
+ },
+ {
+  "stationId": "소새울",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "소사"
+ },
+ {
+  "stationId": "소새울",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "시흥대야"
+ },
+ {
+  "stationId": "소요산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "청산"
+ },
+ {
+  "stationId": "소요산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "동두천"
+ },
+ {
+  "stationId": "솔밭공원",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "북한산우이"
+ },
+ {
+  "stationId": "솔샘",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "북한산보국문"
+ },
+ {
+  "stationId": "솔샘",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "삼양사거리"
+ },
+ {
+  "stationId": "송내",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "중동"
+ },
+ {
+  "stationId": "송내",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "부개"
+ },
+ {
+  "stationId": "송도",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "연수"
+ },
+ {
+  "stationId": "송도",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "인하대"
+ },
+ {
+  "stationId": "송정",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "김포공항"
+ },
+ {
+  "stationId": "송정",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "마곡"
+ },
+ {
+  "stationId": "송탄",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "진위"
+ },
+ {
+  "stationId": "송탄",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "서정리"
+ },
+ {
+  "stationId": "송파",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "석촌"
+ },
+ {
+  "stationId": "송파",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "가락시장"
+ },
+ {
+  "stationId": "송파나루",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "한성백제"
+ },
+ {
+  "stationId": "송파나루",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "석촌"
+ },
+ {
+  "stationId": "수내",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "서현"
+ },
+ {
+  "stationId": "수내",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "정자"
+ },
+ {
+  "stationId": "수락산",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "도봉산"
+ },
+ {
+  "stationId": "수락산",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "마들"
+ },
+ {
+  "stationId": "수리산",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "산본"
+ },
+ {
+  "stationId": "수리산",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "대야미"
+ },
+ {
+  "stationId": "수색",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "디지털미디어시티"
+ },
+ {
+  "stationId": "수서",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "일원"
+ },
+ {
+  "stationId": "수서",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "가락시장"
+ },
+ {
+  "stationId": "수서",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "성남"
+ },
+ {
+  "stationId": "수서",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "대모산입구"
+ },
+ {
+  "stationId": "수서",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "복정"
+ },
+ {
+  "stationId": "수원",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "화서"
+ },
+ {
+  "stationId": "수원",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "세류"
+ },
+ {
+  "stationId": "수원",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "매교"
+ },
+ {
+  "stationId": "수원",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "고색"
+ },
+ {
+  "stationId": "수원시청",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "매탄권선"
+ },
+ {
+  "stationId": "수원시청",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "매교"
+ },
+ {
+  "stationId": "수유",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "쌍문"
+ },
+ {
+  "stationId": "수유",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "미아"
+ },
+ {
+  "stationId": "수지구청",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "동천"
+ },
+ {
+  "stationId": "수지구청",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "성복"
+ },
+ {
+  "stationId": "수진",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "신흥"
+ },
+ {
+  "stationId": "수진",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "모란"
+ },
+ {
+  "stationId": "숙대입구",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "서울"
+ },
+ {
+  "stationId": "숙대입구",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "삼각지"
+ },
+ {
+  "stationId": "숭실대입구",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "남성"
+ },
+ {
+  "stationId": "숭실대입구",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "상도"
+ },
+ {
+  "stationId": "숭의",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "인하대"
+ },
+ {
+  "stationId": "숭의",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "신포"
+ },
+ {
+  "stationId": "시청",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "종각"
+ },
+ {
+  "stationId": "시청",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "서울"
+ },
+ {
+  "stationId": "시청",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "을지로입구"
+ },
+ {
+  "stationId": "시청",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "충정로"
+ },
+ {
+  "stationId": "시흥능곡",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "시흥시청"
+ },
+ {
+  "stationId": "시흥능곡",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "달미"
+ },
+ {
+  "stationId": "시흥대야",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "소새울"
+ },
+ {
+  "stationId": "시흥대야",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "신천"
+ },
+ {
+  "stationId": "시흥시청",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "신현"
+ },
+ {
+  "stationId": "시흥시청",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "시흥능곡"
+ },
+ {
+  "stationId": "신갈",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "구성"
+ },
+ {
+  "stationId": "신갈",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "기흥"
+ },
+ {
+  "stationId": "신금호",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "청구"
+ },
+ {
+  "stationId": "신금호",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "행당"
+ },
+ {
+  "stationId": "신길",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "대방"
+ },
+ {
+  "stationId": "신길",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "영등포"
+ },
+ {
+  "stationId": "신길",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "영등포시장"
+ },
+ {
+  "stationId": "신길",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "여의도"
+ },
+ {
+  "stationId": "신길온천",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "안산"
+ },
+ {
+  "stationId": "신길온천",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "정왕"
+ },
+ {
+  "stationId": "신내",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "봉화산"
+ },
+ {
+  "stationId": "신내",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "망우"
+ },
+ {
+  "stationId": "신내",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "갈매"
+ },
+ {
+  "stationId": "신논현",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "언주"
+ },
+ {
+  "stationId": "신논현",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "사평"
+ },
+ {
+  "stationId": "신논현",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "논현"
+ },
+ {
+  "stationId": "신논현",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "강남"
+ },
+ {
+  "stationId": "신답",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "용두"
+ },
+ {
+  "stationId": "신답",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "용답"
+ },
+ {
+  "stationId": "신당",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "상왕십리"
+ },
+ {
+  "stationId": "신당",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "동대문역사문화공원"
+ },
+ {
+  "stationId": "신당",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "청구"
+ },
+ {
+  "stationId": "신당",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "동묘앞"
+ },
+ {
+  "stationId": "신대방",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "구로디지털단지"
+ },
+ {
+  "stationId": "신대방",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신림"
+ },
+ {
+  "stationId": "신대방삼거리",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "장승배기"
+ },
+ {
+  "stationId": "신대방삼거리",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "보라매"
+ },
+ {
+  "stationId": "신도림",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "영등포"
+ },
+ {
+  "stationId": "신도림",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "구로"
+ },
+ {
+  "stationId": "신도림",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "문래"
+ },
+ {
+  "stationId": "신도림",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "대림"
+ },
+ {
+  "stationId": "신둔도예촌",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "곤지암"
+ },
+ {
+  "stationId": "신둔도예촌",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "이천"
+ },
+ {
+  "stationId": "신림",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신대방"
+ },
+ {
+  "stationId": "신림",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "봉천"
+ },
+ {
+  "stationId": "신목동",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "선유도"
+ },
+ {
+  "stationId": "신목동",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "염창"
+ },
+ {
+  "stationId": "신반포",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "고속터미널"
+ },
+ {
+  "stationId": "신반포",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "구반포"
+ },
+ {
+  "stationId": "신방화",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "마곡나루"
+ },
+ {
+  "stationId": "신방화",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "공항시장"
+ },
+ {
+  "stationId": "신사",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "압구정"
+ },
+ {
+  "stationId": "신사",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "잠원"
+ },
+ {
+  "stationId": "신사",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "논현"
+ },
+ {
+  "stationId": "신설동",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "제기동"
+ },
+ {
+  "stationId": "신설동",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "동묘앞"
+ },
+ {
+  "stationId": "신설동",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "용두"
+ },
+ {
+  "stationId": "신설동",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "보문"
+ },
+ {
+  "stationId": "신용산",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "삼각지"
+ },
+ {
+  "stationId": "신용산",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "이촌"
+ },
+ {
+  "stationId": "신원",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "양수"
+ },
+ {
+  "stationId": "신원",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "국수"
+ },
+ {
+  "stationId": "신이문",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "석계"
+ },
+ {
+  "stationId": "신이문",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "외대앞"
+ },
+ {
+  "stationId": "신정",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "까치산"
+ },
+ {
+  "stationId": "신정",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "목동"
+ },
+ {
+  "stationId": "신정네거리",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "까치산"
+ },
+ {
+  "stationId": "신정네거리",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "양천구청"
+ },
+ {
+  "stationId": "신중동",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "춘의"
+ },
+ {
+  "stationId": "신중동",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "부천시청"
+ },
+ {
+  "stationId": "신천",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "시흥대야"
+ },
+ {
+  "stationId": "신천",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "신현"
+ },
+ {
+  "stationId": "신촌",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "이대"
+ },
+ {
+  "stationId": "신촌",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "홍대입구"
+ },
+ {
+  "stationId": "신포",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "숭의"
+ },
+ {
+  "stationId": "신포",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "인천"
+ },
+ {
+  "stationId": "신풍",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "보라매"
+ },
+ {
+  "stationId": "신풍",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "대림"
+ },
+ {
+  "stationId": "신현",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "신천"
+ },
+ {
+  "stationId": "신현",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "시흥시청"
+ },
+ {
+  "stationId": "신흥",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "단대오거리"
+ },
+ {
+  "stationId": "신흥",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "수진"
+ },
+ {
+  "stationId": "쌍문",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "창동"
+ },
+ {
+  "stationId": "쌍문",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "수유"
+ },
+ {
+  "stationId": "쌍용",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "봉명"
+ },
+ {
+  "stationId": "쌍용",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "아산"
+ },
+ {
+  "stationId": "아산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "쌍용"
+ },
+ {
+  "stationId": "아산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "탕정"
+ },
+ {
+  "stationId": "아신",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "국수"
+ },
+ {
+  "stationId": "아신",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "오빈"
+ },
+ {
+  "stationId": "아차산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "군자"
+ },
+ {
+  "stationId": "아차산",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "광나루"
+ },
+ {
+  "stationId": "아현",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "충정로"
+ },
+ {
+  "stationId": "아현",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "이대"
+ },
+ {
+  "stationId": "안국",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "경복궁"
+ },
+ {
+  "stationId": "안국",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "종로3가"
+ },
+ {
+  "stationId": "안산",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "초지"
+ },
+ {
+  "stationId": "안산",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "신길온천"
+ },
+ {
+  "stationId": "안암",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "보문"
+ },
+ {
+  "stationId": "안암",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "고려대"
+ },
+ {
+  "stationId": "안양",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "관악"
+ },
+ {
+  "stationId": "안양",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "명학"
+ },
+ {
+  "stationId": "암사",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "암사역사공원"
+ },
+ {
+  "stationId": "암사",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "천호"
+ },
+ {
+  "stationId": "암사역사공원",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "장자호수공원"
+ },
+ {
+  "stationId": "암사역사공원",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "암사"
+ },
+ {
+  "stationId": "압구정",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "옥수"
+ },
+ {
+  "stationId": "압구정",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "신사"
+ },
+ {
+  "stationId": "압구정로데오",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "서울숲"
+ },
+ {
+  "stationId": "압구정로데오",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "강남구청"
+ },
+ {
+  "stationId": "애오개",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "애오개",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "충정로"
+ },
+ {
+  "stationId": "야당",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "운정"
+ },
+ {
+  "stationId": "야당",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "탄현"
+ },
+ {
+  "stationId": "야목",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "어천"
+ },
+ {
+  "stationId": "야목",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "사리"
+ },
+ {
+  "stationId": "야탑",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "모란"
+ },
+ {
+  "stationId": "야탑",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "이매"
+ },
+ {
+  "stationId": "약수",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "동대입구"
+ },
+ {
+  "stationId": "약수",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "금호"
+ },
+ {
+  "stationId": "약수",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "버티고개"
+ },
+ {
+  "stationId": "약수",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "청구"
+ },
+ {
+  "stationId": "양수",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "운길산"
+ },
+ {
+  "stationId": "양수",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "신원"
+ },
+ {
+  "stationId": "양원",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "망우"
+ },
+ {
+  "stationId": "양원",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "구리"
+ },
+ {
+  "stationId": "양재",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "남부터미널"
+ },
+ {
+  "stationId": "양재",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "매봉"
+ },
+ {
+  "stationId": "양재",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "강남"
+ },
+ {
+  "stationId": "양재",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "양재시민의숲"
+ },
+ {
+  "stationId": "양재시민의숲",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "양재"
+ },
+ {
+  "stationId": "양재시민의숲",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "청계산입구"
+ },
+ {
+  "stationId": "양정",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "도농"
+ },
+ {
+  "stationId": "양정",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "덕소"
+ },
+ {
+  "stationId": "양주",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "덕계"
+ },
+ {
+  "stationId": "양주",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "녹양"
+ },
+ {
+  "stationId": "양천구청",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신정네거리"
+ },
+ {
+  "stationId": "양천구청",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "도림천"
+ },
+ {
+  "stationId": "양천향교",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "가양"
+ },
+ {
+  "stationId": "양천향교",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "마곡나루"
+ },
+ {
+  "stationId": "양평",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "오목교"
+ },
+ {
+  "stationId": "양평",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "영등포구청"
+ },
+ {
+  "stationId": "양평(경의중앙선)",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "오빈"
+ },
+ {
+  "stationId": "양평(경의중앙선)",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "원덕"
+ },
+ {
+  "stationId": "어린이대공원",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "군자"
+ },
+ {
+  "stationId": "어린이대공원",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "건대입구"
+ },
+ {
+  "stationId": "어천",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "오목천"
+ },
+ {
+  "stationId": "어천",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "야목"
+ },
+ {
+  "stationId": "언주",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "선정릉"
+ },
+ {
+  "stationId": "언주",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "신논현"
+ },
+ {
+  "stationId": "여의나루",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "여의도"
+ },
+ {
+  "stationId": "여의나루",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "마포"
+ },
+ {
+  "stationId": "여의도",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "신길"
+ },
+ {
+  "stationId": "여의도",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "여의나루"
+ },
+ {
+  "stationId": "여의도",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "샛강"
+ },
+ {
+  "stationId": "여의도",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "국회의사당"
+ },
+ {
+  "stationId": "역곡",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "온수"
+ },
+ {
+  "stationId": "역곡",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "소사"
+ },
+ {
+  "stationId": "역삼",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "강남"
+ },
+ {
+  "stationId": "역삼",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "선릉"
+ },
+ {
+  "stationId": "역촌",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "불광"
+ },
+ {
+  "stationId": "연수",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "원인재"
+ },
+ {
+  "stationId": "연수",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "송도"
+ },
+ {
+  "stationId": "연신내",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "구파발"
+ },
+ {
+  "stationId": "연신내",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "불광"
+ },
+ {
+  "stationId": "연신내",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "구산"
+ },
+ {
+  "stationId": "연신내",
+  "line": "GTX-A",
+  "direction": "상행",
+  "nextId": "대곡"
+ },
+ {
+  "stationId": "연신내",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "서울"
+ },
+ {
+  "stationId": "염창",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "신목동"
+ },
+ {
+  "stationId": "염창",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "등촌"
+ },
+ {
+  "stationId": "영등포",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "신길"
+ },
+ {
+  "stationId": "영등포",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "신도림"
+ },
+ {
+  "stationId": "영등포구청",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "당산"
+ },
+ {
+  "stationId": "영등포구청",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "문래"
+ },
+ {
+  "stationId": "영등포구청",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "양평"
+ },
+ {
+  "stationId": "영등포구청",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "영등포시장"
+ },
+ {
+  "stationId": "영등포시장",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "영등포구청"
+ },
+ {
+  "stationId": "영등포시장",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "신길"
+ },
+ {
+  "stationId": "영종",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "운서"
+ },
+ {
+  "stationId": "영종",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "청라국제도시"
+ },
+ {
+  "stationId": "영통",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "청명"
+ },
+ {
+  "stationId": "영통",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "망포"
+ },
+ {
+  "stationId": "오금",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "경찰병원"
+ },
+ {
+  "stationId": "오금",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "방이"
+ },
+ {
+  "stationId": "오금",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "개롱"
+ },
+ {
+  "stationId": "오류동",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "개봉"
+ },
+ {
+  "stationId": "오류동",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "온수"
+ },
+ {
+  "stationId": "오리",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "미금"
+ },
+ {
+  "stationId": "오리",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "죽전"
+ },
+ {
+  "stationId": "오목교",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "목동"
+ },
+ {
+  "stationId": "오목교",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "양평"
+ },
+ {
+  "stationId": "오목천",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "고색"
+ },
+ {
+  "stationId": "오목천",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "어천"
+ },
+ {
+  "stationId": "오빈",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "아신"
+ },
+ {
+  "stationId": "오빈",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "양평(경의중앙선)"
+ },
+ {
+  "stationId": "오산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "오산대"
+ },
+ {
+  "stationId": "오산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "진위"
+ },
+ {
+  "stationId": "오산대",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "세마"
+ },
+ {
+  "stationId": "오산대",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "오산"
+ },
+ {
+  "stationId": "오이도",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "정왕"
+ },
+ {
+  "stationId": "옥수",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "금호"
+ },
+ {
+  "stationId": "옥수",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "압구정"
+ },
+ {
+  "stationId": "옥수",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "한남"
+ },
+ {
+  "stationId": "옥수",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "응봉"
+ },
+ {
+  "stationId": "온수",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "오류동"
+ },
+ {
+  "stationId": "온수",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "역곡"
+ },
+ {
+  "stationId": "온수",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "천왕"
+ },
+ {
+  "stationId": "온수",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "까치울"
+ },
+ {
+  "stationId": "온양온천",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "배방"
+ },
+ {
+  "stationId": "온양온천",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "신창"
+ },
+ {
+  "stationId": "올림픽공원",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "둔촌오륜"
+ },
+ {
+  "stationId": "올림픽공원",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "한성백제"
+ },
+ {
+  "stationId": "왕십리",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "한양대"
+ },
+ {
+  "stationId": "왕십리",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "상왕십리"
+ },
+ {
+  "stationId": "왕십리",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "행당"
+ },
+ {
+  "stationId": "왕십리",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "마장"
+ },
+ {
+  "stationId": "왕십리",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "응봉"
+ },
+ {
+  "stationId": "왕십리",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "청량리"
+ },
+ {
+  "stationId": "외대앞",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "신이문"
+ },
+ {
+  "stationId": "외대앞",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "회기"
+ },
+ {
+  "stationId": "용답",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신답"
+ },
+ {
+  "stationId": "용답",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "성수"
+ },
+ {
+  "stationId": "용두",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신설동"
+ },
+ {
+  "stationId": "용두",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신답"
+ },
+ {
+  "stationId": "용마산",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "사가정"
+ },
+ {
+  "stationId": "용마산",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "중곡"
+ },
+ {
+  "stationId": "용문",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "원덕"
+ },
+ {
+  "stationId": "용문",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "지평"
+ },
+ {
+  "stationId": "용산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "남영"
+ },
+ {
+  "stationId": "용산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "노량진"
+ },
+ {
+  "stationId": "우장산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "발산"
+ },
+ {
+  "stationId": "우장산",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "화곡"
+ },
+ {
+  "stationId": "운길산",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "팔당"
+ },
+ {
+  "stationId": "운길산",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "양수"
+ },
+ {
+  "stationId": "운서",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "공항화물청사"
+ },
+ {
+  "stationId": "운서",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "영종"
+ },
+ {
+  "stationId": "운정",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "금릉"
+ },
+ {
+  "stationId": "운정",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "야당"
+ },
+ {
+  "stationId": "운정중앙",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "킨텍스"
+ },
+ {
+  "stationId": "원당",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "화정"
+ },
+ {
+  "stationId": "원당",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "원흥"
+ },
+ {
+  "stationId": "원덕",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "양평(경의중앙선)"
+ },
+ {
+  "stationId": "원덕",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "용문"
+ },
+ {
+  "stationId": "원인재",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "남동인더스파크"
+ },
+ {
+  "stationId": "원인재",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "연수"
+ },
+ {
+  "stationId": "원종",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "김포공항"
+ },
+ {
+  "stationId": "원종",
+  "line": "서해선",
+  "direction": "하행",
+  "nextId": "부천종합운동장"
+ },
+ {
+  "stationId": "원흥",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "원당"
+ },
+ {
+  "stationId": "원흥",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "삼송"
+ },
+ {
+  "stationId": "월계",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "녹천"
+ },
+ {
+  "stationId": "월계",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "광운대"
+ },
+ {
+  "stationId": "월곡",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "고려대"
+ },
+ {
+  "stationId": "월곡",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "상월곡"
+ },
+ {
+  "stationId": "월곶",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "달월"
+ },
+ {
+  "stationId": "월곶",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "소래포구"
+ },
+ {
+  "stationId": "월드컵경기장",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "디지털미디어시티"
+ },
+ {
+  "stationId": "월드컵경기장",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "마포구청"
+ },
+ {
+  "stationId": "월롱",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "파주"
+ },
+ {
+  "stationId": "월롱",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "금촌"
+ },
+ {
+  "stationId": "을지로3가",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "을지로4가"
+ },
+ {
+  "stationId": "을지로3가",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "을지로입구"
+ },
+ {
+  "stationId": "을지로3가",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "종로3가"
+ },
+ {
+  "stationId": "을지로3가",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "충무로"
+ },
+ {
+  "stationId": "을지로4가",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "동대문역사문화공원"
+ },
+ {
+  "stationId": "을지로4가",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "을지로3가"
+ },
+ {
+  "stationId": "을지로4가",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "종로3가"
+ },
+ {
+  "stationId": "을지로4가",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "동대문역사문화공원"
+ },
+ {
+  "stationId": "을지로입구",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "을지로3가"
+ },
+ {
+  "stationId": "을지로입구",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "시청"
+ },
+ {
+  "stationId": "응봉",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "옥수"
+ },
+ {
+  "stationId": "응봉",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "응암",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "역촌"
+ },
+ {
+  "stationId": "의왕",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "당정"
+ },
+ {
+  "stationId": "의왕",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "성균관대"
+ },
+ {
+  "stationId": "의정부",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "가능"
+ },
+ {
+  "stationId": "의정부",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "회룡"
+ },
+ {
+  "stationId": "이대",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "아현"
+ },
+ {
+  "stationId": "이대",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "신촌"
+ },
+ {
+  "stationId": "이매",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "성남"
+ },
+ {
+  "stationId": "이매",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "삼동"
+ },
+ {
+  "stationId": "이매",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "야탑"
+ },
+ {
+  "stationId": "이매",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "서현"
+ },
+ {
+  "stationId": "이수",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "내방"
+ },
+ {
+  "stationId": "이수",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "남성"
+ },
+ {
+  "stationId": "이천",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "신둔도예촌"
+ },
+ {
+  "stationId": "이천",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "부발"
+ },
+ {
+  "stationId": "이촌",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "신용산"
+ },
+ {
+  "stationId": "이촌",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "동작"
+ },
+ {
+  "stationId": "이촌",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "용산"
+ },
+ {
+  "stationId": "이촌",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "서빙고"
+ },
+ {
+  "stationId": "이태원",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "녹사평"
+ },
+ {
+  "stationId": "이태원",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "한강진"
+ },
+ {
+  "stationId": "인덕원",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "정부과천청사"
+ },
+ {
+  "stationId": "인덕원",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "평촌"
+ },
+ {
+  "stationId": "인천",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "동인천"
+ },
+ {
+  "stationId": "인천",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "신포"
+ },
+ {
+  "stationId": "인천공항1터미널",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "공항화물청사"
+ },
+ {
+  "stationId": "인천공항2터미널",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "인천공항1터미널"
+ },
+ {
+  "stationId": "인천논현",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "소래포구"
+ },
+ {
+  "stationId": "인천논현",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "호구포"
+ },
+ {
+  "stationId": "인하대",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "송도"
+ },
+ {
+  "stationId": "인하대",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "숭의"
+ },
+ {
+  "stationId": "일산",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "탄현"
+ },
+ {
+  "stationId": "일산",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "풍산"
+ },
+ {
+  "stationId": "일원",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "대청"
+ },
+ {
+  "stationId": "일원",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "수서"
+ },
+ {
+  "stationId": "잠실",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "잠실새내"
+ },
+ {
+  "stationId": "잠실",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "잠실나루"
+ },
+ {
+  "stationId": "잠실",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "몽촌토성"
+ },
+ {
+  "stationId": "잠실",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "석촌"
+ },
+ {
+  "stationId": "잠실나루",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "잠실"
+ },
+ {
+  "stationId": "잠실나루",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "강변"
+ },
+ {
+  "stationId": "잠실새내",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "종합운동장"
+ },
+ {
+  "stationId": "잠실새내",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "잠실"
+ },
+ {
+  "stationId": "잠원",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "신사"
+ },
+ {
+  "stationId": "잠원",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "고속터미널"
+ },
+ {
+  "stationId": "장승배기",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "상도"
+ },
+ {
+  "stationId": "장승배기",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "신대방삼거리"
+ },
+ {
+  "stationId": "장암",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "도봉산"
+ },
+ {
+  "stationId": "장자호수공원",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "구리"
+ },
+ {
+  "stationId": "장자호수공원",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "암사역사공원"
+ },
+ {
+  "stationId": "장지",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "문정"
+ },
+ {
+  "stationId": "장지",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "복정"
+ },
+ {
+  "stationId": "장한평",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "답십리"
+ },
+ {
+  "stationId": "장한평",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "군자"
+ },
+ {
+  "stationId": "전곡",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "연천"
+ },
+ {
+  "stationId": "전곡",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "청산"
+ },
+ {
+  "stationId": "정릉",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "성신여대입구"
+ },
+ {
+  "stationId": "정릉",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "북한산보국문"
+ },
+ {
+  "stationId": "정발산",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "주엽"
+ },
+ {
+  "stationId": "정발산",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "마두"
+ },
+ {
+  "stationId": "정부과천청사",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "과천"
+ },
+ {
+  "stationId": "정부과천청사",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "인덕원"
+ },
+ {
+  "stationId": "정왕",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "신길온천"
+ },
+ {
+  "stationId": "정왕",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "오이도"
+ },
+ {
+  "stationId": "정자",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "수내"
+ },
+ {
+  "stationId": "정자",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "미금"
+ },
+ {
+  "stationId": "정자",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "판교"
+ },
+ {
+  "stationId": "정자",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "미금"
+ },
+ {
+  "stationId": "제기동",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "청량리"
+ },
+ {
+  "stationId": "제기동",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "신설동"
+ },
+ {
+  "stationId": "제물포",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "도화"
+ },
+ {
+  "stationId": "제물포",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "도원"
+ },
+ {
+  "stationId": "종각",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "종로3가"
+ },
+ {
+  "stationId": "종각",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "시청"
+ },
+ {
+  "stationId": "종로3가",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "종로5가"
+ },
+ {
+  "stationId": "종로3가",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "종각"
+ },
+ {
+  "stationId": "종로3가",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "안국"
+ },
+ {
+  "stationId": "종로3가",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "을지로3가"
+ },
+ {
+  "stationId": "종로3가",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "광화문"
+ },
+ {
+  "stationId": "종로3가",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "을지로4가"
+ },
+ {
+  "stationId": "종로5가",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "동대문"
+ },
+ {
+  "stationId": "종로5가",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "종로3가"
+ },
+ {
+  "stationId": "종합운동장",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "삼성"
+ },
+ {
+  "stationId": "종합운동장",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "잠실새내"
+ },
+ {
+  "stationId": "종합운동장",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "봉은사"
+ },
+ {
+  "stationId": "주안",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "간석"
+ },
+ {
+  "stationId": "주안",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "도화"
+ },
+ {
+  "stationId": "주엽",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "대화"
+ },
+ {
+  "stationId": "주엽",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "정발산"
+ },
+ {
+  "stationId": "죽전",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "오리"
+ },
+ {
+  "stationId": "죽전",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "보정"
+ },
+ {
+  "stationId": "중계",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "노원"
+ },
+ {
+  "stationId": "중계",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "하계"
+ },
+ {
+  "stationId": "중곡",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "용마산"
+ },
+ {
+  "stationId": "중곡",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "군자"
+ },
+ {
+  "stationId": "중동",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "부천"
+ },
+ {
+  "stationId": "중동",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "송내"
+ },
+ {
+  "stationId": "중랑",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "회기"
+ },
+ {
+  "stationId": "중랑",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "상봉"
+ },
+ {
+  "stationId": "중앙",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "한대앞"
+ },
+ {
+  "stationId": "중앙",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "고잔"
+ },
+ {
+  "stationId": "중앙보훈병원",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "둔촌오륜"
+ },
+ {
+  "stationId": "중화",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "먹골"
+ },
+ {
+  "stationId": "중화",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "상봉"
+ },
+ {
+  "stationId": "증미",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "등촌"
+ },
+ {
+  "stationId": "증미",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "가양"
+ },
+ {
+  "stationId": "증산",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "새절"
+ },
+ {
+  "stationId": "증산",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "디지털미디어시티"
+ },
+ {
+  "stationId": "지제",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "서정리"
+ },
+ {
+  "stationId": "지제",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "평택"
+ },
+ {
+  "stationId": "지축",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "삼송"
+ },
+ {
+  "stationId": "지축",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "구파발"
+ },
+ {
+  "stationId": "지행",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "동두천중앙"
+ },
+ {
+  "stationId": "지행",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "덕정"
+ },
+ {
+  "stationId": "직산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "성환"
+ },
+ {
+  "stationId": "직산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "두정"
+ },
+ {
+  "stationId": "진위",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "오산"
+ },
+ {
+  "stationId": "진위",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "송탄"
+ },
+ {
+  "stationId": "창동",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "노원"
+ },
+ {
+  "stationId": "창동",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "쌍문"
+ },
+ {
+  "stationId": "창신",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "동묘앞"
+ },
+ {
+  "stationId": "창신",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "보문"
+ },
+ {
+  "stationId": "천마산",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "평내호평"
+ },
+ {
+  "stationId": "천마산",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "마석"
+ },
+ {
+  "stationId": "천안",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "두정"
+ },
+ {
+  "stationId": "천안",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "봉명"
+ },
+ {
+  "stationId": "천왕",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "광명사거리"
+ },
+ {
+  "stationId": "천왕",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "온수"
+ },
+ {
+  "stationId": "천호",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "광나루"
+ },
+ {
+  "stationId": "천호",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "강동"
+ },
+ {
+  "stationId": "천호",
+  "line": "8호선",
+  "direction": "상행",
+  "nextId": "암사"
+ },
+ {
+  "stationId": "천호",
+  "line": "8호선",
+  "direction": "하행",
+  "nextId": "강동구청"
+ },
+ {
+  "stationId": "철산",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "가산디지털단지"
+ },
+ {
+  "stationId": "철산",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "광명사거리"
+ },
+ {
+  "stationId": "청계산입구",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "양재시민의숲"
+ },
+ {
+  "stationId": "청계산입구",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "판교"
+ },
+ {
+  "stationId": "청구",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "동대문역사문화공원"
+ },
+ {
+  "stationId": "청구",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "신금호"
+ },
+ {
+  "stationId": "청구",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "약수"
+ },
+ {
+  "stationId": "청구",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "신당"
+ },
+ {
+  "stationId": "청담",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "뚝섬유원지"
+ },
+ {
+  "stationId": "청담",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "강남구청"
+ },
+ {
+  "stationId": "청라국제도시",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "영종"
+ },
+ {
+  "stationId": "청라국제도시",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "검암"
+ },
+ {
+  "stationId": "청량리",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "회기"
+ },
+ {
+  "stationId": "청량리",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "제기동"
+ },
+ {
+  "stationId": "청량리",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "청량리",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "회기"
+ },
+ {
+  "stationId": "청명",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "상갈"
+ },
+ {
+  "stationId": "청명",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "영통"
+ },
+ {
+  "stationId": "청산",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "전곡"
+ },
+ {
+  "stationId": "청산",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "소요산"
+ },
+ {
+  "stationId": "청평",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "대성리"
+ },
+ {
+  "stationId": "청평",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "상천"
+ },
+ {
+  "stationId": "초월",
+  "line": "경강선",
+  "direction": "상행",
+  "nextId": "경기광주"
+ },
+ {
+  "stationId": "초월",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "곤지암"
+ },
+ {
+  "stationId": "초지",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "고잔"
+ },
+ {
+  "stationId": "초지",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "안산"
+ },
+ {
+  "stationId": "초지",
+  "line": "서해선",
+  "direction": "상행",
+  "nextId": "선부"
+ },
+ {
+  "stationId": "총신대입구",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "동작"
+ },
+ {
+  "stationId": "총신대입구",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "사당"
+ },
+ {
+  "stationId": "춘의",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "부천종합운동장"
+ },
+ {
+  "stationId": "춘의",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "신중동"
+ },
+ {
+  "stationId": "춘천",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "남춘천"
+ },
+ {
+  "stationId": "충무로",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "을지로3가"
+ },
+ {
+  "stationId": "충무로",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "동대입구"
+ },
+ {
+  "stationId": "충무로",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "동대문역사문화공원"
+ },
+ {
+  "stationId": "충무로",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "명동"
+ },
+ {
+  "stationId": "충정로",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "시청"
+ },
+ {
+  "stationId": "충정로",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "아현"
+ },
+ {
+  "stationId": "충정로",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "애오개"
+ },
+ {
+  "stationId": "충정로",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "서대문"
+ },
+ {
+  "stationId": "킨텍스",
+  "line": "GTX-A",
+  "direction": "상행",
+  "nextId": "운정중앙"
+ },
+ {
+  "stationId": "킨텍스",
+  "line": "GTX-A",
+  "direction": "하행",
+  "nextId": "대곡"
+ },
+ {
+  "stationId": "탄현",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "야당"
+ },
+ {
+  "stationId": "탄현",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "일산"
+ },
+ {
+  "stationId": "탕정",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "아산"
+ },
+ {
+  "stationId": "탕정",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "배방"
+ },
+ {
+  "stationId": "태릉입구",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "석계"
+ },
+ {
+  "stationId": "태릉입구",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "화랑대"
+ },
+ {
+  "stationId": "태릉입구",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "공릉"
+ },
+ {
+  "stationId": "태릉입구",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "먹골"
+ },
+ {
+  "stationId": "태평",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "가천대"
+ },
+ {
+  "stationId": "태평",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "모란"
+ },
+ {
+  "stationId": "퇴계원",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "별내"
+ },
+ {
+  "stationId": "퇴계원",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "사릉"
+ },
+ {
+  "stationId": "파주",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "문산"
+ },
+ {
+  "stationId": "파주",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "월롱"
+ },
+ {
+  "stationId": "판교",
+  "line": "경강선",
+  "direction": "하행",
+  "nextId": "성남"
+ },
+ {
+  "stationId": "판교",
+  "line": "신분당선",
+  "direction": "상행",
+  "nextId": "청계산입구"
+ },
+ {
+  "stationId": "판교",
+  "line": "신분당선",
+  "direction": "하행",
+  "nextId": "정자"
+ },
+ {
+  "stationId": "팔당",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "도심"
+ },
+ {
+  "stationId": "팔당",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "운길산"
+ },
+ {
+  "stationId": "평내호평",
+  "line": "경춘선",
+  "direction": "상행",
+  "nextId": "금곡"
+ },
+ {
+  "stationId": "평내호평",
+  "line": "경춘선",
+  "direction": "하행",
+  "nextId": "천마산"
+ },
+ {
+  "stationId": "평촌",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "인덕원"
+ },
+ {
+  "stationId": "평촌",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "범계"
+ },
+ {
+  "stationId": "평택",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "지제"
+ },
+ {
+  "stationId": "평택",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "성환"
+ },
+ {
+  "stationId": "풍산",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "일산"
+ },
+ {
+  "stationId": "풍산",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "백마"
+ },
+ {
+  "stationId": "하계",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "중계"
+ },
+ {
+  "stationId": "하계",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "공릉"
+ },
+ {
+  "stationId": "하남검단산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "하남시청"
+ },
+ {
+  "stationId": "하남시청",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "하남풍산"
+ },
+ {
+  "stationId": "하남시청",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "하남검단산"
+ },
+ {
+  "stationId": "하남풍산",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "미사"
+ },
+ {
+  "stationId": "하남풍산",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "하남시청"
+ },
+ {
+  "stationId": "학동",
+  "line": "7호선",
+  "direction": "상행",
+  "nextId": "강남구청"
+ },
+ {
+  "stationId": "학동",
+  "line": "7호선",
+  "direction": "하행",
+  "nextId": "논현"
+ },
+ {
+  "stationId": "학여울",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "대치"
+ },
+ {
+  "stationId": "학여울",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "대청"
+ },
+ {
+  "stationId": "한강진",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "이태원"
+ },
+ {
+  "stationId": "한강진",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "버티고개"
+ },
+ {
+  "stationId": "한남",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "서빙고"
+ },
+ {
+  "stationId": "한남",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "옥수"
+ },
+ {
+  "stationId": "한대앞",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "상록수"
+ },
+ {
+  "stationId": "한대앞",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "중앙"
+ },
+ {
+  "stationId": "한성대입구",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "성신여대입구"
+ },
+ {
+  "stationId": "한성대입구",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "혜화"
+ },
+ {
+  "stationId": "한성백제",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "올림픽공원"
+ },
+ {
+  "stationId": "한성백제",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "송파나루"
+ },
+ {
+  "stationId": "한양대",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "뚝섬"
+ },
+ {
+  "stationId": "한양대",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "한티",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "선릉"
+ },
+ {
+  "stationId": "한티",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "도곡"
+ },
+ {
+  "stationId": "합정",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "홍대입구"
+ },
+ {
+  "stationId": "합정",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "당산"
+ },
+ {
+  "stationId": "합정",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "망원"
+ },
+ {
+  "stationId": "합정",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "상수"
+ },
+ {
+  "stationId": "행당",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "신금호"
+ },
+ {
+  "stationId": "행당",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "왕십리"
+ },
+ {
+  "stationId": "행신",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "능곡"
+ },
+ {
+  "stationId": "행신",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "강매"
+ },
+ {
+  "stationId": "혜화",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "한성대입구"
+ },
+ {
+  "stationId": "혜화",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "동대문"
+ },
+ {
+  "stationId": "호구포",
+  "line": "수인분당선",
+  "direction": "상행",
+  "nextId": "인천논현"
+ },
+ {
+  "stationId": "호구포",
+  "line": "수인분당선",
+  "direction": "하행",
+  "nextId": "남동인더스파크"
+ },
+ {
+  "stationId": "홍대입구",
+  "line": "2호선",
+  "direction": "내선",
+  "nextId": "신촌"
+ },
+ {
+  "stationId": "홍대입구",
+  "line": "2호선",
+  "direction": "외선",
+  "nextId": "합정"
+ },
+ {
+  "stationId": "홍대입구",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "가좌"
+ },
+ {
+  "stationId": "홍대입구",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "서강대"
+ },
+ {
+  "stationId": "홍대입구",
+  "line": "공항철도",
+  "direction": "상행",
+  "nextId": "디지털미디어시티"
+ },
+ {
+  "stationId": "홍대입구",
+  "line": "공항철도",
+  "direction": "하행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "홍제",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "녹번"
+ },
+ {
+  "stationId": "홍제",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "무악재"
+ },
+ {
+  "stationId": "화계",
+  "line": "우이신설선",
+  "direction": "상행",
+  "nextId": "삼양"
+ },
+ {
+  "stationId": "화계",
+  "line": "우이신설선",
+  "direction": "하행",
+  "nextId": "가오리"
+ },
+ {
+  "stationId": "화곡",
+  "line": "5호선",
+  "direction": "상행",
+  "nextId": "우장산"
+ },
+ {
+  "stationId": "화곡",
+  "line": "5호선",
+  "direction": "하행",
+  "nextId": "까치산"
+ },
+ {
+  "stationId": "화랑대",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "태릉입구"
+ },
+ {
+  "stationId": "화랑대",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "봉화산"
+ },
+ {
+  "stationId": "화서",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "성균관대"
+ },
+ {
+  "stationId": "화서",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "수원"
+ },
+ {
+  "stationId": "화정",
+  "line": "3호선",
+  "direction": "상행",
+  "nextId": "대곡"
+ },
+ {
+  "stationId": "화정",
+  "line": "3호선",
+  "direction": "하행",
+  "nextId": "원당"
+ },
+ {
+  "stationId": "회기",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "청량리"
+ },
+ {
+  "stationId": "회기",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "중랑"
+ },
+ {
+  "stationId": "회룡",
+  "line": "1호선",
+  "direction": "상행",
+  "nextId": "의정부"
+ },
+ {
+  "stationId": "회룡",
+  "line": "1호선",
+  "direction": "하행",
+  "nextId": "망월사"
+ },
+ {
+  "stationId": "회현",
+  "line": "4호선",
+  "direction": "상행",
+  "nextId": "명동"
+ },
+ {
+  "stationId": "회현",
+  "line": "4호선",
+  "direction": "하행",
+  "nextId": "서울"
+ },
+ {
+  "stationId": "효창공원앞",
+  "line": "6호선",
+  "direction": "상행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "효창공원앞",
+  "line": "6호선",
+  "direction": "하행",
+  "nextId": "삼각지"
+ },
+ {
+  "stationId": "효창공원앞",
+  "line": "경의중앙선",
+  "direction": "상행",
+  "nextId": "공덕"
+ },
+ {
+  "stationId": "효창공원앞",
+  "line": "경의중앙선",
+  "direction": "하행",
+  "nextId": "용산"
+ },
+ {
+  "stationId": "흑석",
+  "line": "9호선",
+  "direction": "상행",
+  "nextId": "동작"
+ },
+ {
+  "stationId": "흑석",
+  "line": "9호선",
+  "direction": "하행",
+  "nextId": "노들"
+ }
+]

@@ -238,6 +238,9 @@ CREATE TABLE aliases (alias TEXT PRIMARY KEY, station_id TEXT NOT NULL);
 CREATE TABLE station_codes (station_id TEXT NOT NULL, line_name TEXT NOT NULL,
                             station_cd TEXT NOT NULL, fr_code TEXT,
                             PRIMARY KEY (station_id, line_name));
+CREATE TABLE station_directions (station_id TEXT NOT NULL, line_name TEXT NOT NULL,
+                                 direction TEXT NOT NULL, next_id TEXT NOT NULL,
+                                 PRIMARY KEY (station_id, line_name, next_id));
 """
 
 
@@ -282,6 +285,26 @@ def link_station_codes(
     return sorted(rows.values(), key=lambda r: (r.station_id, r.line_name)), unmatched
 
 
+def write_station_directions(rows: list[dict], out: Path) -> int:
+    """scripts.fetch_directions의 결과. 같은 (역, 호선, 다음 역)이 두 방향이면 둘 다 뺀다."""
+    seen: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    for r in rows:
+        seen[(r["stationId"], r["line"], r["nextId"])].add(r["direction"])
+    clean = [(*k, next(iter(v))) for k, v in sorted(seen.items()) if len(v) == 1]
+    con = sqlite3.connect(out)
+    try:
+        con.execute("DELETE FROM station_directions")
+        con.executemany(
+            "INSERT INTO station_directions (station_id, line_name, next_id, direction) "
+            "VALUES (?, ?, ?, ?)",
+            clean,
+        )
+        con.commit()
+    finally:
+        con.close()
+    return len(clean)
+
+
 def write_station_codes(rows: list[StationCodeRow], out: Path) -> None:
     con = sqlite3.connect(out)
     try:
@@ -316,10 +339,10 @@ def write_sqlite(result: BuildResult, out: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
-    if len(args) not in (2, 3):
+    if len(args) not in (2, 3, 4):
         print(
             "사용법: python -m scripts.build_stations <원본 CSV 또는 JSON> <stations.sqlite>"
-            " [역 정보 JSON]"
+            " [역 정보 JSON] [방향 JSON]"
         )
         return 2
     rows, skipped = read_master(Path(args[0]))
@@ -333,11 +356,14 @@ def main(argv: list[str] | None = None) -> int:
         f"역 {len(result.stations)}개, 호선 연결 {len(result.lines)}개, "
         f"별칭 {len(result.aliases)}개, 좌표가 없어 건너뛴 행 {skipped}개"
     )
-    if len(args) == 3:
+    if len(args) >= 3:
         info = json.loads(Path(args[2]).read_text(encoding="utf-8"))
         codes, unmatched = link_station_codes(info, StationIndex.load(args[1]))
         write_station_codes(codes, Path(args[1]))
         print(f"역 코드 {len(codes)}개, 잇지 못한 행 {len(unmatched)}개: {', '.join(unmatched)}")
+    if len(args) == 4:
+        rows = json.loads(Path(args[3]).read_text(encoding="utf-8"))
+        print(f"방향 {write_station_directions(rows, Path(args[1]))}개")
     return 0
 
 

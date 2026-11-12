@@ -36,10 +36,6 @@ android {
             "String", "SERVER_BASE_URL",
             quoted(localProperty("server.baseUrl", "http://10.0.2.2:8000/")),
         )
-        buildConfigField(
-            "String", "KAKAO_NATIVE_APP_KEY",
-            quoted(localProperty("kakao.nativeAppKey", "DUMMY_KAKAO_KEY")),
-        )
     }
 
     buildFeatures {
@@ -72,7 +68,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.kakao.map)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)

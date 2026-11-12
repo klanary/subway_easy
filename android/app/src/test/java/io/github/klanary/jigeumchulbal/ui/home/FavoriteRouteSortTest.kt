@@ -2,9 +2,8 @@ package io.github.klanary.jigeumchulbal.ui.home
 
 import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
 import io.github.klanary.jigeumchulbal.data.local.RouteUsageEntity
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.EndpointKind
-import io.github.klanary.jigeumchulbal.data.model.GeoPoint
+import io.github.klanary.jigeumchulbal.data.model.StationRef
+import io.github.klanary.jigeumchulbal.data.repository.sameStations
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
@@ -16,7 +15,7 @@ class FavoriteRouteSortTest {
     private val zone = ZoneId.of("Asia/Seoul")
     private fun at(day: Int, h: Int, m: Int) = ZonedDateTime.of(2026, 11, day, h, m, 0, 0, zone)
     private fun fav(id: Long, created: Long = 0) =
-        FavoriteRouteEntity(id, "집", 37.0, 127.0, null, null, null, "학교", 37.5, 127.5, created)
+        FavoriteRouteEntity(id, "마포", "마포", null, null, "공덕", "공덕", created)
     private fun use(id: Long, t: ZonedDateTime) = RouteUsageEntity(routeId = id, usedAt = t.toInstant().toEpochMilli())
 
     @Test fun countsUsesWithinOneHourOfNow() {
@@ -41,10 +40,12 @@ class FavoriteRouteSortTest {
         assertEquals(listOf(1L, 2L), sortFavoriteRoutes(listOf(fav(2), fav(1)), usages, at(20, 8, 0)).map { it.id })
     }
 
-    @Test fun sameEndpointsUsesFourDecimals() {
+    @Test fun sameStationsComparesIdsAndVia() {
         val f = fav(1)
-        val dest = Endpoint("b", GeoPoint(37.5, 127.5), EndpointKind.PIN)
-        assertTrue(sameEndpoints(f, Endpoint("a", GeoPoint(37.00004, 127.0), EndpointKind.PIN), null, dest))
-        assertFalse(sameEndpoints(f, Endpoint("a", GeoPoint(37.0002, 127.0), EndpointKind.PIN), null, dest))
+        val mapo = StationRef("마포", "마포")
+        val gongdeok = StationRef("공덕", "공덕")
+        assertTrue(f.sameStations(mapo, null, gongdeok))
+        assertFalse(f.sameStations(mapo, StationRef("애오개", "애오개"), gongdeok))
+        assertFalse(f.sameStations(gongdeok, null, mapo))
     }
 }

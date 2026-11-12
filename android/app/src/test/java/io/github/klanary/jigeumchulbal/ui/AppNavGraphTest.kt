@@ -9,9 +9,7 @@ import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.createGraph
 import androidx.navigation.toRoute
 import androidx.test.core.app.ApplicationProvider
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.EndpointKind
-import io.github.klanary.jigeumchulbal.data.model.GeoPoint
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,18 +34,16 @@ class AppNavGraphTest {
         val nav = navController()
         nav.navigate(SearchDest(Slot.DEST))
         assertEquals(SearchDest(Slot.DEST), nav.currentBackStackEntry!!.toRoute<SearchDest>())
-        nav.navigate(MapPickDest(null))
-        assertEquals(MapPickDest(null), nav.currentBackStackEntry!!.toRoute<MapPickDest>())
+        nav.navigate(SearchDest(null))
+        assertEquals(SearchDest(null), nav.currentBackStackEntry!!.toRoute<SearchDest>())
     }
 
-    @Test fun mapPickOpenedFromSearchReturnsToRouteEdit() {
+    @Test fun stationPickedInSearchReturnsToRouteEdit() {
         val nav = navController()
         nav.navigate(RouteFlowGraph())
         val routeEdit = nav.currentBackStackEntry!!
         nav.navigate(SearchDest(Slot.DEST))
-        nav.navigate(MapPickDest(Slot.DEST))
-        val pick = PickResult(Slot.DEST, Endpoint("지도에서 선택한 위치", GeoPoint(37.5, 127.0), EndpointKind.PIN))
-        nav.returnPick(pick)
+        nav.returnPick(PickResult(Slot.DEST, StationRef("강남", "강남")))
         assertEquals(routeEdit, nav.currentBackStackEntry)
         assertEquals(true, routeEdit.savedStateHandle.contains("pick_result"))
     }
@@ -63,7 +59,7 @@ class AppNavGraphTest {
 
     @Test fun routeFlowGraphStartsAtRouteEdit() {
         val nav = navController()
-        nav.navigate(RouteFlowGraph(destMyPlaceId = 3))
+        nav.navigate(RouteFlowGraph(favoriteRouteId = 3))
         assertEquals(RouteEditDest::class.qualifiedName, nav.currentDestination!!.route)
     }
 }

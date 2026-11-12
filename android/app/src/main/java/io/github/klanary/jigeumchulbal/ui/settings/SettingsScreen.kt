@@ -33,38 +33,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.BuildConfig
-import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
-import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
-import io.github.klanary.jigeumchulbal.ui.MapPickDest
-import io.github.klanary.jigeumchulbal.ui.OnPickResult
-import io.github.klanary.jigeumchulbal.ui.SearchDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
-import io.github.klanary.jigeumchulbal.ui.home.label
 
-/** 설정(스펙 4.2): 내 장소 관리, 알림 시점, 권한 상태, 정보(출처 — 스펙 10.4). */
+/** 설정(스펙 4.2): 알림 시점, 권한 상태, 정보(출처 — 스펙 10.4). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavController,
-    entry: NavBackStackEntry,
-    viewModel: SettingsViewModel = appViewModel { SettingsViewModel(it.myPlaceRepository, it.settingsStore) },
+    viewModel: SettingsViewModel = appViewModel { SettingsViewModel(it.settingsStore) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // 검색·지도 선택에서 돌아온 위치를 어느 종류로 저장할지. 화면을 떠났다 와도 남도록 저장한다.
-    var pendingType by rememberSaveable { mutableStateOf<MyPlaceType?>(null) }
-    entry.OnPickResult { pick ->
-        pendingType?.let { type ->
-            val label = if (type == MyPlaceType.CUSTOM) pick.endpoint.label else type.label()
-            viewModel.savePlace(type, label, pick.endpoint)
-        }
-        pendingType = null
-    }
 
     var permissions by remember { mutableStateOf(currentPermissionRows(context)) }
     LifecycleResumeEffect(Unit) {
@@ -72,15 +55,7 @@ fun SettingsScreen(
         onPauseOrDispose {}
     }
 
-    fun pickBySearch(type: MyPlaceType) {
-        pendingType = type
-        navController.navigate(SearchDest(null))
-    }
 
-    fun pickOnMap(type: MyPlaceType) {
-        pendingType = type
-        navController.navigate(MapPickDest(null))
-    }
 
     Scaffold(
         topBar = {
@@ -95,26 +70,6 @@ fun SettingsScreen(
         },
     ) { padding ->
         LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(bottom = 24.dp)) {
-            item { SectionTitle(Copy.MY_PLACES) }
-            items(listOf(MyPlaceType.HOME, MyPlaceType.SCHOOL, MyPlaceType.WORK)) { type ->
-                MyPlaceRow(
-                    title = type.label(),
-                    place = state.places.firstOrNull { it.type == type },
-                    onSearch = { pickBySearch(type) },
-                    onMap = { pickOnMap(type) },
-                    onDelete = viewModel::deletePlace,
-                )
-            }
-            items(state.places.filter { it.type == MyPlaceType.CUSTOM }, key = { it.id }) { place ->
-                MyPlaceRow(place.label, place, onSearch = null, onMap = null, onDelete = viewModel::deletePlace)
-            }
-            item {
-                Row(Modifier.padding(horizontal = 8.dp)) {
-                    TextButton(onClick = { pickBySearch(MyPlaceType.CUSTOM) }) { Text(Copy.ADD_CUSTOM_PLACE) }
-                    TextButton(onClick = { pickOnMap(MyPlaceType.CUSTOM) }) { Text(Copy.PICK_ON_MAP) }
-                }
-            }
-
             item { SectionTitle(Copy.ALERT_TIMING) }
             item {
                 OptionRow(Copy.DEPART_MARGIN, DEPART_MARGIN_OPTIONS, state.settings.departMarginSec, ::secondsText, viewModel::setDepartMargin)
@@ -167,26 +122,6 @@ private fun SectionTitle(title: String) {
     }
 }
 
-@Composable
-private fun MyPlaceRow(
-    title: String,
-    place: MyPlaceEntity?,
-    onSearch: (() -> Unit)?,
-    onMap: (() -> Unit)?,
-    onDelete: (Long) -> Unit,
-) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(place?.let { it.address ?: it.label } ?: Copy.NOT_SET) },
-        trailingContent = {
-            Row {
-                onSearch?.let { TextButton(onClick = it) { Text(Copy.SET_BY_SEARCH) } }
-                onMap?.let { TextButton(onClick = it) { Text(Copy.SET_ON_MAP) } }
-                place?.let { TextButton(onClick = { onDelete(it.id) }) { Text(Copy.DELETE) } }
-            }
-        },
-    )
-}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

@@ -34,12 +34,11 @@ import io.github.klanary.jigeumchulbal.ui.SearchDest
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 
-/** 경로 편집. 출발 기본값은 현재 위치이고, 칸을 누르면 통합 검색이 열린다(스펙 4.2). */
+/** 경로 편집. 출발 기본값은 현재 위치에서 가장 가까운 역이고, 칸을 누르면 역 검색이 열린다. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RouteEditScreen(
     viewModel: RouteFlowViewModel,
-    destMyPlaceId: Long?,
     navController: NavController,
     favoriteRouteId: Long? = null,
 ) {
@@ -47,14 +46,14 @@ fun RouteEditScreen(
     val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.useCurrentLocation() }
 
     LaunchedEffect(Unit) {
-        viewModel.init(destMyPlaceId, favoriteRouteId)
+        viewModel.init(favoriteRouteId)
         // 홈의 자주 가는 경로 카드: 편집을 건너뛰고 바로 경로 결과(⑨). 결과에서 뒤로 오면 편집 화면에 머문다.
         if (viewModel.consumeOpenResults()) {
             navController.navigate(RoutesDest)
             return@LaunchedEffect
         }
         // 홈 검색창으로 들어와 도착이 비어 있으면 바로 검색을 연다(한 번만).
-        if (destMyPlaceId == null && viewModel.consumeAutoOpenSearch()) {
+        if (viewModel.consumeAutoOpenSearch()) {
             navController.navigate(SearchDest(Slot.DEST))
         }
     }
@@ -78,14 +77,14 @@ fun RouteEditScreen(
             OutlinedCard(Modifier.fillMaxWidth()) {
                 EndpointRow(
                     label = Copy.ORIGIN,
-                    value = state.origin?.label,
+                    value = state.origin?.name,
                     hint = state.originHint ?: Copy.ORIGIN_HINT,
                     onClick = { navController.navigate(SearchDest(Slot.ORIGIN)) },
                 )
                 if (state.viaVisible) {
                     EndpointRow(
                         label = Copy.VIA,
-                        value = state.via?.label,
+                        value = state.via?.name,
                         hint = Copy.VIA_HINT,
                         onClick = { navController.navigate(SearchDest(Slot.VIA)) },
                         trailing = {
@@ -97,7 +96,7 @@ fun RouteEditScreen(
                 }
                 EndpointRow(
                     label = Copy.DEST,
-                    value = state.dest?.label,
+                    value = state.dest?.name,
                     hint = Copy.DEST_HINT,
                     onClick = { navController.navigate(SearchDest(Slot.DEST)) },
                 )

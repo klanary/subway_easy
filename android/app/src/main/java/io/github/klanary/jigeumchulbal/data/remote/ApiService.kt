@@ -19,15 +19,19 @@ interface ApiService {
         @Query("towards") towards: String?,
     ): ArrivalsDto
 
-    @GET("v1/places/search")
-    suspend fun searchPlaces(
-        @Query("q") q: String,
-        @Query("lat") lat: Double?,
-        @Query("lng") lng: Double?,
-    ): PlaceSearchDto
+    /** 반경 2km 안의 가장 가까운 역(재설계 스펙 6). */
+    @GET("v1/stations/nearest")
+    suspend fun nearestStation(@Query("lat") lat: Double, @Query("lng") lng: Double): NearestDto
 
-    @GET("v1/places/reverse")
-    suspend fun reverse(@Query("lat") lat: Double, @Query("lng") lng: Double): ReverseDto
+    /** [from](ISO 시각) 이후 시간표 열차 [count]대. [from]이 없으면 지금부터. */
+    @GET("v1/stations/{id}/timetable")
+    suspend fun timetable(
+        @Path("id") id: String,
+        @Query("line") line: String,
+        @Query("direction") direction: String,
+        @Query("from") from: String?,
+        @Query("count") count: Int,
+    ): TimetableDto
 
     /** 역 앞뒤 3정거장 안의 열차(위치 결합 스펙 6.3). [toward]를 주면 그쪽으로 가는 열차만. */
     @GET("v1/lines/{line}/trains")
@@ -45,13 +49,12 @@ interface ApiService {
         @Query("to") to: String,
     ): TrainEtaDto
 
+    /** 역 id로 묻는다. [departAt](ISO 시각)을 주면 시간표 열차와 도착 예상이 붙는다. */
     @GET("v1/routes")
     suspend fun routes(
         @Query("from") from: String,
         @Query("to") to: String,
         @Query("via") via: String?,
-        @Query("fromName") fromName: String?,
-        @Query("toName") toName: String?,
-        @Query("viaName") viaName: String?,
+        @Query("departAt") departAt: String?,
     ): RoutesDto
 }

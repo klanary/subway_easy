@@ -52,7 +52,7 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
             value = System.currentTimeMillis()
         }
     }
-    val title = listOfNotNull(state.origin?.label, state.dest?.label).joinToString(" → ")
+    val title = listOfNotNull(state.origin?.name, state.dest?.name).joinToString(" → ")
 
     Scaffold(
         topBar = {

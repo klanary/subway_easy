@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalGroupDto
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainDto
-import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.toUiState
@@ -20,24 +19,16 @@ data class StationUiState(
     val stationId: String,
     val arrivals: UiState<ArrivalsDto> = UiState.Loading,
     val receivedAt: Long? = null,
-    val isFavorite: Boolean = false,
 )
 
-/** 역 상세(스펙 3.1 ①): 호선·방향별 다음 열차와 역 즐겨찾기. */
+/** 역 상세(스펙 3.1 ①): 호선·방향별 다음 열차. */
 class StationViewModel(
     private val stationId: String,
     private val stations: StationRepository,
-    private val favorites: FavoriteRepository,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val _state = MutableStateFlow(StationUiState(stationId))
     val state: StateFlow<StationUiState> = _state.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            favorites.isFavorite(stationId).collect { favorite -> _state.update { it.copy(isFavorite = favorite) } }
-        }
-    }
 
     /**
      * 새로 고친 뒤 30초를 기다리기를 반복한다. 화면이 `repeatOnLifecycle(STARTED)` 안에서 부르므로
@@ -52,10 +43,6 @@ class StationViewModel(
 
     fun refresh() {
         viewModelScope.launch { load() }
-    }
-
-    fun toggleFavorite() {
-        viewModelScope.launch { favorites.toggleStation(stationId) }
     }
 
     private suspend fun load() {
@@ -75,8 +62,10 @@ class StationViewModel(
 }
 
 /** "2호선 내선 · 합정 방면". 방면을 모르면 "2호선 내선". */
-fun groupTitle(g: ArrivalGroupDto): String =
-    if (g.towards != null) "${g.line} ${g.direction} · ${g.towards} 방면" else "${g.line} ${g.direction}"
+fun groupTitle(g: ArrivalGroupDto): String {
+    val head = listOfNotNull(g.line, g.direction).joinToString(" ")
+    return if (g.towards != null) "$head · ${g.towards} 방면" else head
+}
 
 /** 응답을 받은 뒤 지난 시간을 뺀 남은 초(0 이상). 남은 시간을 모르면 null. */
 fun displayRemainingSec(train: TrainDto, receivedAt: Long, now: Long): Int? =

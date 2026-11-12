@@ -1,0 +1,38 @@
+{
+ "stationId": "계양",
+ "updatedAt": "2026-11-12T18:59:15+09:00",
+ "stale": false,
+ "groups": [
+  {
+   "line": "공항철도",
+   "direction": "하행",
+   "towards": "김포공항",
+   "trains": [
+    {
+     "destination": "서울",
+     "remainingSec": 90,
+     "message": "전역 출발",
+     "isLast": false,
+     "isExpress": false,
+     "trainNo": "A2206"
+    },
+    {
+     "destination": "서울",
+     "remainingSec": 720,
+     "message": "[6]번째 전역 (인천공항1터미널)",
+     "isLast": false,
+     "isExpress": true,
+     "trainNo": "A1046"
+    }
+   ],
+   "source": "realtime"
+  },
+  {
+   "line": "인천1호선",
+   "direction": null,
+   "towards": null,
+   "trains": [],
+   "source": "none"
+  }
+ ]
+}

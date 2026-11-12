@@ -73,9 +73,12 @@ data class TrainEtaDto(
 @Serializable
 data class ArrivalGroupDto(
     val line: String,
-    val direction: String,
+    /** 상행·하행·내선·외선. 비서울 노선([source] "none")은 null이다. */
+    val direction: String? = null,
     val towards: String? = null,
     val trains: List<TrainDto>,
+    /** 열차 정보 출처(재설계 스펙 5.1): "realtime", "timetable"(실시간이 없는 방향), "none"(비서울 노선). */
+    val source: String = "realtime",
 )
 
 @Serializable
@@ -87,24 +90,27 @@ data class ArrivalsDto(
 )
 
 @Serializable
-data class PlaceDto(
-    val name: String,
-    val address: String? = null,
-    val lat: Double,
-    val lng: Double,
-    val category: String? = null,
+data class NearestStationDto(val id: String, val name: String, val distanceM: Int)
+
+/** 반경 2km 안에 역이 없으면 [station]이 null이다. */
+@Serializable
+data class NearestDto(val station: NearestStationDto? = null)
+
+/** 시간표 열차(재설계 스펙 6). [departsAt]은 ISO 시각. */
+@Serializable
+data class TimetableTrainDto(
+    val departsAt: String,
+    val destination: String? = null,
+    val isExpress: Boolean = false,
+    val trainNo: String? = null,
 )
 
 @Serializable
-data class PlaceSearchDto(val items: List<PlaceDto>)
-
-@Serializable
-data class NearestStationDto(val id: String, val name: String, val distanceM: Int)
-
-@Serializable
-data class ReverseDto(
-    val address: String? = null,
-    val nearestStation: NearestStationDto? = null,
+data class TimetableDto(
+    val stationId: String,
+    val line: String,
+    val direction: String,
+    val trains: List<TimetableTrainDto>,
 )
 
 @Serializable
@@ -149,6 +155,9 @@ data class RouteDto(
     val fare: Int? = null,
     val legs: List<LegDto>,
     val firstBoarding: FirstBoardingDto? = null,
+    /** 출발 시각을 지정했을 때만: 첫 열차 출발 시각과 도착 예상(ISO). */
+    val departAt: String? = null,
+    val arriveAt: String? = null,
 )
 
 @Serializable

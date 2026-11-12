@@ -14,16 +14,12 @@ import io.github.klanary.jigeumchulbal.data.remote.ApiService
 import io.github.klanary.jigeumchulbal.data.remote.ConnectivityNetworkMonitor
 import io.github.klanary.jigeumchulbal.data.remote.NetworkMonitor
 import io.github.klanary.jigeumchulbal.data.repository.DefaultFavoriteRepository
-import io.github.klanary.jigeumchulbal.data.repository.DefaultMyPlaceRepository
-import io.github.klanary.jigeumchulbal.data.repository.DefaultPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultRecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultRouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultStationRepository
 import io.github.klanary.jigeumchulbal.data.repository.DefaultTrainRepository
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
-import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
-import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
@@ -78,18 +74,19 @@ class AppContainer(context: Context) {
     private val apiCaller = ApiCaller(json, networkMonitor)
 
     val stationRepository: StationRepository = DefaultStationRepository(api, apiCaller)
-    val placeRepository: PlaceRepository = DefaultPlaceRepository(api, apiCaller)
     val routeRepository: RouteRepository = DefaultRouteRepository(api, apiCaller)
     val serverRepository: ServerRepository = DefaultServerRepository(api, apiCaller)
     val trainRepository: TrainRepository = DefaultTrainRepository(api, apiCaller)
 
-    // 기기 저장소: 내 장소·즐겨찾기·최근 검색은 기기에만 둔다(스펙 5.4).
-    val database: AppDatabase = Room.databaseBuilder(appContext, AppDatabase::class.java, "jigeumchulbal.db").build()
+    // 기기 저장소: 자주 가는 경로·최근 검색은 기기에만 둔다(스펙 5.4).
+    // 배포 전이라 버전이 바뀌면 옛 데이터를 지운다(재설계 스펙 7).
+    val database: AppDatabase = Room.databaseBuilder(appContext, AppDatabase::class.java, "jigeumchulbal.db")
+        .fallbackToDestructiveMigration(dropAllTables = true)
+        .build()
 
     val settingsStore = SettingsStore(appContext.settingsDataStore)
 
-    val myPlaceRepository: MyPlaceRepository = DefaultMyPlaceRepository(database.myPlaceDao())
-    val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteStationDao(), database.favoriteRouteDao())
+    val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteRouteDao())
     val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)

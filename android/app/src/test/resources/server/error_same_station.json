@@ -1,0 +1,7 @@
+{
+ "error": {
+  "code": "INVALID_REQUEST",
+  "reason": "SAME_STATION",
+  "message": "출발역과 도착역이 같아요."
+ }
+}

@@ -3,23 +3,20 @@ package io.github.klanary.jigeumchulbal.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
-/** 버전 1에 다섯 테이블을 모두 둔다. P4가 favorite_routes·route_usages를 마이그레이션 없이 쓴다. */
+/**
+ * 버전 2: 재설계로 내 장소·즐겨찾는 역을 빼고 자주 가는 경로를 역 id로 바꿨다.
+ * 아직 배포 전이라 마이그레이션 없이 옛 데이터를 지운다(재설계 스펙 7, AppContainer의 fallbackToDestructiveMigration).
+ */
 @Database(
     entities = [
-        MyPlaceEntity::class,
-        FavoriteStationEntity::class,
         FavoriteRouteEntity::class,
         RouteUsageEntity::class,
         RecentSearchEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun myPlaceDao(): MyPlaceDao
-
-    abstract fun favoriteStationDao(): FavoriteStationDao
-
     abstract fun favoriteRouteDao(): FavoriteRouteDao
 
     abstract fun recentSearchDao(): RecentSearchDao

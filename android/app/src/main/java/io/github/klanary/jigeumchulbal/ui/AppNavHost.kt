@@ -23,7 +23,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.home.HomeScreen
-import io.github.klanary.jigeumchulbal.ui.mappick.MapPickScreen
 import io.github.klanary.jigeumchulbal.ui.routedetail.RouteDetailScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
@@ -57,8 +56,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
             val flow = routeFlowEntry(navController, entry)
             val viewModel = routeFlowViewModel(flow)
             entry.OnPickResult(viewModel::apply)
-            val args = flow.toRoute<RouteFlowGraph>()
-            RouteEditScreen(viewModel, args.destMyPlaceId, navController, favoriteRouteId = args.favoriteRouteId)
+            RouteEditScreen(viewModel, navController, favoriteRouteId = flow.toRoute<RouteFlowGraph>().favoriteRouteId)
         }
         composable<RoutesDest> { entry ->
             RoutesScreen(routeFlowViewModel(routeFlowEntry(navController, entry)), navController)
@@ -72,9 +70,8 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
         }
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
-    composable<MapPickDest> { entry -> MapPickScreen(entry.toRoute<MapPickDest>().slot, navController) }
     composable<StationDest> { entry -> StationScreen(entry.toRoute<StationDest>().stationId, navController) }
-    composable<SettingsDest> { entry -> SettingsScreen(navController, entry) }
+    composable<SettingsDest> { SettingsScreen(navController) }
     composable<SessionDest> { entry -> SessionScreen(navController, pickTrain = entry.toRoute<SessionDest>().pickTrain) }
 }
 
@@ -85,7 +82,7 @@ private fun routeFlowEntry(navController: NavController, entry: NavBackStackEntr
 
 @Composable
 private fun routeFlowViewModel(flow: NavBackStackEntry): RouteFlowViewModel =
-    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.myPlaceRepository, it.locationProvider, it.favoriteRepository) }
+    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.stationRepository, it.locationProvider, it.favoriteRepository) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

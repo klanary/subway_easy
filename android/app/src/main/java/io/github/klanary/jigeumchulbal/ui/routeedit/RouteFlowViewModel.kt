@@ -2,23 +2,23 @@ package io.github.klanary.jigeumchulbal.ui.routeedit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.EndpointKind
-import io.github.klanary.jigeumchulbal.data.model.GeoPoint
-import io.github.klanary.jigeumchulbal.data.model.toEndpoint
+import io.github.klanary.jigeumchulbal.data.model.StationRef
+import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
-import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
-import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
-import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
+import io.github.klanary.jigeumchulbal.data.repository.StationRepository
+import io.github.klanary.jigeumchulbal.data.repository.from
+import io.github.klanary.jigeumchulbal.data.repository.to
+import io.github.klanary.jigeumchulbal.data.repository.via
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import io.github.klanary.jigeumchulbal.ui.PickResult
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.toUiState
+import java.time.Instant
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,17 +29,24 @@ import kotlinx.coroutines.launch
 
 /** 경로 편집 → 경로 결과 → 경로 상세가 함께 쓰는 상태. [results]가 null이면 아직 검색하지 않았다. */
 data class RouteFlowState(
-    val origin: Endpoint? = null,
-    val via: Endpoint? = null,
-    val dest: Endpoint? = null,
+    val origin: StationRef? = null,
+    val via: StationRef? = null,
+    val dest: StationRef? = null,
     val viaVisible: Boolean = false,
     val originHint: String? = null,
+    /** null이면 지금 출발(재설계 스펙 4.4). */
+    val departAt: Instant? = null,
     val results: UiState<RoutesDto>? = null,
     val receivedAt: Long? = null,
     val selectedRouteId: String? = null,
     val isFavorite: Boolean = false,
 ) {
-    val canSearch: Boolean get() = origin != null && dest != null
+    /** 출발·도착이 있고, 출발·경유·도착이 모두 다른 역이어야 한다(서버는 같으면 400). */
+    val canSearch: Boolean
+        get() {
+            val ids = listOfNotNull(origin?.id, via?.id, dest?.id)
+            return origin != null && dest != null && ids.toSet().size == ids.size
+        }
 
     val selectedRoute: RouteDto?
         get() = (results as? UiState.Content)?.data?.routes?.find { it.id == selectedRouteId }
@@ -48,7 +55,7 @@ data class RouteFlowState(
 /** 중첩 그래프 RouteFlowGraph에 하나만 두고 세 화면이 공유한다. */
 class RouteFlowViewModel(
     private val routes: RouteRepository,
-    private val myPlaces: MyPlaceRepository,
+    private val stations: StationRepository,
     private val location: LocationProvider,
     private val favorites: FavoriteRepository,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -62,10 +69,10 @@ class RouteFlowViewModel(
     private var searchJob: Job? = null
 
     /**
-     * 홈 검색창이면 [destMyPlaceId]가 null, 내 장소 칩이면 그 장소를 도착에 넣는다.
-     * [favoriteRouteId]가 있으면 그 즐겨찾기의 출발·경유·도착을 넣고 바로 검색한다(⑨, 홈 카드 1탭). 한 번만 실행한다.
+     * [favoriteRouteId]가 있으면 그 자주 가는 경로의 출발·경유·도착을 넣고 바로 검색한다(홈 카드 1탭).
+     * 없으면 현재 위치에서 가장 가까운 역을 출발로 채운다. 한 번만 실행한다.
      */
-    fun init(destMyPlaceId: Long?, favoriteRouteId: Long? = null) {
+    fun init(favoriteRouteId: Long? = null) {
         if (initialized) return
         initialized = true
         if (favoriteRouteId != null) {
@@ -73,19 +80,15 @@ class RouteFlowViewModel(
             openResultsPending = true
             viewModelScope.launch {
                 val fav = favorites.routes.first().find { it.id == favoriteRouteId } ?: return@launch
-                _state.update { fav.toFlowState() }
+                _state.update { RouteFlowState(origin = fav.from, via = fav.via, dest = fav.to, viaVisible = fav.via != null) }
                 search()
             }
             return
         }
-        viewModelScope.launch {
-            val dest = destMyPlaceId?.let { myPlaces.get(it)?.toEndpoint() }
-            if (dest != null) _state.update { it.copy(dest = dest) }
-            fillOriginFromLocation(overwrite = false)
-        }
+        viewModelScope.launch { fillOriginFromLocation(overwrite = false) }
     }
 
-    /** [현재 위치] 칩: 권한을 허용받은 뒤 부른다. */
+    /** [현재 위치] 칩: 권한을 허용받은 뒤 부른다. 가장 가까운 역이 출발이 된다. */
     fun useCurrentLocation() {
         viewModelScope.launch { fillOriginFromLocation(overwrite = true) }
     }
@@ -93,9 +96,9 @@ class RouteFlowViewModel(
     fun apply(pick: PickResult) {
         _state.update {
             when (pick.slot) {
-                Slot.ORIGIN -> it.copy(origin = pick.endpoint, originHint = null).withoutResults()
-                Slot.DEST -> it.copy(dest = pick.endpoint).withoutResults()
-                Slot.VIA -> it.copy(via = pick.endpoint, viaVisible = true).withoutResults()
+                Slot.ORIGIN -> it.copy(origin = pick.station, originHint = null).withoutResults()
+                Slot.DEST -> it.copy(dest = pick.station).withoutResults()
+                Slot.VIA -> it.copy(via = pick.station, viaVisible = true).withoutResults()
                 null -> it
             }
         }
@@ -113,17 +116,24 @@ class RouteFlowViewModel(
         _state.update { it.copy(origin = it.dest, dest = it.origin).withoutResults() }
     }
 
+    /** 출발 시각을 바꾸고 다시 검색한다. null이면 지금 출발. */
+    fun setDepartAt(at: Instant?) {
+        _state.update { it.copy(departAt = at) }
+        if (_state.value.canSearch) search()
+    }
+
     fun search() {
         val current = _state.value
+        if (!current.canSearch) return
         val origin = current.origin ?: return
         val dest = current.dest ?: return
         searchJob?.cancel()
         _state.update { it.copy(results = UiState.Loading, selectedRouteId = null) }
         searchJob = viewModelScope.launch {
-            val result = routes.routes(origin, dest, current.via)
+            val result = routes.routes(origin, dest, current.via, current.departAt)
             val at = clock()
             if (result is ApiResult.Ok) favorites.recordUsageIfFavorite(origin, current.via, dest, at)
-            val favorite = favorites.findRoute(origin, current.via, dest) != null
+            val favorite = favorites.find(origin, current.via, dest) != null
             _state.update {
                 it.copy(
                     results = result.toUiState(isEmpty = { dto -> dto.routes.isEmpty() }, isStale = { dto -> dto.stale }),
@@ -140,8 +150,8 @@ class RouteFlowViewModel(
         val origin = current.origin ?: return
         val dest = current.dest ?: return
         viewModelScope.launch {
-            val existing = favorites.findRoute(origin, current.via, dest)
-            if (existing != null) favorites.removeRoute(existing.id) else favorites.addRoute(origin, current.via, dest)
+            val existing = favorites.find(origin, current.via, dest)
+            if (existing != null) favorites.remove(existing.id) else favorites.add(origin, current.via, dest)
             _state.update { it.copy(isFavorite = existing == null) }
         }
     }
@@ -157,7 +167,7 @@ class RouteFlowViewModel(
         return _state.value.dest == null
     }
 
-    /** 홈 자주 가는 경로 카드로 들어왔으면 처음 한 번만 true. 결과에서 뒤로 와 편집 화면이 다시 그려져도 다시 보내지 않는다. */
+    /** 홈 자주 가는 경로 카드로 들어왔으면 처음 한 번만 true. */
     fun consumeOpenResults(): Boolean {
         val open = openResultsPending
         openResultsPending = false
@@ -166,14 +176,13 @@ class RouteFlowViewModel(
 
     private suspend fun fillOriginFromLocation(overwrite: Boolean) {
         val point = if (location.hasPermission()) location.current() else null
+        val nearest = point?.let { (stations.nearest(it.lat, it.lng) as? ApiResult.Ok)?.value }
         _state.update {
             when {
-                // 위치를 기다리는 사이 사용자가 출발지를 골랐으면 덮어쓰지 않는다.
+                // 위치를 기다리는 사이 사용자가 출발역을 골랐으면 덮어쓰지 않는다.
                 it.origin != null && !overwrite -> it
-                point != null -> it.copy(
-                    origin = Endpoint(Copy.CURRENT_LOCATION, point, EndpointKind.CURRENT_LOCATION),
-                    originHint = null,
-                ).withoutResults()
+                nearest != null -> it.copy(origin = StationRef(nearest.id, nearest.name), originHint = null).withoutResults()
+                point != null -> it.copy(originHint = Copy.NO_STATION_NEARBY)
                 it.origin == null -> it.copy(originHint = Copy.ORIGIN_HINT)
                 else -> it
             }
@@ -183,15 +192,4 @@ class RouteFlowViewModel(
     /** 출발·도착이 바뀌면 이전 검색 결과는 맞지 않으므로 지운다. */
     private fun RouteFlowState.withoutResults() =
         copy(results = null, receivedAt = null, selectedRouteId = null, isFavorite = false)
-
-    private fun FavoriteRouteEntity.toFlowState(): RouteFlowState {
-        fun endpoint(label: String, lat: Double, lng: Double) = Endpoint(label, GeoPoint(lat, lng), EndpointKind.PIN)
-        val via = if (viaLat != null && viaLng != null) endpoint(viaLabel ?: Copy.VIA_POINT, viaLat, viaLng) else null
-        return RouteFlowState(
-            origin = endpoint(originLabel, originLat, originLng),
-            via = via,
-            dest = endpoint(destLabel, destLat, destLng),
-            viaVisible = via != null,
-        )
-    }
 }

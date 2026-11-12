@@ -7,9 +7,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 object HomeDest
 
-/** 경로 편집 → 경로 결과 → 경로 상세가 함께 쓰는 중첩 그래프. */
+/** 경로 편집 → 경로 결과 → 경로 상세가 함께 쓰는 중첩 그래프. [favoriteRouteId]면 그 경로로 바로 검색한다. */
 @Serializable
-data class RouteFlowGraph(val destMyPlaceId: Long? = null, val favoriteRouteId: Long? = null)
+data class RouteFlowGraph(val favoriteRouteId: Long? = null)
 
 @Serializable
 object RouteEditDest
@@ -24,13 +24,9 @@ data class RouteDetailDest(val routeId: String)
 @Serializable
 enum class Slot { ORIGIN, VIA, DEST }
 
-/** [slot]이 없으면 하나만 고르는 모드(설정의 내 장소 추가). */
+/** 역 검색. [slot]이 없으면 고른 역의 상세를 연다. */
 @Serializable
 data class SearchDest(val slot: Slot? = null)
-
-/** [slot]이 없으면 하나만 고르는 모드(설정의 내 장소 추가). */
-@Serializable
-data class MapPickDest(val slot: Slot? = null)
 
 @Serializable
 data class StationDest(val stationId: String)

@@ -2,83 +2,60 @@ package io.github.klanary.jigeumchulbal.data.repository
 
 import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteDao
 import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
-import io.github.klanary.jigeumchulbal.data.local.FavoriteStationDao
-import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
 import io.github.klanary.jigeumchulbal.data.local.RouteUsageEntity
-import io.github.klanary.jigeumchulbal.data.model.Endpoint
-import io.github.klanary.jigeumchulbal.data.model.EndpointKind
-import io.github.klanary.jigeumchulbal.ui.common.Copy
-import io.github.klanary.jigeumchulbal.ui.home.sameEndpoints
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
-/** 즐겨찾는 역과 자주 가는 경로(스펙 7.2). */
+/** 자주 가는 경로(재설계 스펙 4.7, D10). 출발·경유·도착 역 id가 같으면 같은 경로다. */
 interface FavoriteRepository {
-    val stations: Flow<List<FavoriteStationEntity>>
-
-    fun isFavorite(stationId: String): Flow<Boolean>
-
-    suspend fun toggleStation(stationId: String)
-
     val routes: Flow<List<FavoriteRouteEntity>>
 
     fun usagesSince(sinceMillis: Long): Flow<List<RouteUsageEntity>>
 
-    suspend fun addRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint)
+    suspend fun add(from: StationRef, via: StationRef?, to: StationRef)
 
-    suspend fun removeRoute(id: Long)
+    suspend fun remove(id: Long)
 
-    suspend fun findRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint): FavoriteRouteEntity?
+    suspend fun find(from: StationRef, via: StationRef?, to: StationRef): FavoriteRouteEntity?
 
     /** 경로 결과를 불러올 때, 출발·경유·도착이 즐겨찾기와 같으면 사용 1회로 기록한다(스펙 7.2 부록 B). */
-    suspend fun recordUsageIfFavorite(origin: Endpoint, via: Endpoint?, dest: Endpoint, at: Long)
+    suspend fun recordUsageIfFavorite(from: StationRef, via: StationRef?, to: StationRef, at: Long)
 }
 
-/**
- * 즐겨찾기 행으로 바꾼다. "현재 위치"는 저장하는 순간의 좌표로 고정되므로
- * 나중에 홈 카드에서 지금 위치로 오해하지 않게 [Copy.SAVED_LOCATION]으로 적는다.
- */
-fun favoriteRouteOf(origin: Endpoint, via: Endpoint?, dest: Endpoint, createdAt: Long): FavoriteRouteEntity {
-    fun label(e: Endpoint) = if (e.kind == EndpointKind.CURRENT_LOCATION) Copy.SAVED_LOCATION else e.label
-    return FavoriteRouteEntity(
-        originLabel = label(origin), originLat = origin.point.lat, originLng = origin.point.lng,
-        viaLabel = via?.let(::label), viaLat = via?.point?.lat, viaLng = via?.point?.lng,
-        destLabel = label(dest), destLat = dest.point.lat, destLng = dest.point.lng,
-        createdAt = createdAt,
-    )
-}
+fun FavoriteRouteEntity.sameStations(from: StationRef, via: StationRef?, to: StationRef): Boolean =
+    fromId == from.id && viaId == via?.id && toId == to.id
+
+val FavoriteRouteEntity.from get() = StationRef(fromId, fromName)
+val FavoriteRouteEntity.to get() = StationRef(toId, toName)
+val FavoriteRouteEntity.via get() = viaId?.let { StationRef(it, viaName ?: it) }
 
 class DefaultFavoriteRepository(
-    private val stationDao: FavoriteStationDao,
     private val routeDao: FavoriteRouteDao,
     private val now: () -> Long = System::currentTimeMillis,
 ) : FavoriteRepository {
-    override val stations: Flow<List<FavoriteStationEntity>> = stationDao.observeAll()
-
-    override fun isFavorite(stationId: String): Flow<Boolean> = stationDao.observeIsFavorite(stationId)
-
-    override suspend fun toggleStation(stationId: String) {
-        if (stationDao.observeIsFavorite(stationId).first()) {
-            stationDao.delete(stationId)
-        } else {
-            stationDao.insert(FavoriteStationEntity(stationId = stationId, createdAt = now()))
-        }
-    }
-
     override val routes: Flow<List<FavoriteRouteEntity>> = routeDao.observeAll()
 
     override fun usagesSince(sinceMillis: Long): Flow<List<RouteUsageEntity>> = routeDao.observeUsagesSince(sinceMillis)
 
-    override suspend fun addRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint) {
-        if (findRoute(origin, via, dest) == null) routeDao.insert(favoriteRouteOf(origin, via, dest, now()))
+    override suspend fun add(from: StationRef, via: StationRef?, to: StationRef) {
+        if (find(from, via, to) != null) return
+        routeDao.insert(
+            FavoriteRouteEntity(
+                fromId = from.id, fromName = from.name,
+                viaId = via?.id, viaName = via?.name,
+                toId = to.id, toName = to.name,
+                createdAt = now(),
+            ),
+        )
     }
 
-    override suspend fun removeRoute(id: Long) = routeDao.delete(id)
+    override suspend fun remove(id: Long) = routeDao.delete(id)
 
-    override suspend fun findRoute(origin: Endpoint, via: Endpoint?, dest: Endpoint): FavoriteRouteEntity? =
-        routeDao.observeAll().first().find { sameEndpoints(it, origin, via, dest) }
+    override suspend fun find(from: StationRef, via: StationRef?, to: StationRef): FavoriteRouteEntity? =
+        routeDao.observeAll().first().find { it.sameStations(from, via, to) }
 
-    override suspend fun recordUsageIfFavorite(origin: Endpoint, via: Endpoint?, dest: Endpoint, at: Long) {
-        findRoute(origin, via, dest)?.let { routeDao.insertUsage(RouteUsageEntity(routeId = it.id, usedAt = at)) }
+    override suspend fun recordUsageIfFavorite(from: StationRef, via: StationRef?, to: StationRef, at: Long) {
+        find(from, via, to)?.let { routeDao.insertUsage(RouteUsageEntity(routeId = it.id, usedAt = at)) }
     }
 }

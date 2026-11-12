@@ -5,7 +5,6 @@ import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalGroupDto
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
 import io.github.klanary.jigeumchulbal.data.remote.TrainDto
-import io.github.klanary.jigeumchulbal.fakes.FakeFavoriteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeStationRepository
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,12 +23,11 @@ import org.junit.Test
 class StationViewModelTest {
     @get:Rule val main = MainDispatcherRule()
     private val stations = FakeStationRepository()
-    private val favorites = FakeFavoriteRepository()
 
     private fun train(sec: Int?) = TrainDto("성수", sec, "", false, false)
 
     @Test fun autoRefreshEvery30Seconds() = runTest {
-        val vm = StationViewModel("홍대입구", stations, favorites) { 0L }
+        val vm = StationViewModel("홍대입구", stations) { 0L }
         val job = launch { vm.runAutoRefresh() }
         advanceTimeBy(60_001)
         runCurrent()
@@ -48,7 +46,7 @@ class StationViewModelTest {
 
     @Test fun staleAndEmptyStates() = runTest {
         stations.arrivalsResult = ApiResult.Ok(ArrivalsDto("홍대입구", "t", stale = true, groups = listOf(GROUP)))
-        val vm = StationViewModel("홍대입구", stations, favorites) { 0L }
+        val vm = StationViewModel("홍대입구", stations) { 0L }
         vm.refresh()
         advanceUntilIdle()
         assertTrue((vm.state.value.arrivals as UiState.Content).stale)
@@ -61,12 +59,6 @@ class StationViewModelTest {
     @Test fun groupTitleText() =
         assertEquals("2호선 내선 · 합정 방면", groupTitle(ArrivalGroupDto("2호선", "내선", "합정", emptyList())))
 
-    @Test fun toggleFavorite() = runTest {
-        val vm = StationViewModel("홍대입구", stations, favorites) { 0L }
-        vm.toggleFavorite()
-        advanceUntilIdle()
-        assertTrue(vm.state.value.isFavorite)
-    }
 
     private companion object {
         val GROUP = ArrivalGroupDto("2호선", "내선", "합정", listOf(TrainDto("성수", 180, "3분 후")))

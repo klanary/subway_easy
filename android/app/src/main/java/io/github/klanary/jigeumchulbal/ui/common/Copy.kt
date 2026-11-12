@@ -14,7 +14,7 @@ object Copy {
     const val BACK = "뒤로"
 
     // 통합 검색
-    const val SEARCH_HINT = "역, 장소 검색"
+    const val SEARCH_HINT = "역 이름 또는 초성"
     const val MY_PLACES = "내 장소"
     const val RECENT_SEARCHES = "최근 검색"
     const val STATIONS = "역"

@@ -9,6 +9,7 @@ from fastapi import Request
 from app.cache.quota_guard import QuotaGuard
 from app.cache.ttl_cache import TtlCache
 from app.clients.kakao_local import KakaoLocalClient
+from app.clients.kakao_route import KakaoRouteClient
 from app.clients.seoul_subway import SeoulSubwayClient
 from app.core.clock import now_kst
 from app.core.config import Settings
@@ -16,6 +17,7 @@ from app.core.metrics import Metrics
 from app.core.rate_limit import SlidingWindowRateLimiter
 from app.services.arrival_service import ARRIVALS_TTL_SEC, ArrivalService
 from app.services.place_service import PLACE_TTL_SEC, PlaceService
+from app.services.route_service import ROUTE_TTL_SEC, RouteService
 from app.services.station_index import StationIndex
 
 
@@ -30,6 +32,7 @@ class AppServices:
     stations: StationIndex
     arrivals: ArrivalService
     places: PlaceService
+    routes: RouteService
 
 
 def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, QuotaGuard]:
@@ -82,6 +85,16 @@ def build_services(
             ttl_multiplier=coord_guard.ttl_multiplier,
         ),
     )
+    route_guard = quotas["kakaoRoute"]
+    routes = RouteService(
+        KakaoRouteClient(http, route_guard, settings),
+        stations,
+        TtlCache(
+            ROUTE_TTL_SEC, clock=clock, metrics=metrics, ttl_multiplier=route_guard.ttl_multiplier
+        ),
+        metrics,
+        clock,
+    )
     return AppServices(
         settings=settings,
         clock=clock,
@@ -92,6 +105,7 @@ def build_services(
         stations=stations,
         arrivals=arrivals,
         places=places,
+        routes=routes,
     )
 
 

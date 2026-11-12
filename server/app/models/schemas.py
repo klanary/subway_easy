@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -92,3 +93,46 @@ class NearestStation(ApiModel):
 class ReverseResponse(ApiModel):
     address: str | None
     nearest_station: NearestStation | None
+
+
+class Step(ApiModel):
+    mode: Literal["WALK", "SUBWAY", "BUS"]
+    duration_sec: int
+    distance_m: int
+    guidance: str
+    path: list[tuple[float, float]]  # (위도, 경도)
+    line_name: str | None = None
+    route_name: str | None = None
+    stops: list[str] | None = None
+    board_station_id: str | None = None
+    alight_station_id: str | None = None
+
+
+class Leg(ApiModel):
+    steps: list[Step]
+
+
+class FirstBoarding(ApiModel):
+    station_id: str | None
+    line_name: str
+    towards: str | None
+    sec_to_boarding: int
+    all_walk_before_boarding: bool
+    next_trains: list[Train] | None = None
+
+
+class Route(ApiModel):
+    id: str
+    type: Literal["SUBWAY", "BUS", "MIXED", "WALK"]
+    total_sec: int
+    distance_m: int
+    transfers: int
+    fare: int | None
+    legs: list[Leg]
+    first_boarding: FirstBoarding | None
+
+
+class RoutesResponse(ApiModel):
+    updated_at: datetime
+    stale: bool
+    routes: list[Route]

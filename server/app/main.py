@@ -7,7 +7,7 @@ from uuid import uuid4
 import httpx
 from fastapi import FastAPI, Request, Response
 
-from app.api import health, metrics, places, stations
+from app.api import health, metrics, places, routes, stations
 from app.core.config import Settings, get_settings
 from app.core.container import build_services
 from app.core.errors import RateLimited, error_response, install_error_handlers
@@ -77,6 +77,7 @@ def create_app(
     app.include_router(metrics.router)
     app.include_router(stations.router)
     app.include_router(places.router)
+    app.include_router(routes.router)
     return app
 
 

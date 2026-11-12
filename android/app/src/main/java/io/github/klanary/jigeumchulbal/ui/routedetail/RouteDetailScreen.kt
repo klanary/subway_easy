@@ -62,7 +62,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(routeId) { viewModel.select(routeId) }
     val route = state.selectedRoute
-    val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest()) })
+    val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest) })
 
     Scaffold(
         topBar = {

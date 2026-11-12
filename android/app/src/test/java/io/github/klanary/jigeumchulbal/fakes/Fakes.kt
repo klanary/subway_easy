@@ -16,16 +16,13 @@ import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
 import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
-import io.github.klanary.jigeumchulbal.data.remote.LineTrainsDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationDto
-import io.github.klanary.jigeumchulbal.data.remote.TrainEtaDto
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
-import io.github.klanary.jigeumchulbal.data.repository.TrainRepository
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.location.LocationFix
 import io.github.klanary.jigeumchulbal.location.LocationProvider
@@ -180,26 +177,6 @@ class InMemoryPreferencesDataStore(initial: Preferences = emptyPreferences()) : 
         val next = transform(state.value).toPreferences()
         state.value = next
         return next
-    }
-}
-
-/** 열차 위치 API 가짜. 기본은 근처 열차가 없고 열차를 못 찾은 정상 응답이다. */
-class FakeTrainRepository : TrainRepository {
-    var nearResult: ApiResult<LineTrainsDto> =
-        ApiResult.Ok(LineTrainsDto(line = "5호선", updatedAt = "2026-11-05T08:00:00+09:00", trains = emptyList()))
-    var etaResult: ApiResult<TrainEtaDto> =
-        ApiResult.Ok(TrainEtaDto(trainNo = "", line = "5호선", found = false, updatedAt = "2026-11-05T08:00:00+09:00"))
-    val nearCalls = mutableListOf<Triple<String, String, String?>>()
-    val etaCalls = mutableListOf<Triple<String, String, String>>()
-
-    override suspend fun near(line: String, station: String, toward: String?): ApiResult<LineTrainsDto> {
-        nearCalls += Triple(line, station, toward)
-        return nearResult
-    }
-
-    override suspend fun eta(trainNo: String, line: String, to: String): ApiResult<TrainEtaDto> {
-        etaCalls += Triple(trainNo, line, to)
-        return etaResult
     }
 }
 

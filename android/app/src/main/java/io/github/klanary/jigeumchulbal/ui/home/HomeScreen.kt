@@ -83,7 +83,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (session != SessionState.Idle) {
-                item { SessionBanner(sessionViewModel) { navController.navigate(SessionDest()) } }
+                item { SessionBanner(sessionViewModel) { navController.navigate(SessionDest) } }
             }
             item {
                 OutlinedCard(

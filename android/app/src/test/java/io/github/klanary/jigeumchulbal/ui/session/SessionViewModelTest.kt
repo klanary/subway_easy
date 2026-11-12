@@ -6,7 +6,6 @@ import io.github.klanary.jigeumchulbal.fakes.FakeAlarmScheduler
 import io.github.klanary.jigeumchulbal.fakes.FakeLauncher
 import io.github.klanary.jigeumchulbal.fakes.FakeNotifier
 import io.github.klanary.jigeumchulbal.fakes.FakeStationRepository
-import io.github.klanary.jigeumchulbal.fakes.FakeTrainRepository
 import io.github.klanary.jigeumchulbal.fakes.testSessionStore
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.session.AlertContent
@@ -38,7 +37,7 @@ class SessionViewModelTest {
     private val target = WaitTarget("홍대입구", "홍대입구", "2호선", "합정", null)
     private val startWaiting = SessionEvent.StartWaiting(target, WaitMode.MINUTES_BEFORE, null, 0, AppSettings())
 
-    private fun viewModel(exactAlarms: () -> Boolean = { true }) = SessionViewModel(controller, { t }, stations, exactAlarms, FakeTrainRepository())
+    private fun viewModel(exactAlarms: () -> Boolean = { true }) = SessionViewModel(controller, { t }, stations, exactAlarms)
 
     @Test fun boardedAtTheStationEndsTheSession() = runTest {
         controller.start(startWaiting, inAppOnly = false)

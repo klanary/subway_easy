@@ -50,11 +50,8 @@ class AppNavGraphTest {
 
     @Test fun sessionScreenIsReachable() {
         val nav = navController()
-        nav.navigate(SessionDest())
-        assertEquals(SessionDest(), nav.currentBackStackEntry!!.toRoute<SessionDest>())
-        // 알림의 [다른 열차였어요]로 열 때는 고르기 목록을 여는 인자가 함께 온다(위치 결합 스펙 7.1).
-        nav.navigate(SessionDest(pickTrain = true))
-        assertEquals(SessionDest(pickTrain = true), nav.currentBackStackEntry!!.toRoute<SessionDest>())
+        nav.navigate(SessionDest)
+        assertEquals(SessionDest::class.qualifiedName, nav.currentDestination!!.route)
     }
 
     @Test fun routeFlowGraphStartsAtRouteEdit() {

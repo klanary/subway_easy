@@ -40,5 +40,4 @@ class AlertTextTest {
         alertText(AlertContent.WaitingInterrupted),
     )
 
-    @Test fun trainDetected() = assertEquals("마천행 열차에 탄 것으로 보여요", alertText(AlertContent.TrainDetected("마천")).first)
 }

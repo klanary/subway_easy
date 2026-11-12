@@ -23,51 +23,8 @@ data class TrainDto(
     val message: String = "",
     val isLast: Boolean = false,
     val isExpress: Boolean = false,
-    /** 열차 번호. 위치정보와 같은 열차를 잇는 열쇠다(위치 결합 스펙 6.3). 예전 서버에는 없다. */
+    /** 열차 번호. 예전 서버에는 없다. */
     val trainNo: String? = null,
-    /** 남은 시간을 무엇으로 계산했는지: "position"(열차 위치) 또는 "arrival"(도착 정보). */
-    val basis: String? = null,
-)
-
-/** 열차 위치 상태(위치 결합 스펙 6.3): 진입, 도착, 출발, 전역출발. */
-@Serializable
-enum class TrainState { APPROACHING, ARRIVED, DEPARTED, LEFT_PREVIOUS }
-
-/** 역 근처 열차(직접 고르기 목록과 자동 감지 후보). [stopsFromStation]: 오는 중이면 음수, 그 역이면 0, 지나갔으면 양수. */
-@Serializable
-data class TrainNearDto(
-    val trainNo: String,
-    val stationId: String,
-    val stationName: String,
-    val state: TrainState,
-    val direction: String? = null,
-    val destination: String? = null,
-    val isExpress: Boolean = false,
-    val isLast: Boolean = false,
-    /** 그 역까지 남은 초. 이미 지났으면 null. */
-    val etaSec: Int? = null,
-    val stopsFromStation: Int,
-)
-
-@Serializable
-data class LineTrainsDto(
-    val line: String,
-    val updatedAt: String,
-    val stale: Boolean = false,
-    val trains: List<TrainNearDto>,
-)
-
-/** 탄 열차가 내릴 역까지 남은 시간. 지금 위치 목록에 그 열차가 없으면 [found]가 false다(오류 아님). */
-@Serializable
-data class TrainEtaDto(
-    val trainNo: String,
-    val line: String,
-    val found: Boolean,
-    val stationId: String? = null,
-    val state: TrainState? = null,
-    val etaSec: Int? = null,
-    val updatedAt: String,
-    val stale: Boolean = false,
 )
 
 @Serializable

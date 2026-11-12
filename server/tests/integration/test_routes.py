@@ -141,3 +141,54 @@ async def test_stale_route_when_kakao_down(client, respx_mock, clock):
     clock.advance(601)
     r = await client.get(ROUTES, params=TRIP)
     assert r.status_code == 200 and r.json()["stale"] is True
+
+
+# --- 경유역과 출발 시각 지정(재설계 스펙 5.3) ---
+
+
+async def test_via_calls_kakao_per_leg_and_caches(client, kakao_route):
+    route = kakao_route("kakao_route_subway_only.json")
+    params = {**TRIP, "via": "시청"}
+    for _ in range(2):
+        r = await client.get(ROUTES, params=params)
+        body = r.json()
+        assert r.status_code == 200 and 1 <= len(body["routes"]) <= 5
+        assert all(len(rt["legs"]) == 2 for rt in body["routes"])
+    assert route.call_count == 2  # 출발→경유, 경유→도착 각 1번, 두 번째 요청은 캐시
+    names = [(c.request.url.params["s_name"], c.request.url.params["e_name"]) for c in route.calls]
+    assert names == [("홍대입구", "시청"), ("시청", "강남")]
+
+
+@pytest.mark.parametrize("via", ["홍대입구", "강남"])
+async def test_via_equal_to_end_rejected(client, via):
+    r = await client.get(ROUTES, params={**TRIP, "via": via})
+    assert r.status_code == 400 and r.json()["error"]["reason"] == "SAME_STATION"
+
+
+async def test_depart_at_uses_timetable(client, kakao_route, respx_mock):
+    kakao_route("kakao_route_subway_only.json")
+    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
+    )
+    depart = datetime(2026, 11, 13, 8, 0, tzinfo=KST)
+    r = await client.get(ROUTES, params={**TRIP, "departAt": depart.isoformat()})
+    scheduled = [rt for rt in r.json()["routes"] if rt["departAt"]]
+    assert scheduled
+    for rt in scheduled:
+        fb = rt["firstBoarding"]
+        leave = datetime.fromisoformat(rt["departAt"])
+        arrive = datetime.fromisoformat(rt["arriveAt"])
+        assert leave.timestamp() >= depart.timestamp() + fb["secToBoarding"]
+        assert arrive.timestamp() == leave.timestamp() + rt["totalSec"] - fb["secToBoarding"]
+        assert fb["nextTrains"] and fb["nextTrains"][0]["message"].endswith("출발")
+
+
+async def test_without_depart_at_fields_are_null(client, kakao_route):
+    kakao_route("kakao_route_subway_only.json")
+    rt = (await client.get(ROUTES, params=TRIP)).json()["routes"][0]
+    assert rt["departAt"] is None and rt["arriveAt"] is None
+
+
+async def test_bad_depart_at(client):
+    r = await client.get(ROUTES, params={**TRIP, "departAt": "내일"})
+    assert r.status_code == 400

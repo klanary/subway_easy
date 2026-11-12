@@ -133,6 +133,9 @@ class Route(ApiModel):
     fare: int | None
     legs: list[Leg]
     first_boarding: FirstBoarding | None
+    # 출발 시각을 지정했을 때만: 첫 열차 출발 시각과 도착 예상(재설계 스펙 5.3)
+    depart_at: datetime | None = None
+    arrive_at: datetime | None = None
 
 
 class RoutesResponse(ApiModel):

@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.core.clock import KST, now_kst
+from app.api.params import parse_time
+from app.core.clock import now_kst
 from app.core.container import AppServices, get_services
 from app.core.errors import InvalidRequest
 from app.models.schemas import (
@@ -72,17 +72,6 @@ async def station_arrivals(
     return response
 
 
-def parse_time(value: str | None, services: AppServices) -> datetime:
-    """ISO 시각. 생략하면 지금, 시간대가 없으면 한국 시간으로 본다. 형식이 틀리면 400."""
-    if value is None:
-        return now_kst(services.clock)
-    try:
-        at = datetime.fromisoformat(value)
-    except ValueError as e:
-        raise InvalidRequest("PARAMS") from e
-    return at if at.tzinfo else at.replace(tzinfo=KST)
-
-
 @router.get("/v1/stations/{station_id}/timetable", response_model=TimetableResponse)
 async def station_timetable(
     station_id: str,
@@ -95,6 +84,6 @@ async def station_timetable(
     """`from` 이후 시간표 열차 `count`대(기본 4, 최대 10). 재설계 스펙 6."""
     if not 1 <= count <= MAX_TIMETABLE_COUNT:
         raise InvalidRequest("PARAMS")
-    after = parse_time(from_, services)
+    after = parse_time(from_) or now_kst(services.clock)
     trains = await services.timetable.trains(station_id, line, direction, after, count)
     return TimetableResponse(station_id=station_id, line=line, direction=direction, trains=trains)

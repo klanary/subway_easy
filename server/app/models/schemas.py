@@ -69,3 +69,26 @@ class ArrivalsResponse(ApiModel):
     updated_at: datetime
     stale: bool
     groups: list[ArrivalGroup]
+
+
+class Place(ApiModel):
+    name: str
+    address: str | None
+    lat: float
+    lng: float
+    category: str | None
+
+
+class PlaceSearchResponse(ApiModel):
+    items: list[Place]
+
+
+class NearestStation(ApiModel):
+    id: str
+    name: str
+    distance_m: int
+
+
+class ReverseResponse(ApiModel):
+    address: str | None
+    nearest_station: NearestStation | None

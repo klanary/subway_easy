@@ -25,6 +25,9 @@ import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.location.FusedLocationProvider
 import io.github.klanary.jigeumchulbal.location.LocationProvider
+import io.github.klanary.jigeumchulbal.routine.AndroidRoutineAlarmScheduler
+import io.github.klanary.jigeumchulbal.routine.DefaultRoutineRepository
+import io.github.klanary.jigeumchulbal.routine.RoutineRepository
 import io.github.klanary.jigeumchulbal.session.AlarmScheduler
 import io.github.klanary.jigeumchulbal.session.AndroidAlarmScheduler
 import io.github.klanary.jigeumchulbal.session.AndroidServiceLauncher
@@ -87,6 +90,12 @@ class AppContainer(context: Context) {
     val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)
+
+    // 루틴: 요일·시각마다 "지금 출발하세요" 알림 세션을 시작한다(재설계 스펙 5.4).
+    val routineRepository: RoutineRepository = DefaultRoutineRepository(
+        database.routineDao(),
+        AndroidRoutineAlarmScheduler(appContext, appContext.getSystemService(AlarmManager::class.java)),
+    )
 
     // 통학 세션: 알람·알림·대기 서비스를 안드로이드 구현으로 연결한다.
     val alarmScheduler: AlarmScheduler =

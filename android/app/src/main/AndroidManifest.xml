@@ -53,6 +53,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".routine.RoutineReceiver"
+            android:exported="false" />
+
         <service
             android:name=".session.SessionService"
             android:exported="false"

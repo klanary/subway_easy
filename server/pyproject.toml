@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
+    "holidays>=0.60",
 ]
 
 [project.optional-dependencies]

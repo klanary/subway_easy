@@ -72,6 +72,20 @@ class ArrivalsResponse(ApiModel):
     groups: list[ArrivalGroup]
 
 
+class TimetableTrain(ApiModel):
+    departs_at: datetime
+    destination: str | None
+    is_express: bool
+    train_no: str | None
+
+
+class TimetableResponse(ApiModel):
+    station_id: str
+    line: str
+    direction: str
+    trains: list[TimetableTrain]
+
+
 class NearestStation(ApiModel):
     id: str
     name: str

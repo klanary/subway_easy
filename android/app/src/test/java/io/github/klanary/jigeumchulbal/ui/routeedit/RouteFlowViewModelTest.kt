@@ -15,6 +15,7 @@ import io.github.klanary.jigeumchulbal.ui.PickResult
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
+import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -191,5 +192,16 @@ class RouteFlowViewModelTest {
         vm.init()
         advanceUntilIdle()
         assertFalse(vm.consumeOpenResults())
+    }
+
+    @Test fun initFromTripSearchesAndOpensResults() = runTest {
+        val vm = vm(FakeLocationProvider(true, here))
+        vm.init(trip = TripDraft(hongdae, cityHall, gangnam))
+        advanceUntilIdle()
+        assertEquals(listOf(hongdae, cityHall, gangnam), vm.state.value.let { listOf(it.origin, it.via, it.dest) })
+        assertEquals(1, routes.calls.size)
+        assertTrue(stations.nearestCalls.isEmpty()) // 출발을 현재 위치로 덮어쓰지 않는다
+        assertTrue(vm.consumeOpenResults())
+        assertFalse(vm.consumeAutoOpenSearch())
     }
 }

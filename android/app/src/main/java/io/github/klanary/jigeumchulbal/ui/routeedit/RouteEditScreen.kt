@@ -33,6 +33,7 @@ import io.github.klanary.jigeumchulbal.ui.RoutesDest
 import io.github.klanary.jigeumchulbal.ui.SearchDest
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
 
 /** 경로 편집. 출발 기본값은 현재 위치에서 가장 가까운 역이고, 칸을 누르면 역 검색이 열린다. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,12 +42,13 @@ fun RouteEditScreen(
     viewModel: RouteFlowViewModel,
     navController: NavController,
     favoriteRouteId: Long? = null,
+    trip: TripDraft? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.useCurrentLocation() }
 
     LaunchedEffect(Unit) {
-        viewModel.init(favoriteRouteId)
+        viewModel.init(favoriteRouteId, trip)
         // 홈의 자주 가는 경로 카드: 편집을 건너뛰고 바로 경로 결과(⑨). 결과에서 뒤로 오면 편집 화면에 머문다.
         if (viewModel.consumeOpenResults()) {
             navController.navigate(RoutesDest)

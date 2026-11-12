@@ -18,6 +18,7 @@ import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.toUiState
+import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
 import java.time.Instant
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,9 +73,17 @@ class RouteFlowViewModel(
      * [favoriteRouteId]가 있으면 그 자주 가는 경로의 출발·경유·도착을 넣고 바로 검색한다(홈 카드 1탭).
      * 없으면 현재 위치에서 가장 가까운 역을 출발로 채운다. 한 번만 실행한다.
      */
-    fun init(favoriteRouteId: Long? = null) {
+    fun init(favoriteRouteId: Long? = null, trip: TripDraft? = null) {
         if (initialized) return
         initialized = true
+        if (trip != null && trip.ready) {
+            // 노선도에서 출발·도착을 골라 들어왔다: 바로 검색하고 결과를 연다.
+            autoOpenConsumed = true
+            openResultsPending = true
+            _state.update { RouteFlowState(origin = trip.from, via = trip.via, dest = trip.to, viaVisible = trip.via != null) }
+            search()
+            return
+        }
         if (favoriteRouteId != null) {
             autoOpenConsumed = true
             openResultsPending = true

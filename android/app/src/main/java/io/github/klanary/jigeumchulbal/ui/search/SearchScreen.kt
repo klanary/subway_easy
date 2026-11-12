@@ -34,14 +34,13 @@ import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.model.toRef
 import io.github.klanary.jigeumchulbal.ui.Slot
-import io.github.klanary.jigeumchulbal.ui.StationDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.returnPick
 import kotlinx.coroutines.launch
 
-/** 역 검색. [slot]이 있으면 고른 역을 경로 편집에 돌려주고, 없으면 그 역의 상세를 연다. */
+/** 역 검색(재설계 스펙 4.3). 고른 역을 이전 화면(경로 편집의 칸, 또는 노선도)에 돌려준다. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -57,14 +56,8 @@ fun SearchScreen(
     LaunchedEffect(Unit) { focus.requestFocus() }
 
     fun pick(station: StationRef) {
-        scope.launch {
-            val result = viewModel.select(station)
-            if (slot == null) {
-                navController.navigate(StationDest(station.id))
-            } else {
-                navController.returnPick(result)
-            }
-        }
+        // 경로 편집이면 그 칸에, 노선도에서 열었으면(slot 없음) 노선도가 그 역으로 가서 역 시트를 연다.
+        scope.launch { navController.returnPick(viewModel.select(station)) }
     }
 
     Scaffold(
@@ -104,12 +97,6 @@ fun SearchScreen(
                         ListItem(
                             headlineContent = { Text(station.name) },
                             supportingContent = { Text(station.lines.joinToString(" · ")) },
-                            // 즐겨찾지 않은 역도 검색에서 바로 실시간 도착을 본다(측정 과제 T3).
-                            trailingContent = {
-                                TextButton(onClick = { navController.navigate(StationDest(station.id)) }) {
-                                    Text(Copy.REALTIME)
-                                }
-                            },
                             modifier = Modifier.clickable { pick(station.toRef()) },
                         )
                     }

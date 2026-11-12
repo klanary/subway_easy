@@ -22,7 +22,9 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.ui.linemap.LineMapScreen
+import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
 import io.github.klanary.jigeumchulbal.ui.routedetail.RouteDetailScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
@@ -30,7 +32,6 @@ import io.github.klanary.jigeumchulbal.ui.routes.RoutesScreen
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
 import io.github.klanary.jigeumchulbal.ui.session.SessionScreen
 import io.github.klanary.jigeumchulbal.ui.settings.SettingsScreen
-import io.github.klanary.jigeumchulbal.ui.station.StationScreen
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -50,13 +51,14 @@ fun AppNavHost(
 
 /** 앱의 모든 화면. 아직 만들지 않은 화면은 제목만 있는 자리 표시 화면이고, 각 작업이 바꾼다. */
 fun NavGraphBuilder.appGraph(navController: NavController) {
-    composable<HomeDest> { LineMapScreen(navController) }
+    composable<HomeDest> { entry -> LineMapScreen(navController, entry) }
     navigation<RouteFlowGraph>(startDestination = RouteEditDest) {
         composable<RouteEditDest> { entry ->
             val flow = routeFlowEntry(navController, entry)
             val viewModel = routeFlowViewModel(flow)
             entry.OnPickResult(viewModel::apply)
-            RouteEditScreen(viewModel, navController, favoriteRouteId = flow.toRoute<RouteFlowGraph>().favoriteRouteId)
+            val args = flow.toRoute<RouteFlowGraph>()
+            RouteEditScreen(viewModel, navController, favoriteRouteId = args.favoriteRouteId, trip = args.trip())
         }
         composable<RoutesDest> { entry ->
             RoutesScreen(routeFlowViewModel(routeFlowEntry(navController, entry)), navController)
@@ -70,7 +72,6 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
         }
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
-    composable<StationDest> { entry -> StationScreen(entry.toRoute<StationDest>().stationId, navController) }
     composable<SettingsDest> { SettingsScreen(navController) }
     composable<SessionDest> { SessionScreen(navController) }
 }
@@ -93,3 +94,14 @@ private fun PlaceholderScreen(title: String) {
         }
     }
 }
+
+/** 노선도에서 고른 여정. 출발·도착이 없으면 null. */
+private fun RouteFlowGraph.trip(): TripDraft? {
+    val from = fromId?.let { StationRef(it, fromName ?: it) } ?: return null
+    val to = toId?.let { StationRef(it, toName ?: it) } ?: return null
+    return TripDraft(from, viaId?.let { StationRef(it, viaName ?: it) }, to)
+}
+
+/** 여정으로 경로 흐름을 연다. */
+fun TripDraft.toGraph(): RouteFlowGraph =
+    RouteFlowGraph(fromId = from?.id, fromName = from?.name, viaId = via?.id, viaName = via?.name, toId = to?.id, toName = to?.name)

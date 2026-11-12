@@ -2,6 +2,7 @@ package io.github.klanary.jigeumchulbal.ui.linemap
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.location.LocationProvider
@@ -17,11 +18,15 @@ import kotlinx.coroutines.launch
 /**
  * [focus]: 화면이 가운데로 옮기고 역 시트를 열 역(현재 위치 버튼, 검색 결과). 화면이 처리한 뒤 [LineMapViewModel.consumeFocus].
  * [message]: 잠깐 보일 안내("가까운 역이 없어요" 등).
+ * [selected]: 역 시트를 연 역. [draft]: 고르는 중인 출발·경유·도착. [readyTrip]: 경로 결과로 넘길 차례인 여정.
  */
 data class LineMapUiState(
     val map: LineMapStations? = null,
     val focus: MapStation? = null,
     val message: String? = null,
+    val selected: String? = null,
+    val draft: TripDraft = TripDraft(),
+    val readyTrip: TripDraft? = null,
 )
 
 /** 노선도 홈(재설계 스펙 4.1). 역 위치표를 읽고, 현재 위치에서 가장 가까운 역을 찾는다. */
@@ -75,6 +80,32 @@ class LineMapViewModel(
 
     fun consumeFocus() {
         _state.update { it.copy(focus = null) }
+    }
+
+    /** 역을 눌렀다: 그 역의 시트를 연다. */
+    fun selectStation(stationId: String) {
+        _state.update { it.copy(selected = stationId) }
+    }
+
+    fun closeSheet() {
+        _state.update { it.copy(selected = null) }
+    }
+
+    /** 시트의 [출발로] [도착으로] [경유로]. 출발·도착이 정해지면 경로 결과로 넘긴다. */
+    fun setRole(role: TripRole, station: StationRef) {
+        _state.update {
+            if (!it.draft.canSet(role, station)) return@update it
+            val draft = it.draft.set(role, station)
+            it.copy(draft = draft, selected = null, readyTrip = draft.takeIf { d -> d.ready })
+        }
+    }
+
+    fun consumeReadyTrip() {
+        _state.update { it.copy(readyTrip = null) }
+    }
+
+    fun cancelTrip() {
+        _state.update { it.copy(draft = TripDraft(), readyTrip = null) }
     }
 
     fun consumeMessage() {

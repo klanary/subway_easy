@@ -6,11 +6,9 @@ def test_defaults_match_spec():
     assert (
         s.seoul_realtime_daily_limit,
         s.kakao_route_daily_limit,
-        s.kakao_keyword_daily_limit,
-        s.kakao_coord2address_daily_limit,
         s.rate_limit_per_minute,
         s.mock_upstream,
-    ) == (1000, 1000, 100000, 10000, 60, False)
+    ) == (1000, 1000, 60, False)
 
 
 def test_env_overrides(monkeypatch):

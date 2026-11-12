@@ -17,11 +17,11 @@ from urllib.parse import quote
 
 import httpx
 
-from app.clients.endpoints import KAKAO_LOCAL_BASE, KAKAO_ROUTE_URL, SEOUL_REALTIME_BASE
+from app.clients.endpoints import KAKAO_ROUTE_URL, SEOUL_REALTIME_BASE
 from app.core.config import Settings
 
-Api = Literal["seoul_realtime", "kakao_keyword", "kakao_coord2address", "kakao_route"]
-APIS: tuple[Api, ...] = ("seoul_realtime", "kakao_keyword", "kakao_coord2address", "kakao_route")
+Api = Literal["seoul_realtime", "kakao_route"]
+APIS: tuple[Api, ...] = ("seoul_realtime", "kakao_route")
 
 # (위도, 경도)
 LANDMARKS: dict[str, tuple[float, float]] = {
@@ -60,12 +60,6 @@ CAPTURE_PLAN: list[CaptureItem] = [
     # 이름 예외 역. P1 Task 5의 예외 표(§2)에서 고른 역으로 바꿀 수 있다.
     CaptureItem("seoul_realtime", "exception", {"station": "응암순환(상선)"}),
     CaptureItem("seoul_realtime", "nodata", {"station": "없는역이름"}),
-    CaptureItem(
-        "kakao_keyword", "hongik", {"query": "홍익대학교", "at": LANDMARKS["홍대입구역"]}
-    ),
-    CaptureItem("kakao_keyword", "empty", {"query": "ㅁㄴㅇㄹㅁㄴㅇㄹ"}),
-    CaptureItem("kakao_coord2address", "hongdae", {"at": LANDMARKS["홍대입구역"]}),
-    CaptureItem("kakao_coord2address", "sea", {"at": LANDMARKS["서해 바다"]}),
     _route("subway_only", "홍대입구역", "강남역"),
     _route("transfer", "홍대입구역", "경복궁역"),
     _route("bus_subway", "서울대학교 정문", "홍대입구역"),
@@ -94,21 +88,6 @@ def _request(client: httpx.Client, item: CaptureItem, settings: Settings) -> htt
             f"/json/realtimeStationArrival/0/50/{quote(p['station'])}"
         )
         return client.get(url)
-    if item.api == "kakao_keyword":
-        query: dict = {"query": p["query"]}
-        if "at" in p:
-            lat, lng = p["at"]
-            query.update(x=lng, y=lat, sort="accuracy")
-        return client.get(
-            f"{KAKAO_LOCAL_BASE}/search/keyword.json", params=query, headers=kakao_headers
-        )
-    if item.api == "kakao_coord2address":
-        lat, lng = p["at"]
-        return client.get(
-            f"{KAKAO_LOCAL_BASE}/geo/coord2address.json",
-            params={"x": lng, "y": lat},
-            headers=kakao_headers,
-        )
     (start_lat, start_lng), (end_lat, end_lng) = p["start"], p["end"]
     return client.get(
         KAKAO_ROUTE_URL,

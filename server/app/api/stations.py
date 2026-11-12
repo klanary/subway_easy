@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.container import AppServices, get_services
 from app.core.errors import InvalidRequest
-from app.models.schemas import ArrivalsResponse, StationItem, StationSearchResponse
+from app.models.schemas import (
+    ArrivalsResponse,
+    NearestResponse,
+    NearestStation,
+    StationItem,
+    StationSearchResponse,
+)
 
 router = APIRouter()
 
@@ -27,6 +33,24 @@ async def search_stations(
             StationItem(id=s.id, name=s.name, lines=list(s.lines), lat=s.lat, lng=s.lng)
             for s in services.stations.search(query, limit)
         ]
+    )
+
+
+@router.get("/v1/stations/nearest", response_model=NearestResponse)
+async def nearest_station(
+    services: Annotated[AppServices, Depends(get_services)],
+    lat: float | None = None,
+    lng: float | None = None,
+) -> NearestResponse:
+    """현재 위치에서 반경 2km 안의 가장 가까운 역(재설계 스펙 6). 외부 호출은 없다."""
+    if lat is None or lng is None or not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise InvalidRequest("PARAMS")
+    found = services.stations.nearest(lat, lng)
+    if found is None:
+        return NearestResponse(station=None)
+    station, distance_m = found
+    return NearestResponse(
+        station=NearestStation(id=station.id, name=station.name, distance_m=distance_m)
     )
 
 

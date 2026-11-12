@@ -58,7 +58,5 @@ def test_app_has_guards_in_spec_order_with_settings_limits(services):
     assert list(services.quotas) == [
         "seoulRealtime",
         "kakaoRoute",
-        "kakaoKeyword",
-        "kakaoCoord2Address",
     ]
-    assert services.quotas["kakaoKeyword"].daily_limit == 100_000
+    assert services.quotas["kakaoRoute"].daily_limit == 1000

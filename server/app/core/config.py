@@ -13,8 +13,6 @@ class Settings(BaseSettings):
 
     seoul_realtime_daily_limit: int = 1000
     kakao_route_daily_limit: int = 1000
-    kakao_keyword_daily_limit: int = 100000
-    kakao_coord2address_daily_limit: int = 10000
 
     rate_limit_per_minute: int = 60
     mock_upstream: bool = False

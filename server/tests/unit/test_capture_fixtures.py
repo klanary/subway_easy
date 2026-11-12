@@ -12,7 +12,7 @@ def test_redact_replaces_every_secret():
 
 def test_fixture_names_are_unique_and_ascii():
     names = [fixture_path(i, Path("f")).name for i in CAPTURE_PLAN]
-    assert len(names) == len(set(names)) == 13
+    assert len(names) == len(set(names)) == 9
     assert all(n.isascii() for n in names)
 
 

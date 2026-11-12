@@ -122,8 +122,18 @@ def _step(raw: dict, index: StationIndex, metrics: Metrics) -> Step:
     return Step(mode="WALK", **common)
 
 
+def subway_only(routes: list[Route]) -> list[Route]:
+    """버스가 들어간 경로를 뺀다(도보와 지하철만, 재설계 스펙 5.3)."""
+    return [r for r in routes if r.type in ("SUBWAY", "WALK")]
+
+
+def rank(routes: list[Route], limit: int = MAX_ROUTES) -> list[Route]:
+    """빠른 순, 같으면 환승 적은 순으로 `limit`개."""
+    return sorted(routes, key=lambda r: (r.total_sec, r.transfers))[:limit]
+
+
 def convert_routes(
-    raw: dict, index: StationIndex, metrics: Metrics, limit: int = MAX_ROUTES
+    raw: dict, index: StationIndex, metrics: Metrics, limit: int | None = MAX_ROUTES
 ) -> list[Route]:
     routes = []
     for raw_route in (raw.get("routes") or [])[:limit]:

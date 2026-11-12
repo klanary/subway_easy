@@ -8,11 +8,13 @@ from fastapi.responses import JSONResponse
 _MESSAGES: dict[tuple[str, str | None], str] = {
     ("INVALID_REQUEST", None): "요청 형식이 올바르지 않아요.",
     ("INVALID_REQUEST", "EQUAL_POINTS"): "출발지와 도착지가 같아요.",
+    ("INVALID_REQUEST", "SAME_STATION"): "출발역과 도착역이 같아요.",
     ("NOT_FOUND", None): "역 정보를 찾을 수 없어요.",
     ("NO_ROUTE", None): "대중교통 경로를 찾지 못했어요.",
     ("NO_ROUTE", "NO_START_STOP"): "출발지 근처에서 탈 수 있는 대중교통이 없어요.",
     ("NO_ROUTE", "NO_END_STOP"): "도착지 근처에서 내릴 수 있는 대중교통이 없어요.",
     ("NO_ROUTE", "NO_RESULTS"): "대중교통 경로를 찾지 못했어요.",
+    ("NO_ROUTE", "NO_SUBWAY"): "지하철로 갈 수 있는 경로가 없어요.",
     ("RATE_LIMITED", None): "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.",
     ("UPSTREAM_ERROR", None): "정보를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.",
     ("QUOTA_EXCEEDED", None): "오늘 조회할 수 있는 횟수를 모두 썼어요. 내일 다시 시도해 주세요.",

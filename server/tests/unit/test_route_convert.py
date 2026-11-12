@@ -9,8 +9,10 @@ from app.services.route_convert import (
     bus_route_name,
     convert_routes,
     make_subway_step,
+    rank,
     route_id,
     route_type,
+    subway_only,
 )
 from tests.helpers import load_fixture
 
@@ -136,3 +138,15 @@ def test_unmatched_station_recorded(real_index, fresh_metrics, caplog):
     )
     assert (s.board_station_id, s.alight_station_id) == (None, "홍대입구")
     assert fresh_metrics.unmatched_station_names == {"없는역"} and "없는역" in caplog.text
+
+
+def test_subway_only_and_rank(real_index, fresh_metrics):
+    _, body = load_fixture("kakao_route_subway_only.json")
+    routes = convert_routes(body, real_index, fresh_metrics, limit=None)
+    assert len(routes) == 15  # 카카오가 준 경로 전부(버스 포함)
+    kept = rank(subway_only(routes))
+    assert [r.type for r in kept] == ["SUBWAY"] * len(kept) and len(kept) == 4
+    assert [(r.total_sec, r.transfers) for r in kept] == sorted(
+        (r.total_sec, r.transfers) for r in kept
+    )
+    assert len(rank(routes * 2)) == 5

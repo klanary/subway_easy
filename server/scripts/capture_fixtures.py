@@ -98,7 +98,7 @@ def _request(client: httpx.Client, item: CaptureItem, settings: Settings) -> htt
         query: dict = {"query": p["query"]}
         if "at" in p:
             lat, lng = p["at"]
-            query.update(x=lng, y=lat, sort="distance")
+            query.update(x=lng, y=lat, sort="accuracy")
         return client.get(
             f"{KAKAO_LOCAL_BASE}/search/keyword.json", params=query, headers=kakao_headers
         )

@@ -1,5 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.routes
 
+import io.github.klanary.jigeumchulbal.data.remote.LegDto
+import io.github.klanary.jigeumchulbal.data.remote.StepDto
+import io.github.klanary.jigeumchulbal.data.remote.StepMode
+import io.github.klanary.jigeumchulbal.data.remote.TransferTrainDto
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.ui.common.WALK_COLOR
 import io.github.klanary.jigeumchulbal.ui.common.lineColor
@@ -44,5 +48,16 @@ class RouteCardUiTest {
     @Test fun lineColorTable() {
         assertEquals(0xFF00A84D, lineColor("2호선"))
         assertEquals(0xFF888888, lineColor("없는선"))
+    }
+
+    @Test fun transferTrainsOnCard() {
+        val transfer = StepDto(
+            mode = StepMode.SUBWAY, durationSec = 330, distanceM = 0, lineName = "3호선",
+            stops = listOf("을지로3가", "종로3가"), boardAfter = "2026-11-13T08:15:58+09:00",
+            transferTrains = listOf(TransferTrainDto("2026-11-13T08:18:00+09:00", "대화"), TransferTrainDto("2026-11-13T08:21:00+09:00", "구파발")),
+        )
+        val withTransfer = route.copy(legs = listOf(LegDto(route.legs[0].steps + transfer)))
+        assertEquals("을지로3가 환승 08:18 · 놓치면 08:21", withTransfer.toCardUi(0, 0).transferText)
+        assertNull(route.toCardUi(0, 0).transferText)
     }
 }

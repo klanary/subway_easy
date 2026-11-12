@@ -172,7 +172,15 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
                     Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
                 },
                 headlineContent = { Text(stepTitle(step)) },
-                supportingContent = step.guidance.takeIf { it.isNotBlank() }?.let { { Text(it) } },
+                supportingContent = {
+                    Column {
+                        step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
+                        // 환승역에서 탈 수 있는 열차와 놓쳤을 때의 그다음 열차
+                        transferLine(step)?.let {
+                            Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                },
             )
         }
     }

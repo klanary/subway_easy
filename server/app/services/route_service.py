@@ -13,7 +13,7 @@ from app.clients.kakao_route import KakaoRouteClient
 from app.core.clock import kst_from_epoch
 from app.core.errors import AppError, InvalidRequest, NoRoute, NotFound
 from app.core.metrics import Metrics
-from app.models.schemas import FirstBoarding, Route, RoutesResponse, Train
+from app.models.schemas import FirstBoarding, Route, RoutesResponse, Step, Train, TransferTrain
 from app.services.arrival_service import ArrivalService, timetable_train
 from app.services.route_convert import combine_via, convert_routes, rank, subway_only
 from app.services.station_index import Station, StationIndex
@@ -102,17 +102,100 @@ class RouteService:
         boarding = route.first_boarding
         if boarding is None:
             return
+        now = kst_from_epoch(self._clock())
+        first: datetime | None = None
         if depart_at is None:
             boarding.next_trains = await self._next_trains(boarding)
-            return
-        found = await self._scheduled(boarding, depart_at)
-        if found:
-            now = kst_from_epoch(self._clock())
-            boarding.next_trains = [timetable_train(t, now) for t in found]
-            route.depart_at = found[0].departs_at
-            route.arrive_at = found[0].departs_at + timedelta(
-                seconds=route.total_sec - boarding.sec_to_boarding
-            )
+            seconds = (boarding.next_trains or [None])[0]
+            if seconds is not None and seconds.remaining_sec is not None:
+                first = now + timedelta(seconds=seconds.remaining_sec)
+        else:
+            found = await self._scheduled(boarding, depart_at)
+            if found:
+                boarding.next_trains = [timetable_train(t, now) for t in found]
+                first = found[0].departs_at
+                route.depart_at = first
+                route.arrive_at = first + timedelta(
+                    seconds=route.total_sec - boarding.sec_to_boarding
+                )
+        if first is not None:
+            await self._attach_transfers(route, first, now)
+
+    async def _attach_transfers(self, route: Route, first: datetime, now: datetime) -> None:
+        """환승해서 타는 지하철 단계마다 그 역에 걸어 도착하는 시각과 그 뒤 열차 2대를 붙인다.
+
+        시각은 첫 열차 출발부터 단계 시간(탑승, 환승 걷기)을 더해 간다. 환승역에서 실제로 탈 열차가
+        정해지면 그 열차 출발부터 다시 더한다.
+        """
+        clock: datetime | None = None
+        for step in (s for leg in route.legs for s in leg.steps):
+            if step.mode != "SUBWAY":
+                if clock is not None:
+                    clock += timedelta(seconds=step.duration_sec)
+                continue
+            if clock is None:  # 첫 탑승
+                clock = first + timedelta(seconds=step.duration_sec)
+                continue
+            trains = await self._transfer_trains(step, clock, now)
+            step.board_after = clock
+            step.transfer_trains = trains or None
+            boarded = trains[0].departs_at if trains else clock
+            clock = boarded + timedelta(seconds=step.duration_sec)
+
+    async def _transfer_trains(
+        self, step: Step, ready: datetime, now: datetime
+    ) -> list[TransferTrain]:
+        """[ready] 이후 그 역·방향 열차 2대.
+
+        실시간(남은 시간으로 계산한 출발이 ready 뒤인 열차)을 먼저 쓰고, 모자라면 시간표로 채운다.
+        """
+        station_id, line = step.board_station_id, step.line_name
+        stops = step.stops or []
+        towards = (
+            self._index.resolve(stops[1], line) if station_id and line and len(stops) > 1 else None
+        )
+        if towards is None or station_id is None or line is None:
+            return []
+        direction = self._index.direction(station_id, line, towards.id)
+        found: list[TransferTrain] = []
+        if self._arrivals is not None:
+            try:
+                arrivals, _ = await self._arrivals.get_arrivals(station_id, line=line)
+            except AppError:
+                arrivals = None
+            for group in arrivals.groups if arrivals else []:
+                same = group.towards and self._index.same_station(group.towards, towards.id)
+                if not (same or (direction and group.direction == direction)):
+                    continue
+                for train in group.trains:
+                    if train.remaining_sec is None:
+                        continue
+                    at = now + timedelta(seconds=train.remaining_sec)
+                    if at >= ready:
+                        found.append(
+                            TransferTrain(
+                                departs_at=at,
+                                destination=train.destination,
+                                source=group.source if group.source != "none" else "realtime",
+                            )
+                        )
+                break
+        if len(found) < TRAINS_PER_BOARDING and self._timetable is not None and direction:
+            after = found[-1].departs_at + timedelta(seconds=60) if found else ready
+            try:
+                more = await self._timetable.trains(
+                    station_id, line, direction, after, TRAINS_PER_BOARDING
+                )
+            except AppError:
+                more = []
+            found += [
+                TransferTrain(
+                    departs_at=t.departs_at, destination=t.destination, source="timetable"
+                )
+                for t in more
+            ]
+        found.sort(key=lambda t: t.departs_at)
+        return found[:TRAINS_PER_BOARDING]
 
     def _boarding_direction(self, boarding: FirstBoarding) -> tuple[Station | None, str | None]:
         line = boarding.line_name

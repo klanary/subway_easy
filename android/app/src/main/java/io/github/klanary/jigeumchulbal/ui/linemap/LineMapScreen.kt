@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -292,7 +293,8 @@ private fun BottomPanel(
     var expanded by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Surface(modifier.fillMaxWidth(), tonalElevation = 3.dp, shadowElevation = 6.dp) {
-        Column {
+        // 시스템 내비게이션 바 위에 탭이 보이게 한다(2026-11-12 실기기에서 가려짐).
+        Column(Modifier.navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
                 TabRow(selectedTabIndex = tab, modifier = Modifier.weight(1f)) {
                     Tab(selected = tab == 0, onClick = { tab = 0; expanded = true }, text = { Text(Copy.ROUTINES) })

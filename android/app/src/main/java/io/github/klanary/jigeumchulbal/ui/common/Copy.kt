@@ -143,6 +143,7 @@ object Copy {
     const val NO_TRAIN_INFO = "열차 정보가 없어요"
     const val UNSUPPORTED_LINE = "실시간 정보를 제공하지 않는 노선이에요"
     const val BY_TIMETABLE = "시간표 기준"
+    const val NO_TIMETABLE_LINE = "시간표를 제공하지 않는 노선이에요"
     const val SHEET_NOW = "지금"
     const val SHEET_PLUS_1H = "+1시간"
     const val SHEET_PLUS_2H = "+2시간"

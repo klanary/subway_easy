@@ -5,13 +5,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,10 +59,29 @@ fun StationSheet(
     val station = StationRef(stationId, stationId)
     val time = (state as? UiState.Content)?.data?.time ?: SheetTime.NOW
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // 반만 열리면 버튼이 시스템 내비게이션 바에 가려진다(2026-11-12 실기기). 처음부터 다 연다.
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        // 시스템 내비게이션 바에 버튼이 가리지 않게 하고, 열차 줄이 많으면 스크롤한다(2026-11-12 실기기).
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
+                .padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(stationId, style = MaterialTheme.typography.headlineSmall)
             (state as? UiState.Content)?.data?.lines?.let { Text(it.joinToString(" · "), style = MaterialTheme.typography.bodyMedium) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onRole(TripRole.FROM, station) }, enabled = draft.canSet(TripRole.FROM, station)) {
+                    Text(Copy.AS_FROM)
+                }
+                Button(onClick = { onRole(TripRole.TO, station) }, enabled = draft.canSet(TripRole.TO, station)) {
+                    Text(Copy.AS_TO)
+                }
+                if (draft.from != null && draft.to != null) {
+                    OutlinedButton(onClick = { onRole(TripRole.VIA, station) }, enabled = draft.canSet(TripRole.VIA, station)) {
+                        Text(Copy.AS_VIA)
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(time == SheetTime.NOW, { viewModel.select(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
                 FilterChip(time == SheetTime.PLUS_1H, { viewModel.select(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
@@ -78,19 +101,6 @@ fun StationSheet(
                 UiState.Offline -> Text(Copy.OFFLINE)
                 UiState.Empty -> Text(Copy.NO_TRAIN_INFO)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onRole(TripRole.FROM, station) }, enabled = draft.canSet(TripRole.FROM, station)) {
-                    Text(Copy.AS_FROM)
-                }
-                Button(onClick = { onRole(TripRole.TO, station) }, enabled = draft.canSet(TripRole.TO, station)) {
-                    Text(Copy.AS_TO)
-                }
-                if (draft.from != null && draft.to != null) {
-                    OutlinedButton(onClick = { onRole(TripRole.VIA, station) }, enabled = draft.canSet(TripRole.VIA, station)) {
-                        Text(Copy.AS_VIA)
-                    }
-                }
-            }
             TextButton(onClick = onDismiss) { Text(Copy.CLOSE) }
         }
     }
@@ -105,6 +115,9 @@ private fun SheetTrains(ui: StationSheetUi) {
             Text(head, style = MaterialTheme.typography.titleSmall)
             Text(group.trains.joinToString(if (ui.time == SheetTime.NOW) " · " else ", "), style = MaterialTheme.typography.bodyLarge)
         }
+    }
+    ui.noTimetableLines.forEach { line ->
+        Text("$line · ${Copy.NO_TIMETABLE_LINE}", style = MaterialTheme.typography.bodyMedium)
     }
     ui.unsupportedLines.forEach { line ->
         Text("$line · ${Copy.UNSUPPORTED_LINE}", style = MaterialTheme.typography.bodyMedium)

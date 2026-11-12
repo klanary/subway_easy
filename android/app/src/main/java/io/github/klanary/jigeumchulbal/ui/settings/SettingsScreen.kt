@@ -103,6 +103,7 @@ fun SettingsScreen(
                     Text("${Copy.APP_NAME} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
                     // TODO(P1 Task 5): 역사마스터·실시간 도착정보의 이용허락 문구(api-verification §2)를 더한다.
                     Text(Copy.ATTRIBUTION, style = MaterialTheme.typography.bodySmall)
+                    Text(Copy.LINEMAP_SOURCE, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

@@ -126,6 +126,7 @@ object Copy {
     const val START_NEW = "새로 시작"
     const val CANCEL = "취소"
     const val OK = "확인"
-    const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'와 " +
-        "카카오의 지도·로컬·길찾기 API를 사용합니다."
+    const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'·" +
+        "'서울시 지하철역 시간표'와 카카오 길찾기 API를 사용합니다."
+    const val LINEMAP_SOURCE = "노선도: 위키미디어 공용 Seoul_subway_linemap_ko.svg (퍼블릭 도메인, IRTC1015, 2025-06-29 판)"
 }

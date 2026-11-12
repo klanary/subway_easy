@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | 승인됨. 구현 계획 `docs/superpowers/plans/2026-11-05-p6-train-position-fusion.md`(P6), 계획에서 정한 것은 13절 |
+| 문서 상태 | **폐기(2026-11-12)**: `2026-11-12-simple-subway-redesign.md`의 D1에 따라 하지 않는다. 이하는 기록으로 남긴다. 원래 상태: 승인됨. 구현 계획 `docs/superpowers/plans/2026-11-05-p6-train-position-fusion.md`(P6), 계획에서 정한 것은 13절 |
 | 작성일 | 2026-11-05 |
 | 상위 스펙 | `docs/superpowers/specs/2026-11-02-jigeumchulbal-mvp-design.md` (이하 "1차 스펙") |
 | 일정 | 1차 제출(2026-11-25)에 포함. 점검일 11/20에 끝나지 않은 부분은 3.3절 최소 버전 |

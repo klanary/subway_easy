@@ -12,7 +12,12 @@ fun stepTitle(step: StepDto): String {
         StepMode.WALK -> "도보 ${formatDuration(step.durationSec)}"
         StepMode.SUBWAY -> {
             val line = step.lineName ?: "지하철"
-            if (stops.size >= 2) "$line ${stops.first()} → ${stops.last()} · ${rides}정거장" else line
+            // "5호선 마포 → 공덕 · 공덕 방면 · 1정거장 · 2분"(재설계 스펙 4.5: 탈 역과 방향, 정거장 수, 단계별 시간)
+            if (stops.size >= 2) {
+                "$line ${stops.first()} → ${stops.last()} · ${stops[1]} 방면 · ${rides}정거장 · ${formatDuration(step.durationSec)}"
+            } else {
+                line
+            }
         }
         StepMode.BUS -> {
             val bus = "${step.routeName ?: ""}번 버스"

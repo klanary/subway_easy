@@ -15,7 +15,8 @@ data class RouteCardUi(
     val transfersText: String,
     val fareText: String,
     val segments: List<Segment>,
-    val nextTrainText: String?,
+    /** "5호선 마포 승차 · 다음 열차 3분", 출발 시각을 골랐으면 "08:14 출발 · 도착 약 08:46"(재설계 스펙 4.4). */
+    val boardingText: String?,
 )
 
 /**
@@ -34,7 +35,19 @@ fun RouteDto.toCardUi(receivedAt: Long, now: Long): RouteCardUi {
         segments = steps.map { step ->
             Segment(step.durationSec.toFloat() / stepsTotal, step.color(), step.lineName ?: step.routeName)
         },
-        nextTrainText = firstBoarding?.nextTrains?.firstOrNull()?.remainingSec
-            ?.let { "다음 열차 " + formatRemaining(it - elapsedSec) },
+        boardingText = boardingLine(elapsedSec),
     )
+}
+
+/** ISO 시각에서 "HH:mm"(서버는 한국 시간 오프셋을 붙여 보낸다). */
+private fun clockOf(iso: String): String = iso.substring(11, 16)
+
+private fun RouteDto.boardingLine(elapsedSec: Int): String? {
+    val leave = departAt
+    val arrive = arriveAt
+    if (leave != null && arrive != null) return "${clockOf(leave)} 출발 · 도착 약 ${clockOf(arrive)}"
+    val boarding = firstBoarding ?: return null
+    val board = listOfNotNull(boarding.lineName, boarding.stationId).joinToString(" ") + " 승차"
+    val next = boarding.nextTrains?.firstOrNull()?.remainingSec?.let { "다음 열차 " + formatRemaining(it - elapsedSec) }
+    return listOfNotNull(board, next).joinToString(" · ")
 }

@@ -24,13 +24,17 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -97,28 +101,39 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
     }
 }
 
-/** [승차 전 알림](첫 탑승역의 열차 정보가 있을 때만)과 [출발(하차 알림)]. */
+/**
+ * [지금 출발 알림](첫 탑승역의 열차 정보가 있을 때만)과 [하차 알림 시작], "환승·하차 진동 알림" 스위치(기본 끔).
+ * 스위치가 꺼져 있으면 [하차 알림 시작]은 누를 수 없고, [지금 출발 알림]은 [탑승했어요]에서 끝난다(재설계 스펙 D2, 4.5).
+ */
 @Composable
 private fun SessionButtons(route: RouteDto, startSession: ((AppSettings) -> SessionEvent) -> Unit) {
     val waitStart = remember(route) { waitStartFromRoute(route) }
+    var vibration by rememberSaveable { mutableStateOf(false) }
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(Copy.VIBRATION_ALERTS, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked = vibration, onCheckedChange = { vibration = it })
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 enabled = waitStart != null,
                 onClick = {
                     waitStart?.let { start ->
                         startSession { settings ->
-                            SessionEvent.StartWaiting(start.target, start.mode, route.withoutPaths(), start.travelSec, settings)
+                            SessionEvent.StartWaiting(
+                                start.target, start.mode, route.withoutPaths(), start.travelSec, settings, alightAlerts = vibration,
+                            )
                         }
                     }
                 },
             ) { Text(Copy.PRE_BOARDING_ALERT) }
-            Button(onClick = { startSession { settings -> SessionEvent.StartRiding(route.withoutPaths(), settings) } }) {
-                Text(Copy.START_ALIGHT_ALERT)
-            }
+            Button(
+                enabled = vibration,
+                onClick = { startSession { settings -> SessionEvent.StartRiding(route.withoutPaths(), settings) } },
+            ) { Text(Copy.START_ALIGHT_ALERT) }
         }
         if (waitStart == null) Text(Copy.NO_REALTIME_FOR_ROUTE, style = MaterialTheme.typography.bodySmall)
     }

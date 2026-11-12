@@ -59,8 +59,8 @@ object Copy {
     const val SEARCH_BAR = "어디로 갈까요?"
     const val FAVORITE_STATIONS = "즐겨찾는 역"
     const val FAVORITE_ROUTES = "자주 가는 경로"
-    const val ADD_FAVORITE = "★ 즐겨찾기"
-    const val REMOVE_FAVORITE = "★ 즐겨찾기 해제"
+    const val ADD_FAVORITE = "★ 자주 가는 경로"
+    const val REMOVE_FAVORITE = "★ 자주 가는 경로에서 빼기"
     const val HOME = "집"
     const val SCHOOL = "학교"
     const val WORK = "회사"
@@ -88,8 +88,9 @@ object Copy {
 
     // 통학 세션
     const val SESSION_TITLE = "통학 알림"
-    const val START_ALIGHT_ALERT = "출발(하차 알림)"
-    const val PRE_BOARDING_ALERT = "승차 전 알림"
+    const val START_ALIGHT_ALERT = "하차 알림 시작"
+    const val VIBRATION_ALERTS = "환승·하차 진동 알림"
+    const val PRE_BOARDING_ALERT = "지금 출발 알림"
     const val NO_REALTIME_FOR_ROUTE = "이 경로는 실시간 열차 정보를 쓸 수 없어요"
     const val SESSION_IN_PROGRESS = "통학 알림 진행 중"
     const val NO_SESSION = "진행 중인 통학 알림이 없어요"

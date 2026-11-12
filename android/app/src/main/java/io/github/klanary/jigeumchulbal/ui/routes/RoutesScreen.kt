@@ -15,7 +15,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import android.app.TimePickerDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,7 +40,10 @@ import io.github.klanary.jigeumchulbal.ui.RouteDetailDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.StateContainer
 import io.github.klanary.jigeumchulbal.ui.common.UiState
+import io.github.klanary.jigeumchulbal.ui.common.formatClock
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.delay
 
 /** 경로 결과 목록(스펙 3.1 ④). 카드를 누르면 경로 상세로 간다. */
@@ -52,7 +58,9 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
             value = System.currentTimeMillis()
         }
     }
-    val title = listOfNotNull(state.origin?.name, state.dest?.name).joinToString(" → ")
+    // "마포 → (공덕) → 홍대입구"(재설계 스펙 4.4)
+    val title = listOfNotNull(state.origin?.name, state.via?.name?.let { "($it)" }, state.dest?.name).joinToString(" → ")
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -66,11 +74,21 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
             )
         },
     ) { padding ->
+        Column(Modifier.padding(padding)) {
+        // 출발 시각: 지금 / 시각 선택. 시각을 고르면 시간표 열차와 도착 예상이 붙는다.
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(state.departAt == null, { viewModel.setDepartAt(null) }, { Text(Copy.SHEET_NOW) })
+            FilterChip(state.departAt != null, {
+                val base = java.time.LocalTime.now()
+                TimePickerDialog(context, { _, h, m ->
+                    viewModel.setDepartAt(LocalDate.now().atTime(h, m).atZone(ZoneId.systemDefault()).toInstant())
+                }, base.hour, base.minute, true).show()
+            }, { Text(state.departAt?.let { formatClock(it.toEpochMilli()) + " 출발" } ?: Copy.SHEET_PICK_TIME) })
+        }
         StateContainer(
             state = state.results ?: UiState.Loading,
             onRetry = viewModel::search,
             emptyText = Copy.NO_ROUTES,
-            modifier = Modifier.padding(padding),
         ) { found ->
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
@@ -84,6 +102,7 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
                 }
             }
         }
+        }
     }
 }
 
@@ -94,7 +113,7 @@ private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
             Text(ui.totalText, style = MaterialTheme.typography.headlineSmall)
             Text("${ui.transfersText} · ${ui.fareText}", style = MaterialTheme.typography.bodyMedium)
             SegmentBar(ui.segments)
-            ui.nextTrainText?.let {
+            ui.boardingText?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
         }

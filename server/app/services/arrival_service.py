@@ -2,12 +2,13 @@
 
 import logging
 from collections.abc import Callable
+from datetime import datetime
 
 from app.cache.ttl_cache import TtlCache
 from app.clients.seoul_subway import SeoulSubwayClient
 from app.core.clock import kst_from_epoch
-from app.core.errors import NotFound
-from app.models.schemas import ArrivalGroup, ArrivalsResponse, Train
+from app.core.errors import NotFound, UpstreamFailure
+from app.models.schemas import ArrivalGroup, ArrivalsResponse, TimetableTrain, Train
 from app.services.normalize import SUBWAY_ID_TO_LINE, normalize_line
 from app.services.remaining_time import (
     compute_remaining_sec,
@@ -17,11 +18,28 @@ from app.services.remaining_time import (
     parse_train_line_nm,
 )
 from app.services.station_index import Station, StationIndex
+from app.services.timetable_service import TimetableService
 
 logger = logging.getLogger("app.arrivals")
 
 ARRIVALS_TTL_SEC = 20
 TRAINS_PER_GROUP = 2
+
+
+def directions(line: str) -> tuple[str, str]:
+    """2호선은 내선·외선, 그 밖은 상행·하행(서울시 실시간 updnLine 표기)."""
+    return ("내선", "외선") if line == "2호선" else ("상행", "하행")
+
+
+def timetable_train(t: TimetableTrain, now: datetime) -> Train:
+    return Train(
+        destination=t.destination,
+        remaining_sec=max(0, int((t.departs_at - now).total_seconds())),
+        message=f"{t.departs_at:%H:%M} 출발",
+        is_last=False,
+        is_express=t.is_express,
+        train_no=t.train_no,
+    )
 
 
 class ArrivalService:
@@ -31,7 +49,9 @@ class ArrivalService:
         index: StationIndex,
         cache: TtlCache[list[dict]],
         clock: Callable[[], float],
+        timetable: TimetableService | None = None,
     ):
+        self._timetable = timetable
         self._client = client
         self._index = index
         self._cache = cache
@@ -49,6 +69,7 @@ class ArrivalService:
             station.api_name, lambda: self._client.fetch_arrivals(station.api_name)
         )
         groups = self._group(cached.value, station)
+        groups += await self._fill_missing(groups, station)
         if line:
             wanted = normalize_line(line)
             groups = [g for g in groups if g.line == wanted]
@@ -103,3 +124,40 @@ class ArrivalService:
                     )
                 )
         return result
+
+    async def _fill_missing(
+        self, groups: list[ArrivalGroup], station: Station
+    ) -> list[ArrivalGroup]:
+        """실시간 그룹이 없는 방향은 시간표로, 비서울 노선은 빈 "none" 그룹으로 채운다."""
+        have = {(g.line, g.direction) for g in groups}
+        now = kst_from_epoch(self._clock())
+        extra: list[ArrivalGroup] = []
+        for line in station.lines:
+            if not StationIndex.realtime_supported(line):
+                extra.append(
+                    ArrivalGroup(line=line, direction=None, towards=None, trains=[], source="none")
+                )
+                continue
+            if self._timetable is None:
+                continue
+            for direction in directions(line):
+                if (line, direction) in have:
+                    continue
+                try:
+                    found = await self._timetable.trains(
+                        station.id, line, direction, now, TRAINS_PER_GROUP
+                    )
+                except UpstreamFailure as e:
+                    logger.warning("시간표 대체 실패 %s %s: %s", line, direction, e.reason)
+                    continue
+                if found:
+                    extra.append(
+                        ArrivalGroup(
+                            line=line,
+                            direction=direction,
+                            towards=None,
+                            trains=[timetable_train(t, now) for t in found],
+                            source="timetable",
+                        )
+                    )
+        return extra

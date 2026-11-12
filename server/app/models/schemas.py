@@ -60,9 +60,11 @@ class Train(ApiModel):
 
 class ArrivalGroup(ApiModel):
     line: str
-    direction: str
+    direction: str | None  # 비서울 노선(source "none")은 None
     towards: str | None
     trains: list[Train]
+    # 열차 정보의 출처(재설계 스펙 5.1): 실시간, 시간표(실시간이 없는 방향), 없음(비서울 노선)
+    source: Literal["realtime", "timetable", "none"] = "realtime"
 
 
 class ArrivalsResponse(ApiModel):

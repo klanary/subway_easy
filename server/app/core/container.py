@@ -54,6 +54,17 @@ def build_services(
     quotas = build_quotas(settings, clock)
     http = httpx.AsyncClient(transport=transport, timeout=settings.upstream_timeout_sec)
     stations = StationIndex.load(settings.stations_db_path)
+    timetable_guard = quotas["seoulTimetable"]
+    timetable = TimetableService(
+        SeoulTimetableClient(http, timetable_guard, settings),
+        stations,
+        TtlCache(
+            TIMETABLE_TTL_SEC,
+            clock=clock,
+            metrics=metrics,
+            ttl_multiplier=timetable_guard.ttl_multiplier,
+        ),
+    )
     seoul_guard = quotas["seoulRealtime"]
     arrivals = ArrivalService(
         SeoulSubwayClient(http, seoul_guard, settings),
@@ -66,17 +77,7 @@ def build_services(
             ttl_multiplier=seoul_guard.ttl_multiplier,
         ),
         clock,
-    )
-    timetable_guard = quotas["seoulTimetable"]
-    timetable = TimetableService(
-        SeoulTimetableClient(http, timetable_guard, settings),
-        stations,
-        TtlCache(
-            TIMETABLE_TTL_SEC,
-            clock=clock,
-            metrics=metrics,
-            ttl_multiplier=timetable_guard.ttl_multiplier,
-        ),
+        timetable,
     )
     route_guard = quotas["kakaoRoute"]
     routes = RouteService(

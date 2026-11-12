@@ -31,6 +31,12 @@ class SessionControllerTest {
     private val target = WaitTarget("홍대입구", "홍대입구", "2호선", "합정", null)
     private val startWaiting = SessionEvent.StartWaiting(target, WaitMode.MINUTES_BEFORE, null, 0, AppSettings())
 
+    @Test fun serviceBlockedInBackgroundAsksToTap() = runTest { // 리뷰 Important 1, 재설계 스펙 13
+        launcher.failStart = true
+        controller(testSessionStore()).start(startWaiting, inAppOnly = false)
+        assertEquals(listOf<AlertContent>(AlertContent.TapToStart), notifier.alerts)
+    }
+
     @Test fun startPersistsAndAppliesEffects() = runTest {
         val store = testSessionStore()
         val c = controller(store)

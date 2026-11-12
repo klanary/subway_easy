@@ -59,17 +59,17 @@ class StationSheetViewModel(
     private var job: Job? = null
 
     init {
-        job = viewModelScope.launch {
-            lines = (stations.search(stationId) as? ApiResult.Ok)?.value?.firstOrNull { it.id == stationId }?.lines.orEmpty()
-            load()
-        }
+        job = viewModelScope.launch { load() }
     }
 
-    /** [지금]이면 30초마다 새로 고친다. 화면이 보이는 동안만 부른다. */
+    /**
+     * 시트가 보이는 동안 부른다. 다시 연 시트가 예전 결과를 그대로 보이지 않게 먼저 한 번 새로 고치고,
+     * [지금]이면 30초마다 새로 고친다.
+     */
     suspend fun runAutoRefresh() {
         while (true) {
-            delay(REFRESH_MS)
             if (time == SheetTime.NOW) load()
+            delay(REFRESH_MS)
         }
     }
 
@@ -82,6 +82,10 @@ class StationSheetViewModel(
     }
 
     private suspend fun load() {
+        // 호선 목록은 처음 조회가 실패했거나 취소됐어도 다음 불러오기에서 다시 묻는다.
+        if (lines.isEmpty()) {
+            lines = (stations.search(stationId) as? ApiResult.Ok)?.value?.firstOrNull { it.id == stationId }?.lines.orEmpty()
+        }
         _state.value = if (time == SheetTime.NOW) loadNow() else loadTimetable(startAt())
     }
 

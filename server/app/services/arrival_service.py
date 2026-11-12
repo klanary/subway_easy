@@ -1,5 +1,6 @@
 """역 실시간 도착(스펙 6.2, 6.5, 6.7): 서울시 응답을 호선·방향별 다음 열차 2대로 정리한다."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime
@@ -24,6 +25,7 @@ logger = logging.getLogger("app.arrivals")
 
 ARRIVALS_TTL_SEC = 20
 TRAINS_PER_GROUP = 2
+FILL_BUDGET_SEC = 3.0  # 시간표 대체 전체에 쓰는 시간 상한
 
 
 def directions(line: str) -> tuple[str, str]:
@@ -68,15 +70,14 @@ class ArrivalService:
         cached = await self._cache.get_or_fetch(
             station.api_name, lambda: self._client.fetch_arrivals(station.api_name)
         )
+        wanted = normalize_line(line) if line else None
         groups = self._group(cached.value, station)
-        groups += await self._fill_missing(groups, station)
-        if line:
-            wanted = normalize_line(line)
+        if wanted:
             groups = [g for g in groups if g.line == wanted]
+        # 호선을 거른 뒤에 채운다: 묻지 않은 호선의 시간표는 부르지 않는다.
+        groups += await self._fill_missing(groups, station, wanted)
         if towards:
-            groups = [
-                g for g in groups if g.towards and self._index.same_station(g.towards, towards)
-            ]
+            groups = [g for g in groups if self._heads_towards(g, station, towards, wanted)]
         response = ArrivalsResponse(
             station_id=station.id,
             updated_at=kst_from_epoch(cached.fetched_at),
@@ -125,39 +126,70 @@ class ArrivalService:
                 )
         return result
 
+    def _heads_towards(
+        self, group: ArrivalGroup, station: Station, towards: str, line: str | None
+    ) -> bool:
+        """실시간 그룹은 방면 이름으로, 시간표 그룹(방면 없음)은 그 방면 쪽 방향으로 맞춘다."""
+        if group.towards:
+            return self._index.same_station(group.towards, towards)
+        if group.source != "timetable":
+            return False
+        target = self._index.resolve(towards, line or group.line)
+        if target is None:
+            return False
+        return group.direction == self._index.direction(station.id, group.line, target.id)
+
     async def _fill_missing(
-        self, groups: list[ArrivalGroup], station: Station
+        self, groups: list[ArrivalGroup], station: Station, only_line: str | None = None
     ) -> list[ArrivalGroup]:
-        """실시간 그룹이 없는 방향은 시간표로, 비서울 노선은 빈 "none" 그룹으로 채운다."""
+        """실시간 그룹이 없는 방향은 시간표로, 비서울 노선은 빈 "none" 그룹으로 채운다.
+
+        시간표는 방향마다 동시에 묻고, 모두 합쳐 FILL_BUDGET_SEC 안에 끝나지 않으면 건너뛴다
+        (서울시 API가 느려도 도착 응답이 늦어지지 않게).
+        """
         have = {(g.line, g.direction) for g in groups}
         now = kst_from_epoch(self._clock())
-        extra: list[ArrivalGroup] = []
-        for line in station.lines:
-            if not StationIndex.realtime_supported(line):
+        lines = [x for x in station.lines if only_line is None or x == only_line]
+        extra = [
+            ArrivalGroup(line=x, direction=None, towards=None, trains=[], source="none")
+            for x in lines
+            if not StationIndex.realtime_supported(x)
+        ]
+        if self._timetable is None:
+            return extra
+        wanted = [
+            (x, d)
+            for x in lines
+            if StationIndex.realtime_supported(x)
+            for d in directions(x)
+            if (x, d) not in have
+        ]
+        if not wanted:
+            return extra
+        calls = [self._timetable.trains(station.id, x, d, now, TRAINS_PER_GROUP) for x, d in wanted]
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*calls, return_exceptions=True), FILL_BUDGET_SEC
+            )
+        except TimeoutError:
+            logger.warning(
+                "시간표 대체가 %s초 안에 끝나지 않아 건너뛰었어요: %s", FILL_BUDGET_SEC, station.id
+            )
+            return extra
+        for (x, d), found in zip(wanted, results, strict=True):
+            if isinstance(found, UpstreamFailure):
+                logger.warning("시간표 대체 실패 %s %s: %s", x, d, found.reason)
+                continue
+            if isinstance(found, BaseException):
+                raise found
+            if found:
                 extra.append(
-                    ArrivalGroup(line=line, direction=None, towards=None, trains=[], source="none")
+                    ArrivalGroup(
+                        line=x,
+                        direction=d,
+                        towards=None,
+                        trains=[timetable_train(t, now) for t in found],
+                        source="timetable",
+                    )
                 )
-                continue
-            if self._timetable is None:
-                continue
-            for direction in directions(line):
-                if (line, direction) in have:
-                    continue
-                try:
-                    found = await self._timetable.trains(
-                        station.id, line, direction, now, TRAINS_PER_GROUP
-                    )
-                except UpstreamFailure as e:
-                    logger.warning("시간표 대체 실패 %s %s: %s", line, direction, e.reason)
-                    continue
-                if found:
-                    extra.append(
-                        ArrivalGroup(
-                            line=line,
-                            direction=direction,
-                            towards=None,
-                            trains=[timetable_train(t, now) for t in found],
-                            source="timetable",
-                        )
-                    )
         return extra

@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.caverock.androidsvg.SVG
 import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
@@ -64,7 +65,8 @@ import io.github.klanary.jigeumchulbal.ui.RouteFlowGraph
 import io.github.klanary.jigeumchulbal.ui.SearchDest
 import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.SettingsDest
-import io.github.klanary.jigeumchulbal.ui.StationDest
+import io.github.klanary.jigeumchulbal.ui.OnPickResult
+import io.github.klanary.jigeumchulbal.ui.toGraph
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.home.HomeViewModel
@@ -83,18 +85,26 @@ private const val INITIAL_SCALE_PER_DENSITY = 0.45f
 private const val MAX_SCALE_PER_DENSITY = 1.2f
 
 /**
- * 홈 = 노선도(재설계 스펙 4.1). 끌기, 두 손가락 확대·축소, 두 번 누르면 확대. 역을 누르면 [onStationSelected].
- * 위에 역 검색과 [현재 위치]·설정, 아래에 접히는 패널([루틴] [자주 가는 경로]).
+ * 홈 = 노선도(재설계 스펙 4.1). 끌기, 두 손가락 확대·축소, 두 번 누르면 확대. 역을 누르면 역 시트가 열린다.
+ * 위에 역 검색과 [현재 위치]·설정, 출발·도착을 고르는 중이면 그 띠, 아래에 접히는 패널([루틴] [자주 가는 경로]).
+ * 출발·도착이 정해지면 경로 결과로 간다.
  */
 @Composable
 fun LineMapScreen(
     navController: NavController,
-    onStationSelected: (String) -> Unit = { navController.navigate(StationDest(it)) },
+    entry: NavBackStackEntry,
     viewModel: LineMapViewModel = lineMapViewModel(),
     home: HomeViewModel = appViewModel { HomeViewModel(it.favoriteRepository, it.serverRepository) },
     sessionViewModel: SessionViewModel = sessionViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // 역 검색에서 고른 역: 그 역으로 가서 시트를 연다(재설계 스펙 4.3).
+    entry.OnPickResult { viewModel.focusOn(it.station.id) }
+    LaunchedEffect(state.readyTrip) {
+        val trip = state.readyTrip ?: return@LaunchedEffect
+        viewModel.consumeReadyTrip()
+        navController.navigate(trip.toGraph())
+    }
     val homeState by home.state.collectAsStateWithLifecycle()
     val session by sessionViewModel.state.collectAsStateWithLifecycle()
     val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.locate() }
@@ -117,9 +127,9 @@ fun LineMapScreen(
                 focus = state.focus,
                 onFocusHandled = { station ->
                     viewModel.consumeFocus()
-                    onStationSelected(station.id)
+                    viewModel.selectStation(station.id)
                 },
-                onStationTap = { onStationSelected(it.id) },
+                onStationTap = { viewModel.selectStation(it.id) },
             )
         }
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,6 +139,7 @@ fun LineMapScreen(
                 onRoute = { navController.navigate(RouteFlowGraph()) },
                 onSettings = { navController.navigate(SettingsDest) },
             )
+            state.draft.banner()?.let { banner -> TripBanner(banner, onCancel = viewModel::cancelTrip) }
             if (session != SessionState.Idle) SessionBanner(sessionViewModel) { navController.navigate(SessionDest) }
             state.message?.let { message ->
                 Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.inverseSurface) {
@@ -149,6 +160,20 @@ fun LineMapScreen(
             onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+    }
+    state.selected?.let { stationId ->
+        StationSheet(stationId, state.draft, onRole = viewModel::setRole, onDismiss = viewModel::closeSheet)
+    }
+}
+
+/** "출발: 마포 · 도착: (역을 고르세요)"와 [취소]. */
+@Composable
+private fun TripBanner(text: String, onCancel: () -> Unit) {
+    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onCancel) { Text(Copy.CANCEL) }
+        }
     }
 }
 

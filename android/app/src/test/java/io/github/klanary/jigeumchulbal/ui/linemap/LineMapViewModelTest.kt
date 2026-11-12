@@ -2,6 +2,7 @@ package io.github.klanary.jigeumchulbal.ui.linemap
 
 import io.github.klanary.jigeumchulbal.MainDispatcherRule
 import io.github.klanary.jigeumchulbal.data.model.GeoPoint
+import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.NearestStationDto
 import io.github.klanary.jigeumchulbal.fakes.FakeLocationProvider
@@ -60,5 +61,37 @@ class LineMapViewModelTest {
         vm.locate()
         advanceUntilIdle()
         assertEquals(Copy.STATION_NOT_ON_MAP, vm.state.value.message)
+    }
+
+    @Test fun pickingStationsBuildsTrip() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.selectStation("마포")
+        assertEquals("마포", vm.state.value.selected)
+        vm.setRole(TripRole.FROM, StationRef("마포", "마포"))
+        assertNull(vm.state.value.selected)
+        assertNull(vm.state.value.readyTrip)
+        vm.setRole(TripRole.TO, StationRef("공덕", "공덕"))
+        assertEquals(TripDraft(StationRef("마포", "마포"), null, StationRef("공덕", "공덕")), vm.state.value.readyTrip)
+        vm.consumeReadyTrip()
+        assertNull(vm.state.value.readyTrip)
+        // 결과를 본 뒤 돌아오면 같은 출발·도착이 남아 경유를 더할 수 있다.
+        assertEquals("마포", vm.state.value.draft.from?.id)
+    }
+
+    @Test fun sameStationCannotBeBothEnds() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.setRole(TripRole.FROM, StationRef("마포", "마포"))
+        vm.setRole(TripRole.TO, StationRef("마포", "마포"))
+        assertNull(vm.state.value.draft.to)
+    }
+
+    @Test fun cancelClearsTrip() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.setRole(TripRole.FROM, StationRef("마포", "마포"))
+        vm.cancelTrip()
+        assertEquals(TripDraft(), vm.state.value.draft)
     }
 }

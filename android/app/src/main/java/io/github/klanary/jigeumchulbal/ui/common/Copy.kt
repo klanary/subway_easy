@@ -138,5 +138,17 @@ object Copy {
     const val FIND_ROUTE = "경로 찾기"
     const val EXPAND = "펼치기"
     const val COLLAPSE = "접기"
+    // 역 시트(재설계 스펙 4.2)
+    const val NO_TRAIN_INFO = "열차 정보가 없어요"
+    const val UNSUPPORTED_LINE = "실시간 정보를 제공하지 않는 노선이에요"
+    const val BY_TIMETABLE = "시간표 기준"
+    const val SHEET_NOW = "지금"
+    const val SHEET_PLUS_1H = "+1시간"
+    const val SHEET_PLUS_2H = "+2시간"
+    const val SHEET_PICK_TIME = "시각 선택"
+    const val CLOSE = "닫기"
+    const val AS_FROM = "출발로"
+    const val AS_TO = "도착으로"
+    const val AS_VIA = "경유로"
     const val LINEMAP_SOURCE = "노선도: 위키미디어 공용 Seoul_subway_linemap_ko.svg (퍼블릭 도메인, IRTC1015, 2025-06-29 판)"
 }

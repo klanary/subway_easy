@@ -25,6 +25,8 @@ NS = "{http://www.w3.org/2000/svg}"
 XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
 TICK_MAX_LEN = 20.5  # 역 눈금 선의 길이(px). 노선 선은 이보다 길다.
 SNAP_MAX_DIST = 70.0  # 글자 기준점에서 이 거리 안의 역 표시에 붙인다
+# 환승역 표시는 크고 글자가 조금 더 떨어져 있다(공덕 71px). 환승역에만 주므로 조금 넓게 본다.
+TRANSFER_SNAP_DIST = 100.0
 # 노선도와 우리 역 데이터의 이름이 다른 역(노선도 이름 → 우리 역 id). 2026-11-12 대조.
 NAME_EXCEPTIONS: dict[str, str] = {
     "자양": "뚝섬유원지",
@@ -34,6 +36,50 @@ NAME_EXCEPTIONS: dict[str, str] = {
 # 우리 데이터에는 두 역이지만 노선도에는 한 역인 곳(역 id → 같은 자리를 쓰는 역 id).
 SAME_PLACE: dict[str, str] = {"총신대입구": "이수"}
 _MATRIX = re.compile(r"matrix\(([^)]*)\)")
+_PATH_TOKEN = re.compile(r"[MmCcSsLlHhVvZz]|-?\d*\.?\d+(?:e-?\d+)?")
+PILL_CLASS = "st1"  # 흰 알약 모양 환승역 표시(공덕, 서울역 등)는 이 클래스의 <path>다
+_ARGS = {"M": 2, "L": 2, "C": 6, "S": 4, "H": 1, "V": 1, "Z": 0}
+
+
+def path_center(d: str) -> tuple[float, float] | None:
+    """<path d>의 꼭짓점·조절점으로 만든 경계 상자의 가운데. 알약 모양 표시의 중심으로 쓴다."""
+    xs: list[float] = []
+    ys: list[float] = []
+    x = y = 0.0
+    cmd = ""
+    nums: list[float] = []
+
+    def flush() -> None:
+        nonlocal x, y, nums
+        up = cmd.upper()
+        n = _ARGS.get(up, 0)
+        rel = cmd.islower()
+        while n and len(nums) >= n:
+            args, nums = nums[:n], nums[n:]
+            if up == "H":
+                x = args[0] + (x if rel else 0)
+            elif up == "V":
+                y = args[0] + (y if rel else 0)
+            else:
+                pts = list(zip(args[0::2], args[1::2], strict=True))
+                pts = [(px + x, py + y) if rel else (px, py) for px, py in pts]
+                xs.extend(px for px, _ in pts)
+                ys.extend(py for _, py in pts)
+                x, y = pts[-1]
+            xs.append(x)
+            ys.append(y)
+        nums = []
+
+    for token in _PATH_TOKEN.findall(d):
+        if token.isalpha():
+            flush()
+            cmd = token
+        else:
+            nums.append(float(token))
+    flush()
+    if not xs:
+        return None
+    return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
 
 
 @dataclass(frozen=True)
@@ -51,8 +97,10 @@ def _translate(transform: str | None) -> tuple[float, float] | None:
     return (values[4], values[5]) if len(values) == 6 else None
 
 
-def read_svg(path: Path) -> tuple[float, float, list[Label], list[tuple[float, float]]]:
-    """(너비, 높이, 역 이름 글자들, 역 표시 위치들)."""
+def read_svg(
+    path: Path,
+) -> tuple[float, float, list[Label], list[tuple[float, float]], list[tuple[float, float]]]:
+    """(너비, 높이, 역 이름 글자들, 환승역 기호 위치들, 역 눈금 위치들)."""
     root = ET.parse(path).getroot()
     _, _, width, height = (float(v) for v in root.get("viewBox", "0 0 0 0").split())
     labels = []
@@ -61,16 +109,24 @@ def read_svg(path: Path) -> tuple[float, float, list[Label], list[tuple[float, f
         at = _translate(text.get("transform"))
         if name and at:
             labels.append(Label(name, *at))
-    marks: list[tuple[float, float]] = []
+    transfers: list[tuple[float, float]] = []
+    groups = (*root.iter(NS + "symbol"), *root.iter(NS + "defs"))
+    in_defs = {id(e) for s in groups for e in s.iter()}
+    for path in root.iter(NS + "path"):
+        if path.get("class") == PILL_CLASS and id(path) not in in_defs:
+            center = path_center(path.get("d", ""))
+            if center:
+                transfers.append(center)
     for use in root.iter(NS + "use"):
         at = _translate(use.get("transform"))
         if use.get(XLINK_HREF) == "#환승역" and at:
-            marks.append(at)
+            transfers.append(at)
+    ticks: list[tuple[float, float]] = []
     for line in root.iter(NS + "line"):
         x1, y1, x2, y2 = (float(line.get(k, 0)) for k in ("x1", "y1", "x2", "y2"))
         if math.hypot(x2 - x1, y2 - y1) <= TICK_MAX_LEN:
-            marks.append(((x1 + x2) / 2, (y1 + y2) / 2))
-    return width, height, labels, marks
+            ticks.append(((x1 + x2) / 2, (y1 + y2) / 2))
+    return width, height, labels, transfers, ticks
 
 
 def snap(label: Label, marks: list[tuple[float, float]]) -> tuple[float, float, float]:
@@ -82,22 +138,23 @@ def snap(label: Label, marks: list[tuple[float, float]]) -> tuple[float, float, 
     return (best[0], best[1], dist) if dist <= SNAP_MAX_DIST else (label.x, label.y, math.inf)
 
 
-def assign_marks(
-    labeled: list[tuple[str, Label]], marks: list[tuple[float, float]]
-) -> dict[str, tuple[float, float]]:
-    """역마다 역 표시 하나를 붙인다. 가까운 쌍부터 정하고, 한 표시는 한 역만 쓴다.
-
-    가까운 표시를 먼저 차지하게 하지 않으면 이웃 역 글자가 같은 표시에 붙어 두 역이 한 점이 된다
-    (2026-11-12 실기기: 마포를 눌렀는데 공덕이 열림). 표시를 못 받은 역은 글자 기준점을 쓴다.
-    """
+def _claim(
+    labeled: list[tuple[str, Label]],
+    marks: list[tuple[float, float]],
+    points: dict[str, tuple[float, float]],
+    allowed: set[str] | None = None,
+    max_dist: float = SNAP_MAX_DIST,
+) -> None:
+    """가까운 (글자, 표시) 쌍부터 정하되 한 표시는 한 역만, 한 역은 한 표시만 갖는다."""
     pairs = []
-    for i, (_, label) in enumerate(labeled):
+    for i, (station_id, label) in enumerate(labeled):
+        if station_id in points or (allowed is not None and station_id not in allowed):
+            continue
         for j, (mx, my) in enumerate(marks):
             dist = math.hypot(mx - label.x, my - label.y)
-            if dist <= SNAP_MAX_DIST:
+            if dist <= max_dist:
                 pairs.append((dist, i, j))
     pairs.sort()
-    points: dict[str, tuple[float, float]] = {}
     used: set[int] = set()
     for _, i, j in pairs:
         station_id = labeled[i][0]
@@ -105,6 +162,25 @@ def assign_marks(
             continue
         points[station_id] = marks[j]
         used.add(j)
+
+
+def assign_marks(
+    labeled: list[tuple[str, Label]],
+    transfers: list[tuple[float, float]],
+    ticks: list[tuple[float, float]],
+    transfer_ids: set[str],
+) -> dict[str, tuple[float, float]]:
+    """역마다 역 표시 하나를 붙인다.
+
+    환승역 표시는 환승역(호선 2개 이상)이 먼저 갖고, 나머지 역은 눈금을 갖는다.
+
+    가까운 표시를 아무 역이나 먼저 차지하게 하면 이웃 역 글자가 붙어 두 역이 한 점이 되거나
+    환승역 기호를 이웃 역이 가져간다(2026-11-12 실기기: 마포를 눌렀는데 공덕이 열림).
+    표시를 못 받은 역은 글자 기준점을 쓴다.
+    """
+    points: dict[str, tuple[float, float]] = {}
+    _claim(labeled, transfers, points, allowed=transfer_ids, max_dist=TRANSFER_SNAP_DIST)
+    _claim(labeled, ticks, points)
     for station_id, label in labeled:
         points.setdefault(station_id, (label.x, label.y))
     return points
@@ -112,7 +188,7 @@ def assign_marks(
 
 def build(svg: Path, index: StationIndex) -> tuple[dict, list[str]]:
     """역 위치표와 잇지 못한 글자 목록."""
-    width, height, labels, marks = read_svg(svg)
+    width, height, labels, transfers, ticks = read_svg(svg)
     labeled: list[tuple[str, Label]] = []
     unmatched: list[str] = []
     by_name: dict[str, list[Label]] = {}
@@ -134,7 +210,8 @@ def build(svg: Path, index: StationIndex) -> tuple[dict, list[str]]:
             labeled.extend((s.id, lb) for s, lb in east_west)
             continue
         labeled.extend((station.id, lb) for lb in group)
-    points = assign_marks(labeled, marks)
+    transfer_ids = {s.id for s in index.all() if len(s.lines) > 1}
+    points = assign_marks(labeled, transfers, ticks, transfer_ids)
     for station_id, other in SAME_PLACE.items():
         if station_id not in points and other in points:
             points[station_id] = points[other]

@@ -73,3 +73,22 @@ def test_real_linemap_has_no_shared_points(real_index):
         by_point.setdefault((s["x"], s["y"]), []).append(s["id"])
     shared = [ids for ids in by_point.values() if len(ids) > 1]
     assert shared == [["이수", "총신대입구"]], shared
+
+
+def test_transfer_marks_go_to_transfer_stations(real_index):
+    """환승역 표시(기호, 흰 알약)는 환승역이 먼저 갖는다(2026-11-12 실기기: 마포·공덕이 한 점)."""
+    svg = FIXTURES_DIR.parent.parent / "data/raw/Seoul_subway_linemap_ko.svg"
+    result, _ = build(svg, real_index)
+    points = {s["id"]: (s["x"], s["y"]) for s in result["stations"]}
+    assert close(points["마포"], (2899.9, 2701.9))  # 5호선 눈금
+    assert close(points["애오개"], (3047.1, 2583.1))  # 5호선 눈금
+    gongdeok, seoul = points["공덕"], points["서울"]
+    assert 2925 < gongdeok[0] < 2960 and 2655 < gongdeok[1] < 2690, gongdeok  # 흰 알약 표시
+    assert not close(seoul, points["애오개"], tol=10)
+
+
+def test_path_center_of_pill():
+    from scripts.build_linemap import path_center
+
+    assert path_center("M0,0l10,0l0,20l-10,0z") == (5.0, 10.0)
+    assert path_center("M10,10c-2,0-4,2-4,4s2,4,4,4h6v-8z") == (11.0, 14.0)

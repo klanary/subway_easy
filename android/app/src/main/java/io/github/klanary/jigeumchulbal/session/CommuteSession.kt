@@ -113,6 +113,9 @@ sealed interface AlertContent {
     /** "진행 중인 통학 알림이 있어 루틴을 건너뛰었어요"(재설계 스펙 5.4) */
     data object RoutineSkipped : AlertContent
 
+    /** "루틴을 시작하지 못했어요": 저장된 경로를 읽지 못했다. 루틴을 다시 만들어야 한다. */
+    data object RoutineFailed : AlertContent
+
     /** 백그라운드에서 세션 서비스를 켜지 못했다: 눌러서 앱을 열면 이어 간다(재설계 스펙 13). */
     data object TapToStart : AlertContent
 }

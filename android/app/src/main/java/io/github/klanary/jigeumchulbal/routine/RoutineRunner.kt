@@ -33,8 +33,13 @@ class RoutineRunner(
             notifier.alert(AlertContent.RoutineSkipped)
             return
         }
-        val route = runCatching { json.decodeFromString<RouteDto>(routine.routeJson) }.getOrNull() ?: return
-        val start = waitStartFromRoute(route) ?: return
+        val route = runCatching { json.decodeFromString<RouteDto>(routine.routeJson) }.getOrNull()
+        val start = route?.let(::waitStartFromRoute)
+        if (route == null || start == null) {
+            // 저장된 경로를 읽지 못했거나 첫 탑승 정보가 없다: 아무 일 없이 끝내지 않고 알린다.
+            notifier.alert(AlertContent.RoutineFailed)
+            return
+        }
         val event = SessionEvent.StartWaiting(
             target = start.target,
             mode = WaitMode.DEPARTURE_TIMING,

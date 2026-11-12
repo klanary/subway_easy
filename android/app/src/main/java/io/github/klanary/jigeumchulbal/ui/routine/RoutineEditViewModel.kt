@@ -9,12 +9,14 @@ import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.routine.RoutineDraft
 import io.github.klanary.jigeumchulbal.routine.RoutineEntity
 import io.github.klanary.jigeumchulbal.routine.RoutineRepository
+import io.github.klanary.jigeumchulbal.routine.ALL_DAYS
 import io.github.klanary.jigeumchulbal.routine.dayBit
 import io.github.klanary.jigeumchulbal.routine.nextOccurrence
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import java.time.DayOfWeek
 import java.time.ZonedDateTime
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +26,7 @@ import kotlinx.serialization.json.Json
 
 private val WEEKDAYS = DayOfWeek.entries.take(5).sumOf { dayBit(it) }
 private const val DEFAULT_MINUTE = 8 * 60
+private const val PREVIEW_DEBOUNCE_MS = 300L
 
 data class RoutineEditUi(
     val id: Long = 0,
@@ -40,7 +43,10 @@ data class RoutineEditUi(
     val preview: List<String> = emptyList(),
     val message: String? = null,
     val saved: Boolean = false,
-)
+) {
+    /** 출발·도착이 있고 요일을 하나 이상 골라야 저장한다(요일이 없으면 울리지 않는다). */
+    val canSave: Boolean get() = from != null && to != null && days and ALL_DAYS != 0
+}
 
 /**
  * 루틴 등록·편집(재설계 스펙 4.6). 새 루틴은 경로 상세의 [루틴으로 만들기]가 넘긴 경로로 시작한다.
@@ -60,6 +66,7 @@ class RoutineEditViewModel(
     )
     val state: StateFlow<RoutineEditUi> = _state.asStateFlow()
     private var previewJob: Job? = null
+    private var previewKey: List<Any?>? = null
 
     init {
         if (routineId != null) {
@@ -102,6 +109,10 @@ class RoutineEditViewModel(
         val s = _state.value
         val from = s.from ?: return
         val to = s.to ?: return
+        if (!s.canSave) {
+            _state.update { it.copy(message = Copy.PICK_A_DAY) }
+            return
+        }
         viewModelScope.launch {
             routines.save(
                 RoutineEntity(
@@ -131,8 +142,13 @@ class RoutineEditViewModel(
         val leave = nextOccurrence(s.days, s.minuteOfDay, base)
             ?: base.toLocalDate().atTime(s.minuteOfDay / 60, s.minuteOfDay % 60).atZone(base.zone)
         val departAt = leave.plusMinutes(s.walkMin.toLong()).minusSeconds(toBoarding.toLong()).toInstant()
+        // 같은 조건은 다시 묻지 않고, 슬라이더를 끄는 동안은 멈춘 뒤 한 번만 묻는다(서버 요청 제한).
+        val key = listOf(from.id, to.id, s.via?.id, departAt)
+        if (key == previewKey) return
         previewJob?.cancel()
         previewJob = viewModelScope.launch {
+            delay(PREVIEW_DEBOUNCE_MS)
+            previewKey = key
             val found = (routes.routes(from, to, s.via, departAt) as? ApiResult.Ok)?.value?.routes.orEmpty()
             val same = found.firstOrNull { it.id == route?.id } ?: found.firstOrNull()
             val times = same?.firstBoarding?.nextTrains.orEmpty().map { it.message.removeSuffix(" 출발") }

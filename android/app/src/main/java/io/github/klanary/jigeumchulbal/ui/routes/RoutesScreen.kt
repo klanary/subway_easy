@@ -41,9 +41,8 @@ import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.StateContainer
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.formatClock
+import io.github.klanary.jigeumchulbal.ui.common.pickedTime
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
-import java.time.LocalDate
-import java.time.ZoneId
 import kotlinx.coroutines.delay
 
 /** 경로 결과 목록(스펙 3.1 ④). 카드를 누르면 경로 상세로 간다. */
@@ -81,7 +80,7 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
             FilterChip(state.departAt != null, {
                 val base = java.time.LocalTime.now()
                 TimePickerDialog(context, { _, h, m ->
-                    viewModel.setDepartAt(LocalDate.now().atTime(h, m).atZone(ZoneId.systemDefault()).toInstant())
+                    viewModel.setDepartAt(pickedTime(h, m))
                 }, base.hour, base.minute, true).show()
             }, { Text(state.departAt?.let { formatClock(it.toEpochMilli()) + " 출발" } ?: Copy.SHEET_PICK_TIME) })
         }

@@ -91,4 +91,29 @@ class RoutineEditViewModelTest {
         advanceUntilIdle()
         assertEquals(600, vm.state.value.minuteOfDay)
     }
+
+    @Test fun previewIsDebouncedAndSkipsSameValue() = runTest { // 리뷰 사소한 문제 4
+        val vm = vm()
+        advanceUntilIdle()
+        val before = routes.calls.size
+        vm.setWalk(6)
+        vm.setWalk(7)
+        vm.setWalk(8)
+        advanceUntilIdle()
+        assertEquals(before + 1, routes.calls.size)
+        vm.setWalk(8)
+        advanceUntilIdle()
+        assertEquals(before + 1, routes.calls.size)
+    }
+
+    @Test fun routineWithoutDaysIsNotSaved() = runTest { // 리뷰 사소한 문제 6
+        val vm = vm()
+        advanceUntilIdle()
+        DayOfWeek.entries.take(5).forEach(vm::toggleDay)
+        assertFalse(vm.state.value.canSave)
+        vm.save(hasNotificationPermission = true)
+        advanceUntilIdle()
+        assertTrue(repo.routines.value.isEmpty())
+        assertEquals(io.github.klanary.jigeumchulbal.ui.common.Copy.PICK_A_DAY, vm.state.value.message)
+    }
 }

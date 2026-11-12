@@ -69,3 +69,13 @@ async def test_timetable_bad_params(client):
         r = await client.get(URL.format("영등포구청"), params={**base, **bad})
         assert r.status_code == 400, bad
     assert (await client.get(URL.format("없는역"), params=base)).status_code == 404
+
+
+async def test_timetable_normalizes_line_and_logs_cache(client, respx_mock, caplog):
+    """응답 호선 이름은 정규화하고, 접근 로그에 캐시 상태를 남긴다(리뷰 사소한 문제 9)."""
+    mock_timetable(respx_mock)
+    params = {"line": "05호선", "direction": "상행", "from": FRIDAY_8}
+    r = await client.get(URL.format("영등포구청"), params=params)
+    assert r.json()["line"] == "5호선"
+    r = await client.get(URL.format("영등포구청"), params=params)
+    assert any(getattr(rec, "cache", None) == "hit" for rec in caplog.records)

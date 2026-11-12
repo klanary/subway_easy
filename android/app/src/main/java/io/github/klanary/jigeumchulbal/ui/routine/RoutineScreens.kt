@@ -165,7 +165,7 @@ fun RoutineEditScreen(routineId: Long?, navController: NavController) {
             if (state.preview.isNotEmpty()) {
                 Text("${Copy.ROUTINE_PREVIEW}: ${state.preview.joinToString(", ")}", style = MaterialTheme.typography.bodyLarge)
             }
-            Button(onClick = askPermission, enabled = state.from != null && state.to != null, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = askPermission, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 Text(Copy.ROUTINE_SAVE)
             }
         }

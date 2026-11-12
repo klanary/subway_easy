@@ -33,9 +33,8 @@ import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
-import java.time.LocalDate
+import io.github.klanary.jigeumchulbal.ui.common.pickedTime
 import java.time.LocalTime
-import java.time.ZoneId
 
 /**
  * 역 시트(재설계 스펙 4.2): 역 이름·호선, 방향별 다음 열차, 시각 버튼, [출발로] [도착으로] [경유로].
@@ -89,7 +88,7 @@ fun StationSheet(
                 FilterChip(time == SheetTime.CUSTOM, {
                     val now = LocalTime.now()
                     TimePickerDialog(context, { _, h, m ->
-                        val at = LocalDate.now().atTime(h, m).atZone(ZoneId.systemDefault()).toInstant()
+                        val at = pickedTime(h, m)
                         viewModel.select(SheetTime.CUSTOM, at)
                     }, now.hour, now.minute, true).show()
                 }, { Text(Copy.SHEET_PICK_TIME) })

@@ -14,6 +14,7 @@ from app.models.schemas import (
     StationSearchResponse,
     TimetableResponse,
 )
+from app.services.normalize import normalize_line
 
 router = APIRouter()
 
@@ -75,6 +76,7 @@ async def station_arrivals(
 @router.get("/v1/stations/{station_id}/timetable", response_model=TimetableResponse)
 async def station_timetable(
     station_id: str,
+    request: Request,
     services: Annotated[AppServices, Depends(get_services)],
     line: str,
     direction: str,
@@ -85,5 +87,10 @@ async def station_timetable(
     if not 1 <= count <= MAX_TIMETABLE_COUNT:
         raise InvalidRequest("PARAMS")
     after = parse_time(from_) or now_kst(services.clock)
-    trains = await services.timetable.trains(station_id, line, direction, after, count)
-    return TimetableResponse(station_id=station_id, line=line, direction=direction, trains=trains)
+    trains, cache_status = await services.timetable.trains_with_status(
+        station_id, line, direction, after, count
+    )
+    request.state.cache_status = cache_status
+    return TimetableResponse(
+        station_id=station_id, line=normalize_line(line), direction=direction, trains=trains
+    )

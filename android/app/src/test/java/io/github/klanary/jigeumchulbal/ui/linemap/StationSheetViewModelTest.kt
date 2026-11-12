@@ -14,6 +14,7 @@ import io.github.klanary.jigeumchulbal.ui.common.UiState
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -126,5 +127,18 @@ class StationSheetViewModelTest {
         vm.select(SheetTime.PLUS_1H)
         advanceUntilIdle()
         assertEquals(listOf("1호선"), content(vm).noTimetableLines)
+    }
+
+    @Test fun lateNowRefreshDoesNotOverwriteLaterTime() = runTest { // 리뷰 사소한 문제 3
+        val vm = vm()
+        advanceUntilIdle()
+        stations.arrivalsDelayMs = 5_000
+        backgroundScope.launch { vm.runAutoRefresh() }
+        runCurrent() // "지금" 새로 고침이 응답을 기다리는 중
+        vm.select(SheetTime.PLUS_1H)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertTrue(content(vm).fromTimetable)
+        assertEquals(SheetTime.PLUS_1H, content(vm).time)
     }
 }

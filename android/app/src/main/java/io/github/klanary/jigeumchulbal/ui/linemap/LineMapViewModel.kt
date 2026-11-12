@@ -78,6 +78,14 @@ class LineMapViewModel(
         _state.update { if (found != null) it.copy(focus = found) else it.copy(message = Copy.STATION_NOT_ON_MAP) }
     }
 
+    /** 홈을 떠났다 돌아와도 보던 위치·배율 그대로 노선도를 보이게 한다. */
+    var savedTransform: MapTransform? = null
+        private set
+
+    fun saveTransform(transform: MapTransform) {
+        savedTransform = transform
+    }
+
     fun consumeFocus() {
         _state.update { it.copy(focus = null) }
     }

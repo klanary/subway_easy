@@ -116,9 +116,12 @@ fun LineMapScreen(
     val session by sessionViewModel.state.collectAsStateWithLifecycle()
     val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.locate() }
     val context = LocalContext.current
-    val picture by produceState<Picture?>(null) {
-        value = withContext(Dispatchers.Default) {
-            SVG.getFromAsset(context.assets, LINEMAP_SVG_ASSET).renderToPicture()
+    // 노선도 그림은 프로세스에서 한 번만 만든다(홈으로 돌아올 때마다 다시 해석하지 않는다).
+    val picture by produceState(LineMapPictureCache.picture) {
+        if (value == null) {
+            value = withContext(Dispatchers.Default) {
+                SVG.getFromAsset(context.assets, LINEMAP_SVG_ASSET).renderToPicture()
+            }.also { LineMapPictureCache.picture = it }
         }
     }
 
@@ -137,6 +140,8 @@ fun LineMapScreen(
                     viewModel.selectStation(station.id)
                 },
                 onStationTap = { viewModel.selectStation(it.id) },
+                initial = viewModel.savedTransform,
+                onTransformChanged = viewModel::saveTransform,
             )
         }
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -206,11 +211,14 @@ private fun LineMapCanvas(
     focus: MapStation?,
     onFocusHandled: (MapStation) -> Unit,
     onStationTap: (MapStation) -> Unit,
+    initial: MapTransform? = null,
+    onTransformChanged: (MapTransform) -> Unit = {},
 ) {
     val density = LocalDensity.current.density
     val hitRadiusPx = with(LocalDensity.current) { HIT_RADIUS.toPx() }
     var size by remember { mutableStateOf(IntSize.Zero) }
-    var transform by remember { mutableStateOf<MapTransform?>(null) }
+    var transform by remember { mutableStateOf(initial) }
+    LaunchedEffect(transform) { transform?.let(onTransformChanged) }
     val minScale = if (size == IntSize.Zero) 0f else fitScale(map.width, map.height, size.width.toFloat(), size.height.toFloat())
     val maxScale = MAX_SCALE_PER_DENSITY * density
 
@@ -351,4 +359,9 @@ private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
     ) {
         Text("${Copy.SESSION_IN_PROGRESS} · $headline", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+/** 노선도 SVG를 그린 그림. 한 번 만들면 앱이 살아 있는 동안 다시 쓴다. */
+private object LineMapPictureCache {
+    @Volatile var picture: Picture? = null
 }

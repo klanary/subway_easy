@@ -59,3 +59,17 @@ def test_real_linemap_links_95_percent(tmp_path, real_index):
     svg = FIXTURES_DIR.parent.parent / "data/raw/Seoul_subway_linemap_ko.svg"
     result, _ = build(svg, real_index)
     assert len(result["stations"]) >= 0.95 * len(real_index.all())
+
+
+def test_real_linemap_has_no_shared_points(real_index):
+    """한 역 표시에는 한 역만 붙는다(2026-11-12 실기기: 마포를 눌렀는데 공덕이 열림).
+
+    우리 데이터에는 두 역이지만 노선도에는 한 역인 곳(SAME_PLACE)만 같은 점을 쓴다.
+    """
+    svg = FIXTURES_DIR.parent.parent / "data/raw/Seoul_subway_linemap_ko.svg"
+    result, _ = build(svg, real_index)
+    by_point: dict = {}
+    for s in result["stations"]:
+        by_point.setdefault((s["x"], s["y"]), []).append(s["id"])
+    shared = [ids for ids in by_point.values() if len(ids) > 1]
+    assert shared == [["이수", "총신대입구"]], shared

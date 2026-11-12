@@ -82,10 +82,38 @@ def snap(label: Label, marks: list[tuple[float, float]]) -> tuple[float, float, 
     return (best[0], best[1], dist) if dist <= SNAP_MAX_DIST else (label.x, label.y, math.inf)
 
 
+def assign_marks(
+    labeled: list[tuple[str, Label]], marks: list[tuple[float, float]]
+) -> dict[str, tuple[float, float]]:
+    """역마다 역 표시 하나를 붙인다. 가까운 쌍부터 정하고, 한 표시는 한 역만 쓴다.
+
+    가까운 표시를 먼저 차지하게 하지 않으면 이웃 역 글자가 같은 표시에 붙어 두 역이 한 점이 된다
+    (2026-11-12 실기기: 마포를 눌렀는데 공덕이 열림). 표시를 못 받은 역은 글자 기준점을 쓴다.
+    """
+    pairs = []
+    for i, (_, label) in enumerate(labeled):
+        for j, (mx, my) in enumerate(marks):
+            dist = math.hypot(mx - label.x, my - label.y)
+            if dist <= SNAP_MAX_DIST:
+                pairs.append((dist, i, j))
+    pairs.sort()
+    points: dict[str, tuple[float, float]] = {}
+    used: set[int] = set()
+    for _, i, j in pairs:
+        station_id = labeled[i][0]
+        if station_id in points or j in used:
+            continue
+        points[station_id] = marks[j]
+        used.add(j)
+    for station_id, label in labeled:
+        points.setdefault(station_id, (label.x, label.y))
+    return points
+
+
 def build(svg: Path, index: StationIndex) -> tuple[dict, list[str]]:
     """역 위치표와 잇지 못한 글자 목록."""
     width, height, labels, marks = read_svg(svg)
-    found: dict[str, list[tuple[float, float, float]]] = {}
+    labeled: list[tuple[str, Label]] = []
     unmatched: list[str] = []
     by_name: dict[str, list[Label]] = {}
     for label in labels:
@@ -103,18 +131,17 @@ def build(svg: Path, index: StationIndex) -> tuple[dict, list[str]]:
             east_west = zip(
                 sorted(same, key=lambda s: s.lng), sorted(group, key=lambda lb: lb.x), strict=False
             )
-            for s, lb in east_west:
-                found.setdefault(s.id, []).append(snap(lb, marks))
+            labeled.extend((s.id, lb) for s, lb in east_west)
             continue
-        for lb in group:
-            found.setdefault(station.id, []).append(snap(lb, marks))
+        labeled.extend((station.id, lb) for lb in group)
+    points = assign_marks(labeled, marks)
     for station_id, other in SAME_PLACE.items():
-        if station_id not in found and other in found:
-            found[station_id] = found[other]
-    stations = []
-    for station_id, points in sorted(found.items()):
-        x, y, _ = min(points, key=lambda p: (p[2], p[0], p[1]))  # 역 표시에 가장 가까이 붙은 글자
-        stations.append({"id": station_id, "x": round(x, 1), "y": round(y, 1)})
+        if station_id not in points and other in points:
+            points[station_id] = points[other]
+    stations = [
+        {"id": station_id, "x": round(x, 1), "y": round(y, 1)}
+        for station_id, (x, y) in sorted(points.items())
+    ]
     return {"width": width, "height": height, "stations": stations}, unmatched
 
 

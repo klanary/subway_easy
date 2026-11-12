@@ -114,4 +114,17 @@ class StationSheetViewModelTest {
         runCurrent()
         assertEquals(before + 1, stations.arrivalCalls.size)
     }
+
+    @Test fun lineWithoutTimetableIsNamed() = runTest { // 2026-11-12: 서울시 시간표는 2~9호선만 있다
+        stations.timetableResult = { call ->
+            val trains = if (call.line == "2호선") listOf(TimetableTrainDto("2026-11-13T20:01:00+09:00", "성수")) else emptyList()
+            ApiResult.Ok(TimetableDto(call.stationId, call.line, call.direction, trains))
+        }
+        stations.searchByQuery = mapOf("시청" to listOf(StationDto("시청", "시청", listOf("1호선", "2호선"), 37.5, 126.9)))
+        val vm = StationSheetViewModel("시청", stations, clock = { now.toEpochMilli() })
+        advanceUntilIdle()
+        vm.select(SheetTime.PLUS_1H)
+        advanceUntilIdle()
+        assertEquals(listOf("1호선"), content(vm).noTimetableLines)
+    }
 }

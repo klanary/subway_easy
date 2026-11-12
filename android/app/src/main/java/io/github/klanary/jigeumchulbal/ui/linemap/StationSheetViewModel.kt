@@ -34,6 +34,8 @@ data class StationSheetUi(
     val unsupportedLines: List<String>,
     val fromTimetable: Boolean,
     val time: SheetTime = SheetTime.NOW,
+    /** 시간표 조회에서 열차가 하나도 없던 서울 노선. 서울시 시간표는 2~9호선만 있다(2026-11-12 확인). */
+    val noTimetableLines: List<String> = emptyList(),
 )
 
 /** 비서울 5개 노선(서버 NON_SEOUL_LINES와 같다). 시간표를 묻지 않는다. */
@@ -117,12 +119,18 @@ class StationSheetViewModel(
         val groups = results.mapNotNull { (it as? ApiResult.Ok)?.value?.toDirectionTrains() }
         val failure = results.filterIsInstance<ApiResult.Err>().firstOrNull()
         if (groups.isEmpty() && failure != null) return@coroutineScope failure.toUiState()
-        sheet(groups, lines.filter { it in NON_SEOUL_LINES }, fromTimetable = true)
+        val withTrains = groups.map { it.line }.toSet()
+        sheet(groups, lines.filter { it in NON_SEOUL_LINES }, fromTimetable = true, noTimetable = seoul.filter { it !in withTrains })
     }
 
-    private fun sheet(groups: List<DirectionTrains>, unsupported: List<String>, fromTimetable: Boolean): UiState<StationSheetUi> {
-        if (groups.isEmpty() && unsupported.isEmpty()) return UiState.Error(Copy.NO_TRAIN_INFO)
-        return UiState.Content(StationSheetUi(stationId, lines, groups, unsupported, fromTimetable, time))
+    private fun sheet(
+        groups: List<DirectionTrains>,
+        unsupported: List<String>,
+        fromTimetable: Boolean,
+        noTimetable: List<String> = emptyList(),
+    ): UiState<StationSheetUi> {
+        if (groups.isEmpty() && unsupported.isEmpty() && noTimetable.isEmpty()) return UiState.Error(Copy.NO_TRAIN_INFO)
+        return UiState.Content(StationSheetUi(stationId, lines, groups, unsupported, fromTimetable, time, noTimetable))
     }
 
 

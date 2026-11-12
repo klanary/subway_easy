@@ -7,6 +7,7 @@ from app.models.schemas import Leg, Step
 from app.services.route_convert import (
     build_first_boarding,
     bus_route_name,
+    combine_via,
     convert_routes,
     make_subway_step,
     rank,
@@ -150,3 +151,23 @@ def test_subway_only_and_rank(real_index, fresh_metrics):
         (r.total_sec, r.transfers) for r in kept
     )
     assert len(rank(routes * 2)) == 5
+
+
+def test_combine_via_sums_and_orders(real_index, fresh_metrics):
+    _, body = load_fixture("kakao_route_subway_only.json")
+    first = rank(subway_only(convert_routes(body, real_index, fresh_metrics, limit=None)))
+    _, body = load_fixture("kakao_route_transfer.json")
+    second = rank(subway_only(convert_routes(body, real_index, fresh_metrics, limit=None)))
+    out = combine_via(first, second)
+    assert len(out) == 5  # 3 × 3 = 9개 조합 중 빠른 5개
+    assert [r.total_sec for r in out] == sorted(r.total_sec for r in out)
+    assert all(len(r.legs) == 2 for r in out)
+    best = out[0]
+    assert best.total_sec == first[0].total_sec + second[0].total_sec
+    assert best.transfers == first[0].transfers + second[0].transfers  # 경유역 하차는 환승 아님
+    assert best.first_boarding == first[0].first_boarding
+    assert len({r.id for r in out}) == 5
+
+
+def test_combine_via_empty_side():
+    assert combine_via([], []) == []

@@ -132,6 +132,32 @@ def rank(routes: list[Route], limit: int = MAX_ROUTES) -> list[Route]:
     return sorted(routes, key=lambda r: (r.total_sec, r.transfers))[:limit]
 
 
+VIA_TOP = 3  # 경유 구간마다 조합에 쓰는 경로 수(3 × 3 = 9개 조합)
+
+
+def combine_via(first: list[Route], second: list[Route], limit: int = MAX_ROUTES) -> list[Route]:
+    """출발→경유, 경유→도착 경로를 이어 붙인다. 경유역에서 내리는 것은 환승으로 세지 않는다."""
+    combined = []
+    for a in first[:VIA_TOP]:
+        for b in second[:VIA_TOP]:
+            legs = [*a.legs, *b.legs]
+            steps = [s for leg in legs for s in leg.steps]
+            fares = (a.fare, b.fare)
+            combined.append(
+                Route(
+                    id=route_id(legs),
+                    type=route_type(steps),
+                    total_sec=a.total_sec + b.total_sec,
+                    distance_m=a.distance_m + b.distance_m,
+                    transfers=a.transfers + b.transfers,
+                    fare=None if None in fares else sum(fares),
+                    legs=legs,
+                    first_boarding=a.first_boarding or b.first_boarding,
+                )
+            )
+    return rank(combined, limit)
+
+
 def convert_routes(
     raw: dict, index: StationIndex, metrics: Metrics, limit: int | None = MAX_ROUTES
 ) -> list[Route]:

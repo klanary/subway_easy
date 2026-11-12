@@ -89,6 +89,7 @@ def build_services(
         metrics,
         clock,
         arrivals,
+        timetable,
     )
     return AppServices(
         settings=settings,

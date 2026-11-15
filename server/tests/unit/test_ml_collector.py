@@ -359,3 +359,24 @@ def test_key_echoed_in_a_response_is_masked_before_storing(http, store, index, c
     con.close()
     text = zlib.decompress(blob).decode("utf-8")
     assert "POSKEY111" not in text and "/api/subway/***/json" in text
+
+
+@respx.mock
+def test_run_survives_an_unexpected_error_in_one_line(http, store, index, clock, caplog):
+    route = respx.get(POSITION_URL).mock(return_value=fixture_response("seoul_position_line5"))
+    original = store.add_snapshot
+    calls = {"n": 0}
+
+    def flaky(*args):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise sqlite3.OperationalError("database is locked /api/subway/POSKEY111/json")
+        return original(*args)
+
+    store.add_snapshot = flaky
+    collector = _collector(http, store, index, clock, lines=("5호선", "2호선"))
+    with caplog.at_level(logging.INFO):
+        collector.run(sleep=_Sleeper(clock), max_cycles=1)
+    assert route.call_count == 2
+    assert _count(store, "raw_snapshots") == 1  # 두 번째 호선은 정상 저장
+    assert "OperationalError" in caplog.text and "POSKEY111" not in caplog.text

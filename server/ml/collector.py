@@ -112,6 +112,13 @@ class Collector:
         """한 호선을 한 번 불러 저장하고 결과 코드를 돌려준다. 예외를 밖으로 내지 않는다."""
         try:
             return self._poll_line(line)
+        except Exception as e:
+            # 한 호선의 실패(DB 잠김 등)가 수집 전체를 멈추지 않게 한다. 이 호선의 쓰기는 버린다.
+            # 예외 메시지는 찍지 않는다(URL이 들어 있을 수 있다).
+            self._store.rollback()
+            self._stats["errors"] += 1
+            logger.error("예상하지 못한 오류(%s): %s", line, type(e).__name__)
+            return "INTERNAL"
         finally:
             self._store.commit()
 

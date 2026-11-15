@@ -189,6 +189,9 @@ class Store:
     def commit(self) -> None:
         self._con.commit()
 
+    def rollback(self) -> None:
+        self._con.rollback()
+
     def close(self) -> None:
         """여러 번 불러도 된다."""
         if self._con is not None:

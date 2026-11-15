@@ -219,6 +219,7 @@ class Collector:
         sleep: Callable[[float], None] = time.sleep,
         should_stop: Callable[[], bool] = lambda: False,
         max_cycles: int | None = None,
+        any_hour: bool = False,
     ) -> None:
         """운행 시간 동안 `period`초마다 모든 호선을 한 번씩, 주기 안에 고르게 흩어 부른다."""
         slot = period / len(self._lines)
@@ -227,7 +228,7 @@ class Collector:
         last_service_date: date | None = None
         while not should_stop() and (max_cycles is None or cycles < max_cycles):
             now = self._now()
-            if not in_service_hours(now):
+            if not any_hour and not in_service_hours(now):
                 reason, resume = (
                     "운행 시간 밖(01:00~05:00)",
                     now.replace(hour=SERVICE_START_HOUR, minute=0, second=0, microsecond=0),
@@ -294,6 +295,9 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--exclude", default="", help="뺄 호선(쉼표)")
     parser.add_argument("--period", type=float, default=PERIOD_SEC, help="주기(초)")
     parser.add_argument("--once", action="store_true", help="한 바퀴만 돌고 끝")
+    parser.add_argument(
+        "--any-hour", action="store_true", help="운행 시간(05:00~01:00) 밖에도 부른다(설치 확인용)"
+    )
     parser.add_argument("--max-minutes", type=float, default=None, help="이 시간 뒤 끝")
     parser.add_argument("--log-file", default="ml_data/collector.log", help="빈 값이면 화면에만")
     return parser.parse_args(argv)
@@ -346,6 +350,7 @@ def main(argv: list[str] | None = None) -> int:
                 period=args.period,
                 should_stop=should_stop,
                 max_cycles=1 if args.once else None,
+                any_hour=args.any_hour,
             )
         logger.info("수집 끝")
     finally:

@@ -71,8 +71,8 @@ EOF
   exit 0
 fi
 
-echo "한 바퀴 불러 확인합니다(약 30초)..."
-.venv/bin/python -m ml.collector --once --log-file ""
+echo "한 바퀴 불러 확인합니다(약 30초, 새벽에도 바로 부른다)..."
+.venv/bin/python -m ml.collector --once --any-hour --log-file ""
 sudo systemctl restart subway-collector.service
 sleep 2
 systemctl --no-pager --lines=5 status subway-collector.service || true

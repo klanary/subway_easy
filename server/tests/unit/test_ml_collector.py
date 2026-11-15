@@ -297,7 +297,7 @@ def test_main_once_reads_env_file_and_uses_only_collector_keys(tmp_path, monkeyp
     db = tmp_path / "out" / "c.sqlite"
     code = main(
         ["--db", str(db), "--env-file", str(env), "--lines", "5호선,2호선", "--once",
-         "--period", "0", "--log-file", ""]
+         "--any-hour", "--period", "0", "--log-file", ""]
     )  # fmt: skip
     assert code == 0
     assert [_key_of(c.request) for c in route.calls] == ["SPAREKEY222", "SPAREKEY222"]
@@ -380,3 +380,29 @@ def test_run_survives_an_unexpected_error_in_one_line(http, store, index, clock,
     assert route.call_count == 2
     assert _count(store, "raw_snapshots") == 1  # 두 번째 호선은 정상 저장
     assert "OperationalError" in caplog.text and "POSKEY111" not in caplog.text
+
+
+@respx.mock
+def test_any_hour_check_calls_once_even_at_night(http, store, index, clock):
+    # 설치 확인(--once --any-hour)은 운행 시간 밖(03:00)에도 바로 한 바퀴 돈다.
+    route = respx.get(POSITION_URL).mock(return_value=fixture_response("seoul_realtime_nodata"))
+    clock.set(datetime(2026, 11, 16, 3, 0, 0, tzinfo=KST).timestamp())
+    sleeper = _Sleeper(clock)
+    _collector(http, store, index, clock, lines=("5호선",)).run(
+        sleep=sleeper, max_cycles=1, any_hour=True
+    )
+    assert route.call_count == 1
+    assert sum(sleeper.naps) <= PERIOD_SEC
+
+
+@respx.mock
+def test_main_once_any_hour_flag_is_accepted(tmp_path, monkeypatch):
+    for name in ("SEOUL_POSITION_API_KEY", "SEOUL_SPARE_KEY_1", "SEOUL_SPARE_KEY_2"):
+        monkeypatch.delenv(name, raising=False)
+    env = tmp_path / ".env"
+    env.write_text("SEOUL_POSITION_API_KEY=POSKEY111\n", "utf-8")
+    route = respx.get(POSITION_URL).mock(return_value=fixture_response("seoul_realtime_nodata"))
+    args = ["--db", str(tmp_path / "c.sqlite"), "--env-file", str(env), "--lines", "5호선",
+            "--once", "--any-hour", "--period", "0", "--log-file", ""]  # fmt: skip
+    assert main(args) == 0
+    assert route.call_count == 1

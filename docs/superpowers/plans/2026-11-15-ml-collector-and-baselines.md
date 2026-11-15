@@ -236,3 +236,4 @@ CREATE TABLE key_usage(day TEXT NOT NULL, key_name TEXT NOT NULL, calls INTEGER 
 - B0: `has_train`(열차 번호가 시간표에 있는지), 받기 도구는 일반 인증키만 쓴다.
 - 평가: `Scores`·`Report`, `split_same_day`와 `--same-day-cutoff`(점검용).
 - TDD에서 벗어난 곳: B1·B0·평가·분석은 테스트와 구현을 이어서 쓰고 한 번에 돌렸다(실패를 먼저 확인한 것은 키·파싱·저장소·수집기·B2와 나중에 더한 테스트들).
+- 같은 날 키를 바꾼 뒤 두 번째 실행(17:34~18:40, 66분, 2,508회, 오류 0)으로 "1시간 넘게 수집"을 채웠다. 관찰 기록 §8.

@@ -83,6 +83,19 @@ ROW_FIXES: dict[tuple[str, str], tuple[str, str]] = {
     ("운정", "수도권 광역급행철도"): ("운정중앙", "수도권 광역급행철도"),
 }
 
+# 다른 출처가 쓰는 이름 → 역 id. 괄호 이름에서 저절로 나오지 않는 별칭만 적는다.
+# 2026-11-15 열차 위치 API 수집에서 잇지 못한 이름들이다
+# (docs/ml/2026-11-15-first-run-observations.md §4).
+# - 한국항공대(옛 화전), 시우(옛 원곡)는 역 이름이 바뀌었는데 역사마스터는 옛 이름을 쓴다.
+# - 성수종착은 2호선 성수지선 열차가 성수에 설 때의 표기다.
+EXTRA_ALIASES: dict[str, str] = {
+    "성수종착": "성수",
+    "세종왕릉": "세종대왕릉",
+    "한국항공대": "화전",
+    "시우": "원곡",
+    "4.19 민주묘지": "4.19민주묘지",
+}
+
 MAX_SAME_STATION_M = 1_000
 
 
@@ -181,6 +194,7 @@ def build(
     rows: list[MasterRow],
     separate: dict[tuple[str, str], str] = SEPARATE_STATIONS,
     api_names: dict[str, str] = API_NAME_EXCEPTIONS,
+    extra_aliases: dict[str, str] = EXTRA_ALIASES,
 ) -> BuildResult:
     groups: dict[str, list[MasterRow]] = defaultdict(list)
     base_names: dict[str, str] = {}
@@ -219,6 +233,10 @@ def build(
     aliases: dict[str, str] = {}
     for alias, station_id in candidate_aliases:
         if alias not in groups:
+            aliases.setdefault(alias, station_id)
+    # 손으로 적은 별칭은 가리키는 역이 있을 때만 넣는다(표본 데이터에는 그 역이 없을 수 있다).
+    for alias, station_id in extra_aliases.items():
+        if alias not in groups and station_id in groups:
             aliases.setdefault(alias, station_id)
 
     return BuildResult(

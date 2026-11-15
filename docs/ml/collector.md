@@ -2,7 +2,7 @@
 
 설계는 `docs/ml/2026-11-13-train-eta-model-plan.md` §2, 코드는 `server/ml/`에 있다. 이 문서는 수집기를 **무료 상시 VM**(리눅스)에 띄우는 방법과, VM이 준비되기 전에 **개발 PC**(Windows)에서 돌리는 방법을 적는다.
 
-> **2026-11-15 첫 실행에서 확인한 것:** 위치 키가 정상 호출 1,000회에서 `ERROR-337`로 막혔다(`docs/ml/2026-11-15-first-run-observations.md` §0). 같은 날 키를 바꾼 뒤에는 66분 동안 2,508회를 오류 없이 불렀다(같은 문서 §8). 하루 4.6만 회를 버티는지는 아직 모르므로 처음 며칠은 `key_usage.quota_hit_at`을 본다. 한도에 걸리면 `--lines`·`--period`로 줄인다(예: `--lines 경의중앙선,수인분당선 --period 60`이면 하루 약 2,400회). 수집기 키는 서버가 쓰는 키와 **다른 값**이어야 한다. 같은 값이면 수집기가 한도에 걸릴 때 앱도 멈춘다.
+> **2026-11-15 첫 실행에서 확인한 것:** 위치 키가 정상 호출 1,000회에서 `ERROR-337`로 막혔다(`docs/ml/2026-11-15-first-run-observations.md` §0). 같은 날 키를 바꾼 뒤에는 66분 동안 2,508회를 오류 없이 불렀다(같은 문서 §8). 하루 4.6만 회를 버티는지는 아직 모르므로 처음 며칠은 `key_usage.quota_hit_at`을 본다. 한도에 걸리면 `--lines`·`--period`로 줄인다(예: `--lines 경의중앙선,수인분당선 --period 60`이면 하루 약 2,400회). 2026-11-15 사용자 결정으로 지금은 수집기와 서버가 **같은 키 값**을 쓴다. 이 경우 수집기가 한도에 걸리면 앱의 실시간 도착도 자정까지 멈추므로, 수집을 시작한 첫날은 `key_usage.quota_hit_at`을 꼭 본다. 걸리면 수집기 전용 키를 따로 넣는다.
 
 ## 1. 수집기가 하는 일
 
@@ -13,6 +13,24 @@
 - 시간 계산은 코드 안에서 KST로 한다. VM의 시간대가 달라도 수집 시간은 맞지만, 아래 백업 타이머는 VM 시간대를 따르므로 KST로 맞춘다.
 
 ## 2. VM 준비 (사용자가 할 일)
+
+### 빠른 설치 — 스크립트 한 번
+
+VM을 만들고 SSH로 들어간 뒤 아래 두 줄이면 된다(Ubuntu 24.04 권장).
+
+```bash
+git clone <저장소 주소> ~/subway_easy
+bash ~/subway_easy/server/ml/deploy/setup_vm.sh
+```
+
+- 스크립트는 시간대를 KST로 맞추고, 가상 환경과 의존성을 깔고, `.env` 틀(키 이름 세 줄, 값은 비움)을 만들고, `systemd` 서비스와 백업 타이머를 등록한다.
+- 처음에는 키가 없으므로 "아직 키가 없어 수집기를 시작하지 않았습니다"에서 멈춘다. `nano ~/subway_easy/server/.env`로 `SEOUL_POSITION_API_KEY=` 뒤에 값을 넣고 **같은 스크립트를 다시 실행**하면, 한 바퀴 불러 확인한 뒤 수집기를 시작한다.
+- 스크립트는 키 값을 읽거나 출력하지 않는다(값이 있는 줄이 있는지만 본다). 여러 번 돌려도 된다.
+- PC에서 돌리던 수집은 VM을 시작하기 전에 멈춘다(§6).
+
+아래는 같은 일을 손으로 하는 순서다. 스크립트를 썼다면 §5(상태 확인)로 넘어간다.
+
+### 손으로 설치
 
 Oracle Cloud Always Free 같은 상시 VM을 기준으로 적었다. Ubuntu 24.04(Python 3.12 포함)를 권한다. 아래에서 `ubuntu`는 VM 계정 이름이고, 다르면 바꾼다.
 
@@ -46,6 +64,8 @@ sqlite3 ml_data/collector.sqlite "SELECT COUNT(*) FROM events; SELECT * FROM key
 ```
 
 ## 3. `systemd` 서비스
+
+단위 파일의 원본은 `server/ml/deploy/`에 있다(`@SERVER_DIR@`·`@USER@`는 설치 스크립트가 채운다). 아래는 계정이 `ubuntu`일 때 채워진 모습이다.
 
 `/etc/systemd/system/subway-collector.service`:
 
@@ -146,7 +166,7 @@ sqlite3 ml_data/collector.sqlite "SELECT line, statn_id, statn_nm FROM station_m
 ```
 
 - `key_usage.quota_hit_at`에 값이 있으면 그 키가 그날 한도에 걸린 것이다. **그 시각과 그때까지의 `calls`가 그 키의 실제 일일 한도**이므로 설계 문서 §0에 적는다.
-- 마지막 질의에 나오는 역은 우리 역 표와 잇지 못한 이름이다. 서버의 별칭 표(`stations.sqlite`의 `aliases`)에 더한 뒤 수집기를 다시 띄우면, 이미 쌓인 이벤트까지 이어진다.
+- 마지막 질의에 나오는 역은 우리 역 표와 잇지 못한 이름이다. `server/scripts/build_stations.py`의 `EXTRA_ALIASES`에 더하고 역 표를 다시 만든 뒤(`python -m scripts.build_stations data/raw/station_master.json data/stations.sqlite data/raw/station_info.json data/raw/realtime_directions.json`) 수집기를 다시 띄우면, 이미 쌓인 이벤트까지 이어진다. 2026-11-15에 다섯 개(성수종착, 세종왕릉, 한국항공대, 시우, 4.19 민주묘지)를 이렇게 더했다.
 
 ## 6. 개발 PC(Windows)에서 돌리기 — VM 준비 전의 대안
 

@@ -79,3 +79,21 @@ def test_real_api_names_verified_against_the_live_api(real_index):
     shared = "총신대입구(이수)"
     assert real_index.get("이수").api_name == real_index.get("총신대입구").api_name == shared
     assert real_index.shares_api_name(real_index.get("이수"))
+
+
+@pytest.mark.parametrize(
+    "raw, line, expected",
+    [
+        ("성수종착", "2호선", "성수"),
+        ("세종왕릉", "경강선", "세종대왕릉"),
+        ("한국항공대", "경의중앙선", "화전"),
+        ("시우", "서해선", "원곡"),
+        ("4.19 민주묘지", "우이신설선", "4.19민주묘지"),
+    ],
+)
+def test_real_table_resolves_position_api_names(raw, line, expected):
+    # 위치 API가 쓰는 이름(2026-11-15 수집에서 잇지 못한 다섯 개)이 실제 역 표에서 이어진다.
+    from app.services.station_index import StationIndex
+
+    station = StationIndex.load("data/stations.sqlite").resolve(raw, line)
+    assert station is not None and station.id == expected and line in station.lines

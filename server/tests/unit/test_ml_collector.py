@@ -341,3 +341,21 @@ def test_restart_reconnects_stations_that_resolve_now(http, store, index, clock)
     con = sqlite3.connect(store.path)
     assert con.execute("SELECT station_id FROM events").fetchall() == [(banghwa,)]
     con.close()
+
+
+@respx.mock
+def test_key_echoed_in_a_response_is_masked_before_storing(http, store, index, clock):
+    # 응답 본문은 압축해 저장하므로 파일 바이트 검사로는 안 보인다. 풀어서 확인한다.
+    import zlib
+
+    def mutate(body: dict) -> None:
+        body["errorMessage"]["link"] = "http://swopenapi.seoul.go.kr/api/subway/POSKEY111/json"
+
+    respx.get(POSITION_URL).mock(return_value=fixture_response("seoul_position_line5", mutate))
+    assert _collector(http, store, index, clock).poll_line("5호선") == "INFO-000"
+    store.commit()
+    con = sqlite3.connect(store.path)
+    (blob,) = con.execute("SELECT body FROM raw_snapshots").fetchone()
+    con.close()
+    text = zlib.decompress(blob).decode("utf-8")
+    assert "POSKEY111" not in text and "/api/subway/***/json" in text

@@ -167,7 +167,8 @@ class Collector:
         if not isinstance(body, dict) or code is None:
             logger.warning("위치 API 본문을 읽을 수 없음 (%s, HTTP %s)", line, response.status_code)
             return "BAD_BODY", "", None
-        return code, response.text, body
+        # 서울시 응답은 키를 되돌려 주지 않지만, 혹시 들어 있어도 저장하지 않게 가린다.
+        return code, response.text.replace(key, "***"), body
 
     def _save_events(self, body: dict, line: str, received_at: datetime) -> None:
         events, skipped = parse_rows(body, line, received_at)

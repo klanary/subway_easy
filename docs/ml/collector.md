@@ -14,6 +14,21 @@
 
 ## 2. VM 준비 (사용자가 할 일)
 
+### 지금 돌고 있는 VM (2026-11-16 만듦)
+
+| 항목 | 값 |
+|---|---|
+| 클라우드 | Azure, 구독 Azure for Students(학교 계정), 리소스 그룹 `subway-collector-rg` |
+| VM | `subway-collector`, Korea Central(서울), Ubuntu 24.04, Standard_B2ts_v2(vCPU 2, 메모리 1GB) + 스왑 1GB, 표준 SSD 30GB |
+| 공인 IP | `20.214.155.56`(SSH 22번만 열림, 키로만 접속) |
+| 접속 | `ssh -i ~/.ssh/subway_vm azureuser@20.214.155.56` (계정은 `azureuser`, 키는 PC의 `C:\Users\klanary\.ssh\subway_vm`) |
+| 비용 | 화면 표시 VM 시간당 0.0130달러(월 약 9.5달러). 디스크·IP를 더해 월 약 15달러로 어림. 학생 크레딧에서 빠진다 |
+
+- Oracle Cloud는 쓰지 못해 Azure로 정했다. 학생 구독의 서울 리전에서는 무료로 알려진 B1s·B2ats_v2를 고를 수 없어("사용할 수 없음") 가장 싼 B2ts_v2를 골랐다.
+- 크레딧이 떨어지면 VM이 멈춘다. Azure 포털의 구독 화면에서 남은 크레딧을 가끔 본다.
+- 코드를 고친 뒤 VM에 반영: `ssh -i ~/.ssh/subway_vm azureuser@20.214.155.56 'cd ~/subway_easy && git pull && sudo systemctl restart subway-collector'`.
+- 아래 명령의 `ubuntu`는 이 VM에서는 `azureuser`로 바꿔 읽는다.
+
 ### 빠른 설치 — 스크립트 한 번
 
 VM을 만들고 SSH로 들어간 뒤 아래 두 줄이면 된다(Ubuntu 24.04 권장).
@@ -24,6 +39,7 @@ bash ~/subway_easy/server/ml/deploy/setup_vm.sh
 ```
 
 - 스크립트는 시간대를 KST로 맞추고, 가상 환경과 의존성을 깔고, `.env` 틀(키 이름 세 줄, 값은 비움)을 만들고, `systemd` 서비스와 백업 타이머를 등록한다.
+- 키 확인은 `--once --any-hour`로 하므로 새벽(01:00~05:00)에 돌려도 바로 끝난다. 서비스는 그 시간에는 쉬다가 05:00에 수집을 시작한다.
 - 처음에는 키가 없으므로 "아직 키가 없어 수집기를 시작하지 않았습니다"에서 멈춘다. `nano ~/subway_easy/server/.env`로 `SEOUL_POSITION_API_KEY=` 뒤에 값을 넣고 **같은 스크립트를 다시 실행**하면, 한 바퀴 불러 확인한 뒤 수집기를 시작한다.
 - 스크립트는 키 값을 읽거나 출력하지 않는다(값이 있는 줄이 있는지만 본다). 여러 번 돌려도 된다.
 - PC에서 돌리던 수집은 VM을 시작하기 전에 멈춘다(§6).
@@ -32,7 +48,7 @@ bash ~/subway_easy/server/ml/deploy/setup_vm.sh
 
 ### 손으로 설치
 
-Oracle Cloud Always Free 같은 상시 VM을 기준으로 적었다. Ubuntu 24.04(Python 3.12 포함)를 권한다. 아래에서 `ubuntu`는 VM 계정 이름이고, 다르면 바꾼다.
+상시 리눅스 VM이면 어디든 같다(처음에는 Oracle Cloud를 기준으로 적었다). Ubuntu 24.04(Python 3.12 포함)를 권한다. 아래에서 `ubuntu`는 VM 계정 이름이고, 다르면 바꾼다.
 
 ```bash
 sudo timedatectl set-timezone Asia/Seoul
@@ -59,7 +75,7 @@ chmod 600 ~/subway_easy/server/.env
 
 ```bash
 cd ~/subway_easy/server
-.venv/bin/python -m ml.collector --once
+.venv/bin/python -m ml.collector --once --any-hour
 sqlite3 ml_data/collector.sqlite "SELECT COUNT(*) FROM events; SELECT * FROM key_usage;"
 ```
 

@@ -43,7 +43,7 @@ def test_setup_script_sets_timezone_fills_placeholders_and_waits_for_keys():
     assert "timedatectl set-timezone Asia/Seoul" in script
     assert "@SERVER_DIR@" in script and "@USER@" in script
     assert "chmod 600" in script
-    assert "ml.collector --once" in script  # 키가 있을 때만 한 바퀴 확인 뒤 서비스 시작
+    assert "ml.collector --once --any-hour" in script  # 키가 있을 때만 한 바퀴 확인 뒤 서비스 시작
     assert "\r" not in script  # CRLF면 리눅스에서 실행되지 않는다
 
 

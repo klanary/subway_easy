@@ -1,0 +1,9 @@
+[Unit]
+Description=지금출발 수집 DB 백업(매일 02:10 KST, 수집기가 쉬는 시간)
+
+[Timer]
+OnCalendar=*-*-* 02:10:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

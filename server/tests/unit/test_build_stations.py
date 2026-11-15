@@ -187,3 +187,24 @@ def test_row_fixes_split_gyeongwon_and_rename_gtx_unjeong(tmp_path):
         ("운정", "경의중앙선"),
     ]
     assert {s.id for s in build(rows, separate={}, api_names={}).stations} >= {"운정", "운정중앙"}
+
+
+def test_extra_aliases_link_other_names_to_existing_stations():
+    rows, _ = read_master_csv(SAMPLE)
+    extra = {"동서울": "강변", "없는별명": "세상에없는역", "이수": "강변"}
+    aliases = dict(build(rows, separate=SEP, api_names={}, extra_aliases=extra).aliases)
+    assert aliases["동서울"] == "강변"
+    assert "없는별명" not in aliases  # 가리키는 역이 없으면 만들지 않는다
+    assert "이수" not in aliases  # 역 id와 같은 별칭은 만들지 않는다(id가 우선)
+
+
+def test_position_api_names_are_listed_as_extra_aliases():
+    from scripts.build_stations import EXTRA_ALIASES
+
+    assert EXTRA_ALIASES == {
+        "성수종착": "성수",
+        "세종왕릉": "세종대왕릉",
+        "한국항공대": "화전",
+        "시우": "원곡",
+        "4.19 민주묘지": "4.19민주묘지",
+    }

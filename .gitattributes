@@ -2,3 +2,5 @@
 android/gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+# 리눅스 VM에서 쓰는 수집기 배포 파일은 LF로 고정한다.
+server/ml/deploy/* text eol=lf

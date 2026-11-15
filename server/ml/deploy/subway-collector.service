@@ -1,0 +1,14 @@
+[Unit]
+Description=지금출발 열차 위치 수집기
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@SERVER_DIR@
+ExecStart=@SERVER_DIR@/.venv/bin/python -m ml.collector
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

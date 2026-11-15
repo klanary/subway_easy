@@ -1,0 +1,8 @@
+[Unit]
+Description=지금출발 수집 DB 백업
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@SERVER_DIR@
+ExecStart=@SERVER_DIR@/.venv/bin/python -m ml.backup

@@ -24,3 +24,6 @@ android/.idea/
 
 # 로컬 작업 기록(superpowers 진행 기록)
 .superpowers/
+
+# 열차 위치 수집 데이터(수집기 DB·로그·백업)
+server/ml_data/

@@ -19,13 +19,18 @@ from pathlib import Path
 
 from app.core.clock import KST
 from ml.dataset import Run, build_runs, load_events, station_ids, station_names
+from ml.scopes import Scope, band_of, scope_key
 
-VERSION = 1
+VERSION = 2  # 2: first_seen·last_seen, scopes, 창·기준일 정보
 MIN_DAYS = 3  # 관측 일수 하한
 SLOT_WIDTH_SEC = 120  # 열차 번호 없이 묶을 때 한 칸의 폭
 FALLBACK_DWELL_SEC = 30  # 출발이 안 찍힌 역: 도착 + 이만큼(호선 정차 중앙값이 없을 때)
 STABLE_WITHIN_SEC = 300  # 같은 열차 번호의 출발 시각이 날마다 이 안이면 "같은 열차"
 STABLE_RATIO = 0.8  # 이 비율 이상이면 열차 번호로 묶는다
+WINDOW = {1: 20, 2: 8, 3: 8}  # 요일 구분별로 쓰는 최근 날짜 수
+STALE_DAYS = {1: 3, 2: 2, 3: 2}  # 이만큼 연속으로 안 보인 열차는 뺀다
+MIN_DAYS_AFTER_CHANGE = 2  # 변경이 확정된 단위의 관측 일수 하한
+EPOCH_MARGIN_SEC = 300  # 기준일을 시간대 경계 양쪽으로 번지게 하는 폭
 _MIN_DWELL_SAMPLES = 20
 _MAX_DWELL_SEC = 600
 
@@ -53,6 +58,8 @@ class Entry:
     n_days: int
     dest_name: str | None
     express: int
+    first_seen: str | None = None  # 이 시각을 만든 관측의 첫 날짜(ISO)
+    last_seen: str | None = None
 
 
 def line_dwell(runs: list[Run], fallback: int) -> dict[str, int]:
@@ -108,13 +115,13 @@ def departure_points(
     return points
 
 
-def train_no_stability(runs: list[Run]) -> dict[str, float]:
+def stability_from_points(points: list[Departure]) -> dict[str, float]:
     """호선별로, 같은 요일 구분에서 2일 이상 본 (역, 열차 번호)의 출발 시각이 300초 안인 비율.
 
     2일 이상 본 것이 없는 호선은 결과에 없다(판단할 수 없음).
     """
     by_key: dict[tuple, dict[date, int]] = defaultdict(dict)
-    for p in departure_points(runs):
+    for p in points:
         days = by_key[(p.line, p.day_type, p.direction, p.statn_id, p.train_no)]
         days[p.service_date] = min(p.secs, days.get(p.service_date, p.secs))
     stable: Counter[str] = Counter()
@@ -128,59 +135,182 @@ def train_no_stability(runs: list[Run]) -> dict[str, float]:
     return {line: stable[line] / total[line] for line in total}
 
 
+def train_no_stability(runs: list[Run]) -> dict[str, float]:
+    return stability_from_points(departure_points(runs))
+
+
 def _common(values: list) -> object:
     return Counter(values).most_common(1)[0][0] if values else None
 
 
-def _by_train_no(points: list[Departure], min_days: int) -> list[Entry]:
+def _entry(group: list[Departure], train_no: str | None) -> Entry:
+    dates = [p.service_date for p in group]
+    return Entry(
+        secs=round(statistics.median(p.secs for p in group)),
+        train_no=train_no,
+        n_days=len(set(dates)),
+        dest_name=_common([p.dest_name for p in group]),
+        express=_common([p.express for p in group]),
+        first_seen=min(dates).isoformat(),
+        last_seen=max(dates).isoformat(),
+    )
+
+
+def _by_train_no(points: list[Departure]) -> list[Entry]:
+    """열차 번호마다 하나. 관측 일수 하한은 부르는 쪽이 건다."""
     by_train: dict[str, dict[date, Departure]] = defaultdict(dict)
     for p in points:
         seen = by_train[p.train_no].get(p.service_date)
         if seen is None or p.secs < seen.secs:
             by_train[p.train_no][p.service_date] = p
-    entries: list[Entry] = []
-    for train_no, days in by_train.items():
-        if len(days) < min_days:
-            continue
-        group = list(days.values())
-        entries.append(
-            Entry(
-                secs=round(statistics.median(p.secs for p in group)),
-                train_no=train_no,
-                n_days=len(days),
-                dest_name=_common([p.dest_name for p in group]),
-                express=_common([p.express for p in group]),
-            )
-        )
-    return entries
+    return [_entry(list(days.values()), train_no) for train_no, days in by_train.items()]
 
 
-def _by_slots(points: list[Departure], min_days: int, slot_width: int) -> list[Entry]:
+def _by_slots(points: list[Departure], slot_width: int) -> list[Entry]:
     entries: list[Entry] = []
     slot: list[Departure] = []
-
-    def close() -> None:
-        if len(slot) >= min_days:
-            entries.append(
-                Entry(
-                    secs=round(statistics.median(p.secs for p in slot)),
-                    train_no=None,
-                    n_days=len(slot),
-                    dest_name=_common([p.dest_name for p in slot]),
-                    express=_common([p.express for p in slot]),
-                )
-            )
-
     for p in sorted(points, key=lambda p: p.secs):
         # 한 칸에는 하루에 한 대만 들어간다. 같은 날 열차가 또 오면 다음 칸이다.
         too_far = slot and p.secs - slot[0].secs > slot_width
         same_day = any(q.service_date == p.service_date for q in slot)
         if too_far or same_day:
-            close()
+            entries.append(_entry(slot, None))
             slot = []
         slot.append(p)
-    close()
+    if slot:
+        entries.append(_entry(slot, None))
     return entries
+
+
+def _near_bands(secs: int) -> set[int]:
+    """그 시각의 시간대와, 경계 5분 안이면 이웃 시간대까지."""
+    return {band_of(secs), band_of(secs - EPOCH_MARGIN_SEC), band_of(secs + EPOCH_MARGIN_SEC)}
+
+
+def build_b1_from_points(
+    points: list[Departure],
+    *,
+    modes: dict[str, str] | None = None,
+    min_days: int = MIN_DAYS,
+    slot_width: int = SLOT_WIDTH_SEC,
+    window: dict[int, int] | None = None,
+    stale_days: dict[int, int] | None = None,
+    epochs: dict[Scope, date] | None = None,
+    active: dict[Scope, set[date]] | None = None,
+    min_days_after_change: int = MIN_DAYS_AFTER_CHANGE,
+    as_of: date | None = None,
+    now: datetime | None = None,
+    dwell: dict[str, int] | None = None,
+) -> dict:
+    """출발 시각 목록으로 결과물을 만든다. B1을 지키는 세 겹을 여기서 건다.
+
+    1. 창(`window`): 요일 구분별로 가장 최근 N개 날짜만 쓴다.
+    2. 안 보인 열차 빼기(`stale_days`): 그 단위의 최근 활동 날짜에 연속으로 안 보인 열차를 뺀다.
+    3. 기준일(`epochs`): 시간표가 바뀐 것으로 확정된 단위는 변경일 이후 날짜만 쓴다.
+    """
+    epochs = epochs or {}
+    if as_of is not None:
+        points = [p for p in points if p.service_date <= as_of]
+    if window is not None:
+        dates_of: dict[tuple[str, int], set[date]] = defaultdict(set)
+        for p in points:
+            dates_of[(p.line, p.day_type)].add(p.service_date)
+        keep = {
+            key: set(sorted(dates)[-window[key[1]] :]) if key[1] in window else dates
+            for key, dates in dates_of.items()
+        }
+        points = [p for p in points if p.service_date in keep[(p.line, p.day_type)]]
+    if epochs:
+        # 시간대 경계를 넘나드는 열차의 옛 관측이 섞이지 않게 기준일을 양쪽 5분으로 번지게 한다.
+        points = [
+            p
+            for p in points
+            if not any(
+                (epoch := epochs.get((p.day_type, p.line, p.direction, band))) is not None
+                and p.service_date < epoch
+                for band in _near_bands(p.secs)
+            )
+        ]
+
+    stability = stability_from_points(points) if modes is None else {}
+    lines = sorted({p.line for p in points})
+    if modes is None:
+        modes = {
+            line: "train_no" if stability.get(line, 1.0) >= STABLE_RATIO else "slots"
+            for line in lines
+        }
+    else:
+        modes = {line: modes.get(line, "train_no") for line in lines}
+
+    # 단위별 활동 날짜(안 보인 열차를 셀 때 쓴다)와 호선·요일 구분별 쓰인 날짜.
+    seen_dates: dict[Scope, set[date]] = defaultdict(set)
+    used_dates: dict[tuple[str, int], set[date]] = defaultdict(set)
+    by_cell: dict[tuple, list[Departure]] = defaultdict(list)
+    for p in points:
+        seen_dates[(p.day_type, p.line, p.direction, band_of(p.secs))].add(p.service_date)
+        used_dates[(p.line, p.day_type)].add(p.service_date)
+        by_cell[(p.day_type, p.line, p.direction, p.statn_id)].append(p)
+
+    # 기준일 뒤 날짜가 모자란 단위는 시각을 내지 않는다(다시 배우는 중).
+    scopes: dict[str, dict] = {}
+    retraining: set[Scope] = set()
+    for scope, epoch in sorted(epochs.items()):
+        day_type, line, _, _ = scope
+        after = [d for d in used_dates.get((line, day_type), ()) if d >= epoch]
+        if (line, day_type) in used_dates and len(after) < min_days_after_change:
+            retraining.add(scope)
+            scopes[scope_key(scope)] = {"state": "retraining", "since": epoch.isoformat()}
+
+    cells: dict[str, list[dict]] = {}
+    for (day_type, line, direction, statn_id), group in sorted(by_cell.items()):
+        if modes[line] == "train_no":
+            entries = _by_train_no(group)
+        else:
+            entries = _by_slots(group, slot_width)
+        kept: list[Entry] = []
+        for entry in entries:
+            scope = (day_type, line, direction, band_of(entry.secs))
+            if scope in retraining:
+                continue
+            changed = any((day_type, line, direction, b) in epochs for b in _near_bands(entry.secs))
+            if entry.n_days < (min_days_after_change if changed else min_days):
+                continue
+            if stale_days is not None and day_type in stale_days:
+                activity = active[scope] if active is not None and scope in active else None
+                if activity is None:
+                    activity = seen_dates[scope]
+                last = date.fromisoformat(entry.last_seen)
+                if sum(d > last for d in activity) >= stale_days[day_type]:
+                    continue
+            kept.append(entry)
+        if kept:
+            kept.sort(key=lambda e: (e.secs, e.train_no or ""))
+            cells[f"{day_type}|{line}|{direction}|{statn_id}"] = [vars(e).copy() for e in kept]
+
+    dates_by_type: dict[int, set[date]] = defaultdict(set)
+    for (_, day_type), dates in used_dates.items():
+        dates_by_type[day_type] |= dates
+    all_dates = sorted(set().union(*used_dates.values())) if used_dates else []
+    return {
+        "version": VERSION,
+        "kind": "b1",
+        "built_at": (now or datetime.now(KST)).astimezone(KST).isoformat(timespec="seconds"),
+        "as_of": as_of.isoformat() if as_of is not None else None,
+        "date_from": all_dates[0].isoformat() if all_dates else None,
+        "date_to": all_dates[-1].isoformat() if all_dates else None,
+        "n_dates": {str(k): len(v) for k, v in sorted(dates_by_type.items())},
+        "n_departures": len(points),
+        "min_days": min_days,
+        "min_days_after_change": min_days_after_change,
+        "slot_width": slot_width,
+        "window": {str(k): v for k, v in sorted(window.items())} if window else None,
+        "stale_days": {str(k): v for k, v in sorted(stale_days.items())} if stale_days else None,
+        "modes": modes,
+        "dwell": dict(sorted((dwell or {}).items())),
+        "train_no_stability": {k: round(v, 3) for k, v in sorted(stability.items())},
+        "scopes": scopes,
+        "cells": cells,
+    }
 
 
 def build_b1(
@@ -191,52 +321,19 @@ def build_b1(
     fallback_dwell: int = FALLBACK_DWELL_SEC,
     mode: str = "auto",
     now: datetime | None = None,
+    window: dict[int, int] | None = None,
+    stale_days: dict[int, int] | None = None,
+    epochs: dict[Scope, date] | None = None,
+    as_of: date | None = None,
 ) -> dict:
     """결과물(JSON으로 쓸 dict). mode: auto(호선별로 고름), train_no, slots."""
     dwell = line_dwell(runs, fallback_dwell)
     points = departure_points(runs, fallback_dwell=fallback_dwell, dwell=dwell)
-    stability = train_no_stability(runs) if mode == "auto" else {}
-    lines = sorted({p.line for p in points})
-    if mode == "auto":
-        modes = {
-            line: "train_no" if stability.get(line, 1.0) >= STABLE_RATIO else "slots"
-            for line in lines
-        }
-    else:
-        modes = {line: mode for line in lines}
-
-    by_cell: dict[tuple, list[Departure]] = defaultdict(list)
-    for p in points:
-        by_cell[(p.day_type, p.line, p.direction, p.statn_id)].append(p)
-    cells: dict[str, list[dict]] = {}
-    for (day_type, line, direction, statn_id), group in sorted(by_cell.items()):
-        if modes[line] == "train_no":
-            entries = _by_train_no(group, min_days)
-        else:
-            entries = _by_slots(group, min_days, slot_width)
-        if entries:
-            entries.sort(key=lambda e: (e.secs, e.train_no or ""))
-            cells[f"{day_type}|{line}|{direction}|{statn_id}"] = [vars(e).copy() for e in entries]
-
-    dates_by_type: dict[int, set[date]] = defaultdict(set)
-    for run in runs:
-        dates_by_type[run.day_type].add(run.service_date)
-    all_dates = sorted({run.service_date for run in runs})
-    return {
-        "version": VERSION,
-        "kind": "b1",
-        "built_at": (now or datetime.now(KST)).astimezone(KST).isoformat(timespec="seconds"),
-        "date_from": all_dates[0].isoformat() if all_dates else None,
-        "date_to": all_dates[-1].isoformat() if all_dates else None,
-        "n_dates": {str(k): len(v) for k, v in sorted(dates_by_type.items())},
-        "n_departures": len(points),
-        "min_days": min_days,
-        "slot_width": slot_width,
-        "modes": modes,
-        "dwell": dict(sorted(dwell.items())),
-        "train_no_stability": {k: round(v, 3) for k, v in sorted(stability.items())},
-        "cells": cells,
-    }
+    modes = None if mode == "auto" else {p.line: mode for p in points}
+    return build_b1_from_points(
+        points, modes=modes, min_days=min_days, slot_width=slot_width, window=window,
+        stale_days=stale_days, epochs=epochs, as_of=as_of, now=now, dwell=dwell,
+    )  # fmt: skip
 
 
 class MeasuredTimetable:
@@ -246,6 +343,13 @@ class MeasuredTimetable:
         self._cells: dict[str, list[Entry]] = {
             key: [Entry(**e) for e in entries] for key, entries in artifact["cells"].items()
         }
+        self._scopes: dict[str, dict] = artifact.get("scopes") or {}
+
+    def scope_state(self, day_type: int, line: str, direction: int, secs: int) -> str:
+        """그 시각이 속한 단위의 상태: retraining(다시 배우는 중), suspect(변경 의심), ok."""
+        found = self._scopes.get(scope_key((day_type, line, direction, band_of(secs))))
+        state = found.get("state") if found else None
+        return state if state in ("retraining", "suspect") else "ok"
 
     def _cell(self, day_type: int, line: str, direction: int, statn_id: str) -> list[Entry]:
         return self._cells.get(f"{day_type}|{line}|{direction}|{statn_id}", [])

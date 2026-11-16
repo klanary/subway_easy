@@ -21,11 +21,12 @@ def test_median_departure_per_train_number():
     d1, d2, d3 = weekdays(3)
     runs = _runs({d1: [("100", H8)], d2: [("100", H8 + 20)], d3: [("100", H8 + 60)]}, dwell=30)
     art = build_b1(runs, min_days=3)
-    assert art["kind"] == "b1" and art["version"] == 1
+    assert art["kind"] == "b1" and art["version"] == 2
     assert art["modes"] == {"9호선": "train_no"}
     (entry,) = art["cells"][CELL_A]
     assert entry == {
         "secs": H8 + 20 + 30, "train_no": "100", "n_days": 3, "dest_name": "D행", "express": 0,
+        "first_seen": d1.isoformat(), "last_seen": d3.isoformat(),
     }  # fmt: skip
     assert (art["date_from"], art["date_to"]) == (d1.isoformat(), d3.isoformat())
     assert art["n_dates"] == {"1": 3}
@@ -147,3 +148,132 @@ def test_departure_points_can_reuse_a_given_dwell():
     points = departure_points(arrivals, dwell={"9호선": 47})
     assert points[0].secs == H8 + 47
     assert build_b1(with_dep, min_days=3)["dwell"] == {"9호선": 47}
+
+
+# --- 최근 창, 안 보인 열차 빼기, 변경 기준일(시간표 변경 계획 Task 2) ---
+
+
+def _points(days, starts, **kw):
+    from tests.ml_helpers import timetable
+
+    return departure_points(build_runs(timetable(days, starts, **kw)))
+
+
+def _a(artifact, key=CELL_A):
+    return {e["train_no"]: e for e in artifact["cells"].get(key, [])}
+
+
+def test_window_keeps_only_recent_dates():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(6)
+    points = _points(days[:3], {"100": H8}) + _points(days[3:], {"100": H8 + 600})
+    entry = _a(build_b1_from_points(points, window={1: 3}))["100"]
+    assert (entry["secs"], entry["n_days"]) == (H8 + 600 + 30, 3)
+    # 창이 없으면 6일이 다 쓰인다(시각이 10분 벌어져 자동으로는 묶음 방식이 되므로 방식을 정해 준다).
+    whole = build_b1_from_points(points, modes={"9호선": "train_no"})
+    assert _a(whole)["100"]["n_days"] == 6
+
+
+def test_as_of_ignores_later_dates():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(6)
+    points = _points(days[:3], {"100": H8}) + _points(days[3:], {"100": H8 + 600})
+    art = build_b1_from_points(points, as_of=days[2], window={1: 3})
+    assert _a(art)["100"]["secs"] == H8 + 30
+    assert art["as_of"] == days[2].isoformat()
+
+
+def test_train_gone_for_stale_days_is_dropped():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(6)
+    points = _points(days[:3], {"100": H8}) + _points(days, {"200": H8 + 300})
+    assert set(_a(build_b1_from_points(points, stale_days={1: 3}))) == {"200"}
+    assert set(_a(build_b1_from_points(points, stale_days={1: 4}))) == {"100", "200"}
+    assert set(_a(build_b1_from_points(points))) == {"100", "200"}
+
+
+def test_days_without_coverage_do_not_count_as_absence():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(6)
+    points = _points(days[:3], {"100": H8}) + _points(days, {"200": H8 + 300})
+    active = {(1, "9호선", 0, 8): set(days[:3]) | {days[4]}}
+    art = build_b1_from_points(points, stale_days={1: 3}, active=active)
+    assert set(_a(art)) == {"100", "200"}
+
+
+def test_epoch_drops_days_before_change_and_needs_two_days():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(7)
+    points = _points(days[:5], {"100": H8}) + _points(days[5:], {"100": H8 + 300})
+    assert _a(build_b1_from_points(points))["100"]["secs"] == H8 + 30  # 기준일이 없으면 옛 시각 쪽
+    art = build_b1_from_points(points, epochs={(1, "9호선", 0, 8): days[5]})
+    entry = _a(art)["100"]
+    assert (entry["secs"], entry["n_days"]) == (H8 + 300 + 30, 2)
+    assert (entry["first_seen"], entry["last_seen"]) == (days[5].isoformat(), days[6].isoformat())
+    assert art["scopes"] == {}
+
+
+def test_scope_with_one_day_after_change_is_retraining():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(6)
+    points = _points(days[:5], {"100": H8, "300": 10 * 3600}) + _points(
+        days[5:], {"100": H8 + 300, "300": 10 * 3600}
+    )
+    art = build_b1_from_points(points, epochs={(1, "9호선", 0, 8): days[5]})
+    assert "100" not in _a(art)
+    assert "300" in _a(art)  # 다른 시간대(10시)는 그대로
+    assert art["scopes"]["1|9호선|0|8"] == {"state": "retraining", "since": days[5].isoformat()}
+    table = MeasuredTimetable(art)
+    assert table.scope_state(1, "9호선", 0, 28900) == "retraining"
+    assert table.scope_state(1, "9호선", 0, 10 * 3600) == "ok"
+    assert table.scope_state(2, "9호선", 0, 28900) == "ok"
+
+
+def test_epoch_margin_covers_trains_near_band_edge():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(7)
+    before, after = 8 * 3600 + 58 * 60 - 30, 9 * 3600 + 60 - 30  # A역 출발 08:58:00 → 09:01:00
+    points = _points(days[:5], {"100": before}) + _points(days[5:], {"100": after})
+    art = build_b1_from_points(points, epochs={(1, "9호선", 0, 8): days[5]})
+    entry = _a(art)["100"]
+    assert (entry["secs"], entry["n_days"]) == (9 * 3600 + 60, 2)
+
+
+def test_version1_artifact_still_loads():
+    old = {"version": 1, "cells": {CELL_A: [
+        {"secs": H8, "train_no": "100", "n_days": 3, "dest_name": "D행", "express": 0}
+    ]}}  # fmt: skip
+    table = MeasuredTimetable(old)
+    assert table.departures(1, "9호선", 0, "A", after_secs=0, count=1)[0].first_seen is None
+    assert table.scope_state(1, "9호선", 0, H8) == "ok"
+
+
+def test_slots_mode_entries_carry_last_seen_and_obey_stale_days():
+    from ml.b1 import build_b1_from_points
+
+    days = weekdays(6)
+    points = _points(days[:3], {"1": H8}) + _points(days, {"2": H8 + 600})
+    modes = {"9호선": "slots"}
+    art = build_b1_from_points(points, modes=modes)
+    first, second = art["cells"][CELL_A]
+    assert (first["train_no"], first["last_seen"]) == (None, days[2].isoformat())
+    assert (second["first_seen"], second["last_seen"]) == (days[0].isoformat(), days[5].isoformat())
+    stale = build_b1_from_points(points, modes=modes, stale_days={1: 3})
+    assert [e["secs"] for e in stale["cells"][CELL_A]] == [H8 + 600 + 30]
+
+
+def test_build_b1_passes_new_options_through():
+    days = weekdays(6)
+    from tests.ml_helpers import timetable
+
+    runs = build_runs(timetable(days[:3], {"100": H8}) + timetable(days[3:], {"100": H8 + 600}))
+    art = build_b1(runs, window={1: 3})
+    assert art["version"] == 2 and art["window"] == {"1": 3}
+    assert _a(art)["100"]["secs"] == H8 + 600 + 30

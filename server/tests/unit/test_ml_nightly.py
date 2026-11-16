@@ -228,3 +228,43 @@ def test_main_uses_day_option_and_enforce_flag(tmp_path, paths):
     assert main(args) == 0
     assert artifact(paths)["as_of"] == DAYS[4].isoformat()
     assert main([*args, "--enforce"]) == 0 and artifact(paths)["enforce"] is True
+
+
+def test_official_diff_file_confirms_in_one_day(tmp_path, paths):
+    # 공식 시간표가 그 단위에서 바뀐 것으로 나와 있으면 의심 하루 만에 확정한다.
+    db = make_db(tmp_path, [0] * 5 + [180])
+    diff = tmp_path / "official_diff.json"
+    data = {"checked_on": DAYS[5].isoformat(), "changed": {"1|9호선|0|6": 0.5}}
+    diff.write_text(json.dumps(data), encoding="utf-8")
+    assert night(db, paths, 6, official_diff_path=diff) == 0
+    (record,) = ChangeState.load(paths["state_path"]).records
+    assert (record.status, record.source, record.first_date) == ("confirmed", "official", DAYS[5])
+    # 변경 뒤 하루뿐이라, 적용 모드라면 그 단위는 다시 배우는 중이다.
+    assert night(db, paths, 6, official_diff_path=diff, enforce=True) == 0
+    assert artifact(paths)["scopes"]["1|9호선|0|6"]["state"] == "retraining"
+    assert CELL_A not in artifact(paths)["cells"]
+
+
+def test_official_fit_is_logged_when_a_timetable_cache_is_given(tmp_path, paths):
+    from ml.b0 import B0
+    from tests.unit.test_ml_official import CODES, cache_with
+
+    db = make_db(tmp_path, [0] * 3 + [180] * 5)
+    b0 = B0(cache_with(tmp_path / "tt"), CODES)  # 공식 시간표는 옛 시각 그대로
+    assert night(db, paths, 8, b0=b0) == 0
+    (record,) = ChangeState.load(paths["state_path"]).records
+    assert (record.status, record.official) == ("confirmed", "stale")
+    assert "공식 시간표가 아직 옛것" in paths["log_path"].read_text(encoding="utf-8")
+    assert artifact(paths)["changes"][0]["official"] == "stale"
+
+
+def test_missing_timetable_cache_is_skipped(tmp_path, paths):
+    db = make_db(tmp_path, [0] * 5)
+    args = [
+        "--db", str(db), "--points", str(paths["points_path"]), "--state", str(paths["state_path"]),
+        "--out", str(paths["out_path"]), "--log", str(paths["log_path"]),
+        "--day", (DAYS[4] + timedelta(days=1)).isoformat(),
+        "--timetable-cache", str(tmp_path / "없는폴더"),
+        "--official-diff", str(tmp_path / "없는파일.json"),
+    ]  # fmt: skip
+    assert main(args) == 0

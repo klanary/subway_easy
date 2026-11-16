@@ -53,3 +53,26 @@ def test_setup_script_is_valid_bash():
         pytest.skip("bash 없음")
     done = subprocess.run([bash, "-n", str(DEPLOY / "setup_vm.sh")], capture_output=True)
     assert done.returncode == 0, done.stderr.decode(errors="replace")
+
+
+def test_nightly_timer_runs_after_the_backup_and_before_collection():
+    timer = _read("subway-ml-nightly.timer")
+    assert "OnCalendar=*-*-* 02:40:00" in timer and "Persistent=true" in timer
+    assert "WantedBy=timers.target" in timer
+    assert "02:40" > "02:10"  # 백업(02:10) 뒤, 수집 시작(05:00) 전
+
+
+def test_nightly_service_runs_observe_mode_with_limits():
+    service = _read("subway-ml-nightly.service")
+    assert re.search(r"^ExecStart=@SERVER_DIR@/\.venv/bin/python -m ml\.nightly$", service, re.M)
+    assert "Type=oneshot" in service and "User=@USER@" in service
+    assert "After=subway-collector-backup.service" in service
+    assert "MemoryMax=500M" in service and "Nice=10" in service
+    assert "--enforce" not in service  # 적용 모드는 기준값을 맞춘 뒤 사용자가 켠다
+
+
+def test_setup_script_installs_the_nightly_units():
+    script = _read("setup_vm.sh")
+    assert "subway-ml-nightly.service" in script and "subway-ml-nightly.timer" in script
+    assert "enable --quiet --now subway-ml-nightly.timer" in script
+    assert "journalctl -u subway-ml-nightly" in script and "changes.md" in script

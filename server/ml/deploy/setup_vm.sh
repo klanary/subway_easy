@@ -7,7 +7,7 @@ set -euo pipefail
 #   bash ~/subway_easy/server/ml/deploy/setup_vm.sh
 #
 # 하는 일: 시간대 KST, Python 가상 환경과 의존성, .env 틀(값은 넣지 않는다),
-#          systemd 서비스(수집기)와 타이머(매일 02:10 백업) 등록.
+#          systemd 서비스(수집기)와 타이머(매일 02:10 백업, 02:40 시간표 변경 판단) 등록.
 # 키 값은 이 스크립트가 다루지 않는다. .env에 직접 넣는다.
 
 SERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -43,13 +43,15 @@ for name in "${KEY_NAMES[@]}"; do
 done
 
 echo "== 4/5 systemd 등록"
-for unit in subway-collector.service subway-collector-backup.service subway-collector-backup.timer; do
+for unit in subway-collector.service subway-collector-backup.service subway-collector-backup.timer \
+  subway-ml-nightly.service subway-ml-nightly.timer; do
   sed -e "s|@SERVER_DIR@|$SERVER_DIR|g" -e "s|@USER@|$RUN_USER|g" \
     "$SERVER_DIR/ml/deploy/$unit" | sudo tee "$UNIT_DIR/$unit" > /dev/null
 done
 sudo systemctl daemon-reload
 sudo systemctl enable --quiet subway-collector.service
 sudo systemctl enable --quiet --now subway-collector-backup.timer
+sudo systemctl enable --quiet --now subway-ml-nightly.timer
 
 echo "== 5/5 키 확인과 시작"
 # 값은 보지 않고, 세 이름 중 값이 있는 줄이 하나라도 있는지만 본다.
@@ -84,4 +86,5 @@ cat <<EOF
   로그:  journalctl -u subway-collector -n 50   /   tail $SERVER_DIR/ml_data/collector.log
   사용량: sqlite3 $SERVER_DIR/ml_data/collector.sqlite "SELECT * FROM key_usage ORDER BY day DESC LIMIT 6;"
   백업:  systemctl list-timers subway-collector-backup.timer   ($SERVER_DIR/ml_data/backups)
+  변경:  journalctl -u subway-ml-nightly -n 20   /   cat $SERVER_DIR/ml_data/changes.md
 EOF

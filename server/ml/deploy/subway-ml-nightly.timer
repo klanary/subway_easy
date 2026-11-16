@@ -1,0 +1,9 @@
+[Unit]
+Description=지금출발 밤 작업(매일 02:40 KST, 백업 뒤·수집 시작 전)
+
+[Timer]
+OnCalendar=*-*-* 02:40:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

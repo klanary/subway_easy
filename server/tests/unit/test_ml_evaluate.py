@@ -166,3 +166,102 @@ def test_lines_that_never_report_departures_are_scored_on_arrival_plus_dwell():
     summary = evaluate_b1(train, test).summary()
     assert (summary["total"], summary["coverage"]) == (3, 1.0)
     assert summary["model"]["mae"] == 40.0
+
+
+# --- 변경 전후·하루짜리 이상을 나눠 보기(시간표 변경 계획 Task 8) ---
+
+SCOPE_8 = (1, "9호선", 0, 8)
+
+
+def _changed_runs(n_old: int, n_new: int, shift: int = 300):
+    from tests.ml_helpers import timetable
+
+    days = weekdays(n_old + n_new)
+    events = timetable(days[:n_old], {"100": H8}) + timetable(days[n_old:], {"100": H8 + shift})
+    return days, build_runs(events)
+
+
+def test_observations_right_after_a_change_are_reported_apart():
+    from ml.changes import ChangeState, mark
+
+    days, runs = _changed_runs(5, 2)
+    train, test = split_by_date(runs, test_days=2)
+    state = ChangeState()
+    mark(state, [SCOPE_8], days[5], today=days[6], note="")
+    plain = evaluate_b1(train, test)
+    report = evaluate_b1(train, test, state=state)
+    assert report.by_phase["post_change"].total == 6  # 이틀 × 출발역 3곳
+    assert "stable" not in report.by_phase or report.by_phase["stable"].total == 0
+    assert report.overall.total == plain.overall.total == 6  # 숨기지 않는다
+    assert report.by_phase["post_change"].summary()["model"]["mae"] == 300.0
+    assert plain.by_phase == {}
+
+
+def test_change_inside_training_period_is_learned_and_counts_as_stable():
+    from ml.changes import ChangeState, mark
+
+    days, runs = _changed_runs(5, 3)
+    train, test = split_by_date(runs, test_days=1)
+    state = ChangeState()
+    mark(state, [SCOPE_8], days[5], today=days[6], note="")
+    report = evaluate_b1(train, test, state=state)
+    assert report.summary()["model"]["mae"] == 0.0  # 변경 뒤 이틀로 다시 배운 시각
+    assert report.by_phase["stable"].total == 3 and "post_change" not in report.by_phase
+    # 상태를 주지 않으면 옛 시각 쪽 중앙값으로 맞히므로 5분 틀린다.
+    assert evaluate_b1(train, test).summary()["model"]["mae"] == 300.0
+
+
+def test_change_known_only_after_training_does_not_leak():
+    from ml.changes import ChangeState, mark
+
+    # 변경일이 시험 기간 안이면 학습 쪽 B1에는 기준일을 적용하지 않는다.
+    days, runs = _changed_runs(6, 1)
+    train, test = split_by_date(runs, test_days=1)
+    state = ChangeState()
+    mark(state, [SCOPE_8], days[6], today=days[6], note="")
+    report = evaluate_b1(train, test, state=state)
+    assert report.summary()["coverage"] == 1.0  # 옛 시각으로라도 답한다
+    assert report.by_phase["post_change"].total == 3
+
+
+def test_cleared_suspect_days_are_incidents():
+    from ml.changes import ChangeState, clear, mark
+
+    days, runs = _changed_runs(5, 1, shift=240)
+    train, test = split_by_date(runs, test_days=1)
+    state = ChangeState()
+    mark(state, [SCOPE_8], days[5], today=days[5], note="")
+    clear(state, [SCOPE_8], today=days[5], note="하루짜리")
+    report = evaluate_b1(train, test, state=state)
+    assert report.by_phase["incident"].total == 3
+    text = render([report], title="평가", note="")
+    assert "구간별" in text and "하루짜리 이상" in text
+
+
+def test_render_without_state_has_no_phase_table():
+    train, test = split_by_date(_runs(6))
+    assert "구간별" not in render([evaluate_b1(train, test)], title="평가", note="")
+
+
+def test_cli_accepts_a_change_state_file(tmp_path):
+    from ml.changes import ChangeState, mark
+    from tests.ml_helpers import timetable
+
+    days = weekdays(7)
+    events = timetable(days[:5], {"100": H8}) + timetable(days[5:], {"100": H8 + 300})
+    db = write_db(tmp_path / "c.sqlite", events)
+    state = ChangeState()
+    mark(state, [SCOPE_8], days[5], today=days[6], note="")
+    state_path = tmp_path / "change_state.json"
+    state.save(state_path)
+    out = tmp_path / "report.md"
+    code = main(
+        ["--db", str(db), "--out", str(out), "--test-days", "2", "--changes", str(state_path)]
+    )
+    assert code == 0
+    text = out.read_text(encoding="utf-8")
+    assert "구간별" in text and "변경 직후" in text
+    assert "공식 시간표가 바뀌었으면" in text
+    broken = tmp_path / "broken.json"
+    broken.write_text("{", encoding="utf-8")
+    assert main(["--db", str(db), "--out", str(out), "--changes", str(broken)]) == 2

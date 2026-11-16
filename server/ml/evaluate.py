@@ -20,14 +20,24 @@ from pathlib import Path
 
 from app.services.station_index import StationIndex
 from ml.b0 import B0, TimetableCache, station_codes
-from ml.b1 import MIN_DAYS, SLOT_WIDTH_SEC, MeasuredTimetable, build_b1, departure_points
+from ml.b1 import (
+    MIN_DAYS,
+    MIN_DAYS_AFTER_CHANGE,
+    SLOT_WIDTH_SEC,
+    MeasuredTimetable,
+    build_b1,
+    departure_points,
+)
 from ml.b2 import MIN_N, SegmentModel, _percentile, build_b2
+from ml.changes import ChangeState, CorruptState
 from ml.dataset import ARRIVE, Run, build_runs, load_events
+from ml.scopes import band_of
 
 TEST_SHARE = 0.2
 NEAREST_MAX_GAP_SEC = 600  # 열차 번호 없이 맞출 때, 이보다 먼 예측 시각은 "예측 없음"으로 친다
 MAX_STOPS = 10  # B2: 몇 정거장 앞까지 평가할지
 DAY_TYPE_NAMES = {1: "평일", 2: "토요일", 3: "휴일"}
+PHASE_NAMES = {"stable": "안정", "post_change": "변경 직후", "incident": "하루짜리 이상"}
 
 
 class NotEnoughDates(Exception):
@@ -101,12 +111,21 @@ class Report:
     overall: Scores = field(default_factory=Scores)
     by_line: dict[str, Scores] = field(default_factory=lambda: defaultdict(Scores))
     by_day_type: dict[int, Scores] = field(default_factory=lambda: defaultdict(Scores))
+    # 변경 기록을 줬을 때만 채운다: stable(안정), post_change(변경 직후), incident(하루짜리 이상)
+    by_phase: dict[str, Scores] = field(default_factory=dict)
 
     def add(
-        self, line: str, day_type: int, model_error: float | None, b0_error: float | None
+        self,
+        line: str,
+        day_type: int,
+        model_error: float | None,
+        b0_error: float | None,
+        phase: str | None = None,
     ) -> None:
         for scores in (self.overall, self.by_line[line], self.by_day_type[day_type]):
             scores.add(model_error, b0_error)
+        if phase is not None:
+            self.by_phase.setdefault(phase, Scores()).add(model_error, b0_error)
 
     def summary(self) -> dict:
         return self.overall.summary()
@@ -120,15 +139,43 @@ def evaluate_b1(
     min_days: int = MIN_DAYS,
     slot_width: int = SLOT_WIDTH_SEC,
     mode: str = "auto",
+    state: ChangeState | None = None,
 ) -> Report:
     """시험 날짜의 실제 출발을 학습 날짜로 만든 실측 시간표와 견준다.
+
+    `state`(시간표 변경 기록)를 주면 학습 마지막 날까지 확정된 변경만 학습 쪽 B1에 적용하고
+    (시험 날짜의 지식은 쓰지 않는다), 관측을 안정·변경 직후·하루짜리 이상으로 나눠 함께 센다.
+    전체 숫자는 모든 관측을 그대로 센다(숨기지 않는다).
 
     출발(상태 2)이 안 찍힌 역은 도착 + 학습 날짜의 호선 정차 시간을 실측으로 쓴다.
     (경의중앙선·수인분당선 등은 출발이 아예 오지 않는다. 같은 값을 양쪽에 더하므로
     결국 도착 시각이 날마다 얼마나 같은지를 재는 것이다.)
     """
-    artifact = build_b1(train, min_days=min_days, slot_width=slot_width, mode=mode)
+    train_dates: dict[int, list[date]] = defaultdict(list)
+    for day_type, day in sorted({(run.day_type, run.service_date) for run in train}):
+        train_dates[day_type].append(day)
+    last_train = max((run.service_date for run in train), default=None)
+    all_epochs = state.epochs() if state is not None else {}
+    incidents = state.incidents() if state is not None else {}
+    known = {scope: day for scope, day in all_epochs.items() if last_train and day <= last_train}
+    artifact = build_b1(
+        train, min_days=min_days, slot_width=slot_width, mode=mode, epochs=known or None
+    )
     table = MeasuredTimetable(artifact)
+
+    def phase_of(p) -> str | None:
+        if state is None:
+            return None
+        scope = (p.day_type, p.line, p.direction, band_of(p.secs))
+        if p.service_date in incidents.get(scope, ()):
+            return "incident"
+        changed_on = all_epochs.get(scope)
+        if changed_on is not None and changed_on <= p.service_date:
+            learned = sum(day >= changed_on for day in train_dates[p.day_type])
+            if learned < MIN_DAYS_AFTER_CHANGE:
+                return "post_change"
+        return "stable"
+
     report = Report(
         "B1 실측 시간표",
         "역 출발 시각(초). 오차 = 시간표 시각 − 실제 출발(출발이 안 찍힌 역은 도착 + 정차 중앙값)",
@@ -146,7 +193,7 @@ def evaluate_b1(
         if b0 is not None:
             scheduled = b0.departure(*cell, train_no=p.train_no, near_secs=p.secs)
             b0_error = scheduled - p.secs if scheduled is not None else None
-        report.add(p.line, p.day_type, model_error, b0_error)
+        report.add(p.line, p.day_type, model_error, b0_error, phase_of(p))
     return report
 
 
@@ -224,6 +271,12 @@ def render(reports: list[Report], *, title: str, note: str) -> str:
             for day_type, s in sorted(report.by_day_type.items())
         ]
         lines += _table(rows) + [""]
+        if report.by_phase:
+            lines += ["구간별(시간표 변경 기록 기준):", ""]
+            lines += _table(
+                [(PHASE_NAMES[name], report.by_phase[name]) for name in PHASE_NAMES
+                 if name in report.by_phase]
+            ) + [""]  # fmt: skip
     lines += [
         "- 오차는 절대값으로 센다. `예측한 비율`은 모델이 답을 낸 관측의 비율이다"
         "(관측 일수·표본 하한에 못 미치면 답하지 않는다).",
@@ -257,10 +310,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--min-n", type=int, default=MIN_N)
     parser.add_argument("--max-stops", type=int, default=MAX_STOPS)
     parser.add_argument("--same-day-cutoff", default="", help="점검용: HH:MM 앞은 학습, 뒤는 시험")
+    parser.add_argument("--changes", default="", help="시간표 변경 상태 파일(change_state.json)")
     args = parser.parse_args(argv)
     if not Path(args.db).is_file():
         print(f"수집 DB가 없습니다: {args.db}", file=sys.stderr)
         return 2
+    state = None
+    if args.changes:
+        try:
+            state = ChangeState.load(args.changes)
+        except CorruptState as e:
+            print(f"변경 상태 파일을 읽을 수 없습니다: {e}", file=sys.stderr)
+            return 2
     runs = build_runs(load_events(args.db))
     if args.same_day_cutoff:
         train, test = split_same_day(runs, _parse_hhmm(args.same_day_cutoff))
@@ -285,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         codes = station_codes(args.db, StationIndex.load(args.stations_db))
         b0 = B0(TimetableCache(args.timetable_cache), codes)
     reports = [
-        evaluate_b1(train, test, b0=b0, min_days=args.min_days),
+        evaluate_b1(train, test, b0=b0, min_days=args.min_days, state=state),
         evaluate_b2(train, test, b0=b0, max_stops=args.max_stops, min_n=args.min_n),
     ]
     b0_note = (
@@ -296,6 +357,12 @@ def main(argv: list[str] | None = None) -> int:
         f"- B1 관측 일수 하한 {args.min_days}일, B2 표본 하한 {args.min_n}개\n"
         f"- B0: {b0_note}"
     )
+    if state is not None:
+        # 공식 시간표(B0) 비교는 지금 캐시 한 벌로 한다.
+        note += (
+            f"\n- 변경 기록: {args.changes}. 시험 기간 안에 공식 시간표가 바뀌었으면"
+            " 그 전 날짜의 B0 숫자는 믿지 않는다(B0는 지금 받은 시간표 한 벌로 견준다)."
+        )
     text = render(reports, title="B1·B2 평가", note=note)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

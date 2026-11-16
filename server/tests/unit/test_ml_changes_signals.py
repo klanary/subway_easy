@@ -11,14 +11,18 @@ SCOPE = (1, "9호선", 0, 6)
 TH = Thresholds()
 
 
-def day_points(day, *, n=10, gap=360, shift=0, first_no=9001, express=frozenset(), start=H6):
+def day_events(day, *, n=10, gap=360, shift=0, first_no=9001, express=frozenset(), start=H6):
     """그 날 06:00부터 gap초 간격으로 n대. 4역 노선이라 열차마다 출발역은 3곳이다."""
     events = []
     for i in range(n):
         events += trip(
             day, start + gap * i + shift, train_no=str(first_no + i), express=int(i in express)
         )
-    return departure_points(build_runs(events))
+    return events
+
+
+def day_points(day, **kw):
+    return departure_points(build_runs(day_events(day, **kw)))
 
 
 def reference(**kw):

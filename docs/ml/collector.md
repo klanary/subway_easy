@@ -171,6 +171,10 @@ scp -i <개인 키 파일> "ubuntu@<VM 주소>:subway_easy/server/ml_data/backup
 - 2026-11-15 일요일 낮 26분 실측으로 어림하면 하루에 수집 DB 약 140MB(그중 raw 약 45MB), gzip 백업 약 65MB다. 백업 7개면 약 0.5GB, raw를 14일만 두면 1년에 35GB쯤이다. 근거는 `docs/ml/2026-11-15-first-run-observations.md` §5.
 - `df -h`로 남은 공간을 가끔 본다. DB가 20GB를 넘으면 날짜별 Parquet로 옮기는 작업을 한다(이번 범위 밖).
 
+### 밤 작업(시간표 변경 판단)
+
+`setup_vm.sh`는 `subway-ml-nightly.timer`(매일 02:40)도 등록한다. 전날 하루치로 시간표 변경을 판단하고 실측 시간표를 다시 만든다. 처음에는 관찰 모드다. 자세한 내용과 기록 읽는 법은 `docs/ml/timetable-changes.md`.
+
 ## 5. 상태 확인
 
 ```bash

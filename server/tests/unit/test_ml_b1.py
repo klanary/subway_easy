@@ -170,7 +170,8 @@ def test_window_keeps_only_recent_dates():
     points = _points(days[:3], {"100": H8}) + _points(days[3:], {"100": H8 + 600})
     entry = _a(build_b1_from_points(points, window={1: 3}))["100"]
     assert (entry["secs"], entry["n_days"]) == (H8 + 600 + 30, 3)
-    # 창이 없으면 6일이 다 쓰인다(시각이 10분 벌어져 자동으로는 묶음 방식이 되므로 방식을 정해 준다).
+    # 창이 없으면 6일이 다 쓰인다.
+    # (시각이 10분 벌어져 자동으로는 묶음 방식이 되므로 방식을 정해 준다.)
     whole = build_b1_from_points(points, modes={"9호선": "train_no"})
     assert _a(whole)["100"]["n_days"] == 6
 
@@ -277,3 +278,16 @@ def test_build_b1_passes_new_options_through():
     art = build_b1(runs, window={1: 3})
     assert art["version"] == 2 and art["window"] == {"1": 3}
     assert _a(art)["100"]["secs"] == H8 + 600 + 30
+
+
+def test_stability_survives_a_few_badly_delayed_days():
+    # 7일 가운데 이틀이 크게 늦어도(3분, 7분) 같은 번호가 같은 시각에 다니는 노선이다.
+    from ml.b1 import stability_from_points
+
+    days = weekdays(7)
+    points = _points(days[:5], {"100": H8}) + _points([days[5]], {"100": H8 + 180})
+    points += _points([days[6]], {"100": H8 + 400})
+    assert stability_from_points(points) == {"9호선": 1.0}
+    # 날마다 30분씩 다르면 여전히 불안정이다.
+    moving = [p for i, d in enumerate(days) for p in _points([d], {"100": H8 + 1800 * i})]
+    assert stability_from_points(moving) == {"9호선": 0.0}

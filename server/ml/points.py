@@ -100,6 +100,28 @@ class PointStore:
             total += len(points)
         return total
 
+    def put(self, points: Sequence[Departure]) -> None:
+        """출발 시각을 그대로 넣는다(같은 키는 바꾼다). 테스트와 되돌려 보기(backtest)용."""
+        self._con.executemany(
+            "INSERT OR REPLACE INTO departures VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    p.service_date.isoformat(),
+                    p.day_type,
+                    p.line,
+                    p.direction,
+                    p.statn_id,
+                    p.train_no,
+                    p.secs,
+                    int(p.estimated),
+                    p.dest_name,
+                    p.express,
+                )  # fmt: skip
+                for p in points
+            ],
+        )
+        self._con.commit()
+
     @staticmethod
     def _count_ok(db_path: str | Path, line: str, day: date) -> dict[int, int] | None:
         """그 운행일의 시간대별 정상 응답 수. 그 호선의 raw가 한 줄도 없으면 None(모름)."""

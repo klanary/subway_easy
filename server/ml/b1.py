@@ -25,7 +25,8 @@ VERSION = 2  # 2: first_seen·last_seen, scopes, 창·기준일 정보
 MIN_DAYS = 3  # 관측 일수 하한
 SLOT_WIDTH_SEC = 120  # 열차 번호 없이 묶을 때 한 칸의 폭
 FALLBACK_DWELL_SEC = 30  # 출발이 안 찍힌 역: 도착 + 이만큼(호선 정차 중앙값이 없을 때)
-STABLE_WITHIN_SEC = 300  # 같은 열차 번호의 출발 시각이 날마다 이 안이면 "같은 열차"
+STABLE_WITHIN_SEC = 300  # 같은 열차 번호의 출발이 중앙값에서 이 안이면 "같은 시각"
+STABLE_DAY_SHARE = 0.7  # 관측한 날 가운데 이 비율 이상이 같은 시각이면 그 번호는 안정적
 STABLE_RATIO = 0.8  # 이 비율 이상이면 열차 번호로 묶는다
 WINDOW = {1: 20, 2: 8, 3: 8}  # 요일 구분별로 쓰는 최근 날짜 수
 STALE_DAYS = {1: 3, 2: 2, 3: 2}  # 이만큼 연속으로 안 보인 열차는 뺀다
@@ -116,7 +117,9 @@ def departure_points(
 
 
 def stability_from_points(points: list[Departure]) -> dict[str, float]:
-    """호선별로, 같은 요일 구분에서 2일 이상 본 (역, 열차 번호)의 출발 시각이 300초 안인 비율.
+    """호선별로, 같은 요일 구분에서 2일 이상 본 (역, 열차 번호) 가운데 시각이 안정적인 것의 비율.
+
+    안정적 = 관측한 날의 70% 이상이 그 번호의 중앙값에서 300초 안.
 
     2일 이상 본 것이 없는 호선은 결과에 없다(판단할 수 없음).
     """
@@ -130,7 +133,10 @@ def stability_from_points(points: list[Departure]) -> dict[str, float]:
         if len(days) < 2:
             continue
         total[line] += 1
-        if max(days.values()) - min(days.values()) <= STABLE_WITHIN_SEC:
+        # 크게 늦은 날 하루가 "번호가 날마다 다르다"로 보이지 않게, 중앙값 근처인 날의 비율로 본다.
+        middle = statistics.median(days.values())
+        near = sum(abs(secs - middle) <= STABLE_WITHIN_SEC for secs in days.values())
+        if near >= STABLE_DAY_SHARE * len(days):
             stable[line] += 1
     return {line: stable[line] / total[line] for line in total}
 

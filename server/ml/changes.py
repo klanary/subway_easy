@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from app.core.clock import KST
+from ml.b0 import B0, TIMETABLE_LINES
 from ml.b1 import WINDOW, Departure, Entry, build_b1_from_points
 from ml.points import PointStore
 from ml.scopes import Scope, band_of, merge_bands, parse_scope_key, scope_key
@@ -234,6 +235,8 @@ def agree(
 # --- 의심 → 확정 상태, 상태 파일, 변경 기록 ---
 
 STATE_VERSION = 1
+OFFICIAL_CHANGED_MIN = 0.10  # 공식 시간표가 이 비율 이상 달라진 단위를 "바뀜"으로 본다
+OFFICIAL_FIT_AFTER_DAYS = 3  # 확정 뒤 이만큼 지나서 공식 시간표가 따라왔는지 본다
 CHANGED_SHOW_DAYS = 14  # 확정 뒤 이 기간은 결과물에 "changed"로 표시한다
 CHANGES_KEEP_DAYS = 60  # 결과물의 changes에 남기는 기간
 DAY_TYPE_NAMES = {1: "평일", 2: "토요일", 3: "휴일"}
@@ -519,6 +522,67 @@ def detect_day(
             official_changed=official_changed, th=th,
         )  # fmt: skip
         state.checked[key] = day
+    return changed
+
+
+def load_official_changed(path: str | Path, *, today: date, max_age_days: int = 8) -> set[Scope]:
+    """`python -m ml.b0 --refresh`가 쓴 차이 파일에서 바뀐 단위. 없거나 오래됐으면 빈 집합."""
+    path = Path(path)
+    if not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if (today - date.fromisoformat(data["checked_on"])).days > max_age_days:
+            return set()
+        return {
+            parse_scope_key(key)
+            for key, ratio in data["changed"].items()
+            if ratio >= OFFICIAL_CHANGED_MIN
+        }
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return set()
+
+
+def official_fit(
+    b0: B0, store: PointStore, state: ChangeState, day: date, *, th: Thresholds = DEFAULT
+) -> list[ChangeRecord]:
+    """확정된 변경을 공식 시간표가 따라왔는지 그 날 관측과 직접 견줘 본다(2~9호선).
+
+    공식 시간표를 기준표로(번호 없이 시각만) 놓고 관측과 짝지어, 짝 없는 비율이 기준을 넘으면
+    공식 시간표가 아직 옛것(`stale`), 아니면 맞음(`fits`). 판정이 바뀐 기록만 돌려준다.
+    """
+    changed: list[ChangeRecord] = []
+    by_line: dict[tuple[str, int], list[ChangeRecord]] = defaultdict(list)
+    for record in state.records:
+        day_type, line, _, _ = record.scope
+        if (
+            record.status == "confirmed"
+            and line in TIMETABLE_LINES
+            and record.decided_date is not None
+            and (day - record.decided_date).days >= OFFICIAL_FIT_AFTER_DAYS
+        ):
+            by_line[(line, day_type)].append(record)
+    for (line, day_type), records in by_line.items():
+        obs = store.points(line, day_type, [day])
+        if not obs:
+            continue
+        cells: dict[str, list[Entry]] = {}
+        for direction, statn_id in {(p.direction, p.statn_id) for p in obs}:
+            table = b0.departures(day_type, line, direction, statn_id)
+            if table:
+                cells[f"{day_type}|{line}|{direction}|{statn_id}"] = [
+                    Entry(secs=secs, train_no=None, n_days=1, dest_name=None, express=0)
+                    for _, secs in table
+                ]
+        stats = scope_stats(cells, obs, mode="slots", th=th)
+        for record in records:
+            found = stats.get(record.scope)
+            if found is None:
+                continue
+            verdict = "stale" if found.moved >= th.moved else "fits"
+            if record.official != verdict:
+                record.official = verdict
+                changed.append(record)
     return changed
 
 

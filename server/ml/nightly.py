@@ -20,6 +20,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from app.core.clock import KST
+from app.services.station_index import StationIndex
+from ml.b0 import B0, TimetableCache, station_codes
 from ml.b1 import STALE_DAYS, WINDOW, build_b1_from_points
 from ml.changes import (
     DEFAULT,
@@ -30,6 +32,8 @@ from ml.changes import (
     annotate,
     append_log,
     detect_day,
+    load_official_changed,
+    official_fit,
     render,
 )
 from ml.dataset import _open_ro, service_dates, station_ids, station_names
@@ -134,7 +138,8 @@ def run_nightly(
     log_path: str | Path,
     today: date,
     enforce: bool = False,
-    official_changed: frozenset[Scope] = frozenset(),
+    official_diff_path: str | Path | None = None,
+    b0: B0 | None = None,
     notify: Callable[[str], None] | None = None,
     catch_up_days: int = CATCH_UP_DAYS,
     keep_points_days: int = KEEP_POINTS_DAYS,
@@ -156,6 +161,11 @@ def run_nightly(
     try:
         # 1) 빠진 날을 날짜순으로 뽑고 판단한다.
         changed: list[ChangeRecord] = []
+        official_changed = (
+            load_official_changed(official_diff_path, today=today)
+            if official_diff_path is not None
+            else set()
+        )
         days = service_dates(db, date_from=today - timedelta(days=catch_up_days), date_to=as_of)
         for day in days:
             try:
@@ -168,6 +178,13 @@ def run_nightly(
                 logger.error("판단 실패(%s): %s", day.isoformat(), type(e).__name__)
                 failed = True
                 break
+        # 확정된 변경을 공식 시간표가 따라왔는지(2~9호선, 시간표 캐시가 있을 때만).
+        if b0 is not None and not failed:
+            try:
+                changed += official_fit(b0, store, state, as_of, th=th)
+            except Exception as e:
+                logger.error("공식 시간표 비교 실패: %s", type(e).__name__)
+                failed = True
 
         # 2) 호선마다 B1을 만든다.
         previous = None
@@ -229,6 +246,15 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
     parser.add_argument("--log", default="ml_data/changes.md")
     parser.add_argument("--enforce", action="store_true", help="확정된 변경을 B1에 적용한다")
     parser.add_argument("--day", default="", help="오늘 날짜 대신 쓸 날짜(YYYY-MM-DD)")
+    parser.add_argument(
+        "--official-diff", default="ml_data/official_diff.json", help="ml.b0 --refresh가 쓴 파일"
+    )
+    parser.add_argument(
+        "--timetable-cache",
+        default="ml_data/timetable_cache",
+        help="있을 때만 공식 시간표와 견준다",
+    )
+    parser.add_argument("--stations-db", default="data/stations.sqlite")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     today = (
@@ -236,9 +262,14 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
         if args.day
         else (now or datetime.now(KST)).astimezone(KST).date()
     )
+    b0 = None
+    if Path(args.timetable_cache).is_dir() and Path(args.db).is_file():
+        codes = station_codes(args.db, StationIndex.load(args.stations_db))
+        b0 = B0(TimetableCache(args.timetable_cache), codes)
     return run_nightly(
         db=args.db, points_path=args.points, state_path=args.state, out_path=args.out,
         log_path=args.log, today=today, enforce=args.enforce,
+        official_diff_path=args.official_diff, b0=b0,
     )  # fmt: skip
 
 

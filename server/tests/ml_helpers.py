@@ -97,3 +97,19 @@ def write_db(path: Path, events: list[Obs]) -> Path:
         store.upsert_events([event], {obs.statn_id: obs.station_id}, at + timedelta(seconds=20))
     store.close()
     return path
+
+
+def timetable(days: list[date], starts: dict[str, int], **trip_kw) -> list[Obs]:
+    """날마다 `starts`(열차 번호 → 시작 초)의 열차를 한 번씩 달리게 한다."""
+    return [
+        obs
+        for day in days
+        for train_no, start in starts.items()
+        for obs in trip(day, start, train_no=train_no, **trip_kw)
+    ]
+
+
+def cover(store, days: list[date], line: str = "9호선", n: int = 120) -> None:
+    """그 날들의 5~24시대 수집 횟수를 모두 n으로 채운다(PointStore)."""
+    for day in days:
+        store.set_coverage(line, day, {band: n for band in range(5, 25)})

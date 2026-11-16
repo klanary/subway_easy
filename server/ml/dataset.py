@@ -68,15 +68,39 @@ def _open_ro(db_path: str | Path) -> sqlite3.Connection:
     return sqlite3.connect(f"file:{Path(db_path).as_posix()}?mode=ro", uri=True)
 
 
-def load_events(db_path: str | Path, *, include_flagged: bool = False) -> list[Obs]:
-    """이상값 표시(flag)가 달린 이벤트는 기본으로 뺀다."""
-    where = "" if include_flagged else "WHERE flag IS NULL"
+def load_events(
+    db_path: str | Path,
+    *,
+    include_flagged: bool = False,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    line: str | None = None,
+) -> list[Obs]:
+    """이상값 표시(flag)가 달린 이벤트는 기본으로 뺀다.
+
+    날짜(양 끝 포함)·호선 조건은 SQL에서 건다(기본 키 앞머리 (service_date, line)를 탄다).
+    """
+    conditions: list[str] = []
+    params: list[str] = []
+    if not include_flagged:
+        conditions.append("flag IS NULL")
+    if date_from is not None:
+        conditions.append("service_date >= ?")
+        params.append(date_from.isoformat())
+    if date_to is not None:
+        conditions.append("service_date <= ?")
+        params.append(date_to.isoformat())
+    if line is not None:
+        conditions.append("line = ?")
+        params.append(line)
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     con = _open_ro(db_path)
     try:
         rows = con.execute(
             "SELECT service_date, day_type, line, direction, train_no, statn_id, station_id,"
             " status, event_at, dest_statn_id, dest_name, express, last_train, flag"
-            f" FROM events {where}"
+            f" FROM events {where}",
+            params,
         ).fetchall()
     finally:
         con.close()
@@ -100,6 +124,20 @@ def load_events(db_path: str | Path, *, include_flagged: bool = False) -> list[O
             Obs(day, day_type, line, direction, train_no, statn_id, station_id, status, secs, *rest)
         )
     return out
+
+
+def service_dates(db_path: str | Path, *, date_from: date, date_to: date) -> list[date]:
+    """그 사이(양 끝 포함)에 이벤트가 있는 서비스 날짜, 오름차순."""
+    con = _open_ro(db_path)
+    try:
+        rows = con.execute(
+            "SELECT DISTINCT service_date FROM events"
+            " WHERE service_date >= ? AND service_date <= ? ORDER BY 1",
+            (date_from.isoformat(), date_to.isoformat()),
+        ).fetchall()
+    finally:
+        con.close()
+    return [date.fromisoformat(d) for (d,) in rows]
 
 
 def build_runs(events: list[Obs]) -> list[Run]:

@@ -1,11 +1,21 @@
 """공식 시간표 후보: 들이기, 판정 계산, 밤 작업에서의 판정, 채우기."""
 
 import json
+import shutil
 from datetime import date
 
-from ml.changes import ChangeState
-from ml.official import ingest_candidates, prune_candidates
+import pytest
+
+from ml.b0 import TimetableCache
+from ml.b1 import departure_points
+from ml.changes import ChangeRecord, ChangeState
+from ml.dataset import build_runs
+from ml.official import candidate_lines, ingest_candidates, judge_candidates, prune_candidates
+from ml.points import PointStore
 from ml.scopes import scope_key
+from tests.ml_helpers import cover, trip, weekdays
+from tests.unit.test_ml_changes_signals import day_points
+from tests.unit.test_ml_official import CODES, _hms, cache_with, rows
 
 SCOPE = (1, "9호선", 0, 6)
 ENTRY = {
@@ -109,6 +119,19 @@ def test_usual_delay_is_the_median_offset_or_none():
     assert usual_delay({"A": [100]}, {"A": [140]}, 180) is None  # 표본 부족
 
 
+def test_usual_delay_ignores_observations_of_changed_trains():
+    from ml.official import split_changed, usual_delay
+
+    old, new = table(), retimed(table(), every=2, by=60)
+    parts = {s: split_changed(old[s], new[s], 20) for s in old}
+    same = {s: part[0] for s, part in parts.items()}
+    others = {s: sorted(part[1] + part[2]) for s, part in parts.items()}
+    obs = shifted(new, 40)
+    # 바뀐 열차의 관측을 옆의 안 바뀐 자리에 이으면 지연이 틀어진다.
+    assert usual_delay(same, obs, 180) != 40
+    assert usual_delay(same, obs, 180, others=others) == 40
+
+
 def test_observations_matching_new_times_confirm():
     from ml.official import judge_scope
 
@@ -183,3 +206,182 @@ def test_times_after_midnight_are_counted_the_same_way():
     old = table(start=24 * 3600)
     new = retimed(old, every=2, by=60)
     assert judge_scope(old, new, new, band=24, delay=0).result == "confirm"
+
+
+# --- 밤 작업에서의 판정 ---
+
+DAYS = weekdays(8)
+DAY = DAYS[0]
+
+
+@pytest.fixture
+def store(tmp_path):
+    s = PointStore(tmp_path / "points.sqlite")
+    yield s
+    s.close()
+
+
+def scene(tmp_path, *, old_shift=0, new_shift=180, scope=SCOPE) -> ChangeState:
+    """옛 표(`tt-old`)와 새 표(`tt`)를 두고, 그 단위의 열린 후보 하나가 든 상태."""
+    cache_with(tmp_path / "tt-old", shift=old_shift)
+    cache_with(tmp_path / "tt", shift=new_shift)
+    state = ChangeState()
+    entry = {"checked_on": DAY.isoformat(), "changed": {scope_key(scope): 1.0}}
+    ingest_candidates(state, [{**entry, "old_cache": "tt-old"}])
+    return state
+
+
+def judge(state, store, tmp_path, day=DAY):
+    return judge_candidates(state, store, tmp_path / "tt", CODES, day)
+
+
+def test_candidate_is_confirmed_the_night_observations_match_the_new_table(tmp_path, store):
+    state = scene(tmp_path)
+    store.put(day_points(DAY, shift=180))
+    cover(store, [DAY])
+    records, lines = judge(state, store, tmp_path)
+    (record,) = records
+    assert (record.status, record.source, record.first_date) == ("confirmed", "official", DAY)
+    assert (record.kind, record.official, record.note) == ("official", "changed", "새 29표·옛 0표")
+    candidate = state.candidates[0]
+    assert (candidate.status, candidate.closed_on, candidate.tries) == (
+        "confirmed",
+        DAY,
+        [(DAY, "confirm")],
+    )
+    assert state.epochs()[SCOPE] == DAY and lines == []
+
+
+def test_open_measured_suspect_is_closed_by_the_official_confirmation(tmp_path, store):
+    state = scene(tmp_path)
+    suspect = ChangeRecord(
+        scope=SCOPE, status="suspect", first_date=DAY, days=[DAY], missed=[], decided_date=None,
+        kind="retime", triggers=("moved",), signals={}, source="measured",
+    )  # fmt: skip
+    state.records.append(suspect)
+    store.put(day_points(DAY, shift=180))
+    cover(store, [DAY])
+    judge(state, store, tmp_path)
+    assert (suspect.status, suspect.note) == ("cleared", "공식 시간표로 확정함")
+    assert state.open_suspect(SCOPE) is None
+
+
+def test_hold_is_retried_and_expires_after_five_weekdays(tmp_path, store):
+    state = scene(tmp_path)
+    lines = []
+    for day in DAYS[:5]:
+        store.put(day_points(day, shift=0))  # 관측은 계속 옛 시각
+        cover(store, [day])
+        records, lines = judge(state, store, tmp_path, day)
+        assert records == []
+    candidate = state.candidates[0]
+    assert candidate.status == "expired" and candidate.closed_on == DAYS[4]
+    assert [result for _, result in candidate.tries] == ["early"] * 5
+    assert "후보 보류" in lines[0] and "공식 시간표가 먼저 바뀜" in lines[0]
+    assert "후보 만료" in lines[-1] and "5번 보고도 정하지 못함" in lines[-1]
+    assert "9호선 상행 평일 06시" in lines[-1]
+
+
+def test_day_without_coverage_is_not_counted_as_a_try(tmp_path, store):
+    state = scene(tmp_path)
+    store.put(day_points(DAY, shift=180))  # cover() 없음
+    assert judge(state, store, tmp_path) == ([], [])
+    assert state.candidates[0].tries == [] and state.candidates[0].status == "open"
+
+
+def test_same_day_is_not_judged_twice(tmp_path, store):
+    state = scene(tmp_path)
+    store.put(day_points(DAY, shift=0))
+    cover(store, [DAY])
+    judge(state, store, tmp_path)
+    assert judge(state, store, tmp_path) == ([], [])
+    assert len(state.candidates[0].tries) == 1
+
+
+def test_other_day_type_is_left_alone(tmp_path, store):
+    state = scene(tmp_path, scope=(2, "9호선", 0, 6))  # 토요일 후보
+    store.put(day_points(DAY, shift=180))  # 평일 관측
+    cover(store, [DAY])
+    assert judge(state, store, tmp_path) == ([], [])
+    assert state.candidates[0].tries == []
+
+
+def test_day_long_before_the_timetable_was_fetched_is_not_judged(tmp_path, store):
+    state = scene(tmp_path)
+    state.candidates[0].found_on = DAYS[3]
+    for day in (DAYS[0], DAYS[2]):
+        store.put(day_points(day, shift=0))
+        cover(store, [day])
+    judge(state, store, tmp_path, DAYS[0])
+    assert state.candidates[0].tries == []
+    judge(state, store, tmp_path, DAYS[2])  # 받은 날의 전날 운행분부터 본다
+    assert [day for day, _ in state.candidates[0].tries] == [DAYS[2]]
+
+
+def test_missing_old_cache_folder_expires_the_candidate_without_raising(tmp_path, store):
+    state = scene(tmp_path)
+    shutil.rmtree(tmp_path / "tt-old")
+    store.put(day_points(DAY, shift=180))
+    cover(store, [DAY])
+    records, lines = judge(state, store, tmp_path)
+    assert records == [] and state.candidates[0].status == "expired"
+    assert state.candidates[0].note == "옛 시간표 없음" and "옛 시간표 없음" in lines[0]
+
+
+def test_delay_falls_back_to_the_stored_value_when_nothing_is_unchanged(tmp_path, store):
+    # 전체가 60초 앞당겨진 표. 관측은 새 표보다 50초 늦다(= 옛 표보다 10초 이르다).
+    # 지연을 빼지 않으면 옛 표에 더 가깝게 보인다.
+    state = scene(tmp_path, new_shift=-60)
+    store.put(day_points(DAY, shift=-10))
+    cover(store, [DAY])
+    assert judge(state, store, tmp_path)[0] == []
+    assert state.candidates[0].tries == [(DAY, "early")]
+
+    state = scene(tmp_path, new_shift=-60)
+    state.delays = {"9호선|0": 50}
+    (record,) = judge(state, store, tmp_path)[0]
+    assert record.status == "confirmed"
+
+
+def _half_retimed_cache(directory, by):
+    """14대 가운데 짝수 번째만 by초 늦춘 시간표."""
+    cache = TimetableCache(directory)
+    for index, station in enumerate("ABC"):
+        table = rows(f"cd-{station}", n=14, gap=240, station_index=index)
+        for i, row in enumerate(table):
+            if i % 2 == 0:
+                secs = H6 + 240 * i + 120 * index + 30 + by
+                row["LEFTTIME"] = _hms(secs)
+        cache.save(f"cd-{station}", 1, 1, table)
+    return cache
+
+
+def test_delay_is_measured_from_unchanged_trains_and_stored(tmp_path, store):
+    cache = TimetableCache(tmp_path / "tt-old")
+    for index, station in enumerate("ABC"):
+        cache.save(f"cd-{station}", 1, 1, rows(f"cd-{station}", n=14, gap=240, station_index=index))
+    _half_retimed_cache(tmp_path / "tt", 60)
+    state = ChangeState()
+    entry = {"checked_on": DAY.isoformat(), "changed": {scope_key(SCOPE): 0.5}}
+    ingest_candidates(state, [{**entry, "old_cache": "tt-old"}])
+    events = []
+    for i in range(14):  # 새 표대로 다니되 40초씩 늦다
+        start = H6 + 240 * i + (60 if i % 2 == 0 else 0) + 40
+        events += trip(DAY, start, train_no=str(9001 + i))
+    store.put(departure_points(build_runs(events)))
+    cover(store, [DAY])
+    (record,) = judge(state, store, tmp_path)[0]
+    assert record.note == "새 21표·옛 0표"
+    assert state.delays == {"9호선|0": 40}
+
+
+def test_candidate_lines_merge_neighbouring_bands():
+    state = ChangeState()
+    changed = {scope_key((1, "9호선", 0, band)): 0.2 for band in (6, 7, 9)}
+    found = ingest_candidates(
+        state, [{"checked_on": "2026-11-18", "changed": changed, "old_cache": "tt-old"}]
+    )
+    assert candidate_lines(found) == [
+        "- 2026-11-18 후보 | 9호선 상행 평일 06~07시 | 공식 시간표가 달라짐",
+        "- 2026-11-18 후보 | 9호선 상행 평일 09시 | 공식 시간표가 달라짐",
+    ]

@@ -8,14 +8,34 @@
 import logging
 import statistics
 from bisect import bisect_left
+from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+from pathlib import Path
 
-from ml.changes import CHANGES_KEEP_DAYS, DEFAULT, Candidate, ChangeState, Thresholds
-from ml.scopes import band_of, parse_scope_key
+from ml.b0 import B0, TimetableCache
+from ml.changes import (
+    CHANGES_KEEP_DAYS,
+    DAY_TYPE_NAMES,
+    DEFAULT,
+    Candidate,
+    ChangeRecord,
+    ChangeState,
+    Thresholds,
+    _bands_text,
+    _direction_name,
+)
+from ml.points import PointStore
+from ml.scopes import Scope, band_of, merge_bands, parse_scope_key
 
 logger = logging.getLogger("ml.official")
 _MIN_DELAY_SAMPLES = 20  # 평소 지연을 구하는 데 필요한 표본 수
+_HOLD_TEXT = {
+    "few_votes": "표 모자람",
+    "mixed": "엇갈림",
+    "base_fit": "공식 시간표가 평소 운행과 안 맞음",
+    "no_obs": "관측 없음",
+}
 
 
 def ingest_candidates(state: ChangeState, entries: list[dict]) -> list[Candidate]:
@@ -96,22 +116,31 @@ def split_changed(
 
 
 def usual_delay(
-    same: dict[str, list[int]], obs: dict[str, list[int]], reach_sec: int
+    same: dict[str, list[int]],
+    obs: dict[str, list[int]],
+    reach_sec: int,
+    *,
+    others: dict[str, list[int]] | None = None,
 ) -> int | None:
     """공식 시각 대비 평소 지연(초): 관측 − 가장 가까운 "그대로" 시각의 중앙값.
 
-    `reach_sec` 안에서 이어지는 것만 쓴다. 표본이 `_MIN_DELAY_SAMPLES`개 미만이면 None.
+    `reach_sec` 안에서 이어지는 것만 쓴다. `others`(바뀐 자리의 옛·새 시각)를 주면, 그쪽에
+    더 가까운 관측은 바뀐 열차의 것이므로 쓰지 않는다. 표본이 `_MIN_DELAY_SAMPLES`개
+    미만이면 None.
     """
     offsets: list[int] = []
     for station, times in obs.items():
         slots = sorted(same.get(station, ()))
         if not slots:
             continue
+        changed = sorted((others or {}).get(station, ()))
         for t in times:
             i = bisect_left(slots, t)
             near = [slots[j] for j in (i - 1, i) if 0 <= j < len(slots)]
             best = min(near, key=lambda slot: abs(slot - t))
-            if abs(best - t) <= reach_sec:
+            gap = abs(best - t)
+            other_gap = _nearest_gap(changed, t)
+            if gap <= reach_sec and (other_gap is None or gap < other_gap):
                 offsets.append(t - best)
     if len(offsets) < _MIN_DELAY_SAMPLES:
         return None
@@ -184,3 +213,174 @@ def judge_scope(
     if share <= th.old_share:
         return Verdict("early", "", new_votes, old_votes, base_fit)
     return Verdict("hold", "mixed", new_votes, old_votes, base_fit)
+
+
+def _scope_lines(day: date, word: str, items: list[tuple[Scope, str]]) -> list[str]:
+    """(단위, 문구)들을 기록 줄로. 같은 호선·방향·요일 구분·문구의 이어진 시간대는 합친다."""
+    groups: dict[tuple[int, str, int, str], list[int]] = defaultdict(list)
+    for (day_type, line, direction, band), text in items:
+        groups[(day_type, line, direction, text)].append(band)
+    lines: list[str] = []
+    for (day_type, line, direction, text), bands in sorted(groups.items()):
+        for first, last in merge_bands(bands):
+            lines.append(
+                f"- {day.isoformat()} {word} | {line} {_direction_name(line, direction, None)}"
+                f" {DAY_TYPE_NAMES.get(day_type, str(day_type))} {_bands_text(first, last)}"
+                f" | {text}"
+            )
+    return lines
+
+
+def candidate_lines(found: list[Candidate]) -> list[str]:
+    """새로 들인 후보를 알리는 기록 줄."""
+    by_day: dict[date, list[tuple[Scope, str]]] = defaultdict(list)
+    for candidate in found:
+        by_day[candidate.found_on].append((candidate.scope, "공식 시간표가 달라짐"))
+    return [line for day in sorted(by_day) for line in _scope_lines(day, "후보", by_day[day])]
+
+
+class _Tables:
+    """옛·새 공식 시간표와 그 날 관측을 (호선, 방향)별 `역 id → 시각 목록`으로 내준다."""
+
+    def __init__(
+        self, store: PointStore, cache_dir: Path, codes: dict[tuple[str, str], str], day: date
+    ):
+        self._store, self._cache_dir, self._codes, self._day = store, cache_dir, codes, day
+        self._b0: dict[str, B0 | None] = {}
+        self._official: dict[tuple[str, int, str, int], dict[str, list[int]]] = {}
+        self._obs: dict[tuple[str, int], dict[int, dict[str, list[int]]]] = {}
+
+    def has(self, cache_name: str) -> bool:
+        return (self._cache_dir.parent / cache_name).is_dir()
+
+    def official(
+        self, cache_name: str, day_type: int, line: str, direction: int
+    ) -> dict[str, list[int]]:
+        key = (cache_name, day_type, line, direction)
+        if key not in self._official:
+            if cache_name not in self._b0:
+                directory = self._cache_dir.parent / cache_name
+                self._b0[cache_name] = B0(TimetableCache(directory), self._codes)
+            b0 = self._b0[cache_name]
+            table: dict[str, list[int]] = {}
+            for known_line, statn_id in self._codes:
+                if known_line != line:
+                    continue
+                times = [secs for _, secs in b0.departures(day_type, line, direction, statn_id)]
+                if times:
+                    table[statn_id] = times
+            self._official[key] = table
+        return self._official[key]
+
+    def observed(self, day_type: int, line: str, direction: int) -> dict[str, list[int]]:
+        key = (line, day_type)
+        if key not in self._obs:
+            by_direction: dict[int, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+            for point in self._store.points(line, day_type, [self._day]):
+                by_direction[point.direction][point.statn_id].append(point.secs)
+            self._obs[key] = by_direction
+        return {station: sorted(times) for station, times in self._obs[key][direction].items()}
+
+
+def _delay(tables: _Tables, state: ChangeState, candidate: Candidate, th: Thresholds) -> int:
+    """그 호선·방향의 평소 지연. 구하지 못하면 반대 방향, 저장해 둔 값, 0 순서로 쓴다."""
+    day_type, line, direction, _ = candidate.scope
+    new_name = tables._cache_dir.name
+    for which in (direction, 1 - direction):
+        old = tables.official(candidate.old_cache, day_type, line, which)
+        new = tables.official(new_name, day_type, line, which)
+        parts = {
+            station: split_changed(old.get(station, []), new.get(station, []), th.same_sec)
+            for station in set(old) | set(new)
+        }
+        found = usual_delay(
+            {station: part[0] for station, part in parts.items()},
+            tables.observed(day_type, line, which),
+            th.delay_reach_sec,
+            others={station: sorted(part[1] + part[2]) for station, part in parts.items()},
+        )
+        if found is not None:
+            if which == direction:
+                state.delays[f"{line}|{direction}"] = found
+            return found
+    return state.delays.get(f"{line}|{direction}", 0)
+
+
+def judge_candidates(
+    state: ChangeState,
+    store: PointStore,
+    cache_dir: str | Path,
+    codes: dict[tuple[str, str], str],
+    day: date,
+    *,
+    th: Thresholds = DEFAULT,
+) -> tuple[list[ChangeRecord], list[str]]:
+    """열린 후보를 그 날 관측으로 판정한다. (새로 확정된 기록, 기록 파일에 쓸 줄).
+
+    그 날의 요일 구분에 맞는 후보만, 공식 시간표를 받은 날의 전날 운행분부터, 하루에 한 번 본다.
+    그 시간대의 수집이 비었으면 건너뛴다(판정 횟수에 넣지 않는다).
+    """
+    cache_dir = Path(cache_dir)
+    day_types = dict(store.lines(day))
+    todo = [
+        c
+        for c in state.candidates
+        if c.status == "open"
+        and day_types.get(c.scope[1]) == c.scope[0]
+        and day >= c.found_on - timedelta(days=1)
+        and all(tried != day for tried, _ in c.tries)
+    ]
+    records: list[ChangeRecord] = []
+    held: list[tuple[Scope, str]] = []
+    expired: list[tuple[Scope, str]] = []
+    tables = _Tables(store, cache_dir, codes, day)
+    coverage: dict[str, dict[int, int] | None] = {}
+    for candidate in sorted(todo, key=lambda c: c.scope):
+        day_type, line, direction, band = candidate.scope
+        if line not in coverage:
+            coverage[line] = store.coverage(line, day)
+        if (coverage[line] or {}).get(band, 0) < th.min_coverage:
+            continue
+        if not tables.has(candidate.old_cache):
+            candidate.status, candidate.closed_on = "expired", day
+            candidate.note = "옛 시간표 없음"
+            expired.append((candidate.scope, candidate.note))
+            continue
+        verdict = judge_scope(
+            tables.official(candidate.old_cache, day_type, line, direction),
+            tables.official(cache_dir.name, day_type, line, direction),
+            tables.observed(day_type, line, direction),
+            band=band,
+            delay=_delay(tables, state, candidate, th),
+            th=th,
+        )
+        if verdict.result == "confirm":
+            candidate.tries.append((day, "confirm"))
+            candidate.status, candidate.closed_on = "confirmed", day
+            suspect = state.open_suspect(candidate.scope)
+            if suspect is not None:
+                suspect.status, suspect.decided_date = "cleared", day
+                suspect.note = "공식 시간표로 확정함"
+            record = ChangeRecord(
+                scope=candidate.scope, status="confirmed", first_date=day, days=[day], missed=[],
+                decided_date=day, kind="official", triggers=(),
+                signals={"new_votes": verdict.new_votes, "old_votes": verdict.old_votes},
+                source="official", official="changed",
+                note=f"새 {verdict.new_votes}표·옛 {verdict.old_votes}표",
+            )  # fmt: skip
+            state.records.append(record)
+            records.append(record)
+            continue
+        if verdict.result == "early":
+            candidate.tries.append((day, "early"))
+            held.append((candidate.scope, "공식 시간표가 먼저 바뀜"))
+        else:
+            candidate.tries.append((day, f"hold:{verdict.reason}"))
+            held.append((candidate.scope, _HOLD_TEXT[verdict.reason]))
+        limit = th.tries_weekday if day_type == 1 else th.tries_other
+        if len(candidate.tries) >= limit:
+            candidate.status, candidate.closed_on = "expired", day
+            candidate.note = f"{len(candidate.tries)}번 보고도 정하지 못함"
+            expired.append((candidate.scope, candidate.note))
+    lines = _scope_lines(day, "후보 보류", held) + _scope_lines(day, "후보 만료", expired)
+    return records, lines

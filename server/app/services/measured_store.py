@@ -18,6 +18,7 @@ import httpx
 
 from app.core.clock import kst_from_epoch
 from app.services.measured import MeasuredData
+from app.services.trips import TripsData
 
 logger = logging.getLogger("app.measured")
 
@@ -30,6 +31,7 @@ TRIPS_PREFIX = "trips-"  # 열차 운행표(경로 설계 2026-11-18). 매일 �
 REFRESH_SEC = 21_600
 STALE_DAYS = 14
 TIMEOUT_SEC = 30.0
+TRIPS_WARN_DAYS = 3
 
 
 class MeasuredStore:
@@ -39,6 +41,9 @@ class MeasuredStore:
         self._clock = clock
         self._data: MeasuredData | None = None
         self._built_at: str | None = None
+        self._b12_names: tuple[str, str] | None = None
+        self._trips: TripsData | None = None
+        self._trips_name: str | None = None
         self._checked_at: float | None = None
         self.refreshing: asyncio.Task[bool] | None = None
 
@@ -69,28 +74,63 @@ class MeasuredStore:
         self.refreshing = loop.create_task(self.refresh())
 
     async def refresh(self) -> bool:
-        """새 결과물이 있으면 받아 바꾼다. 바꿨거나 이미 최신이면 True, 실패면 False."""
+        """새 결과물이 있으면 받아 바꾼다. 바꿨거나 이미 최신이면 True, 하나라도 실패면 False.
+
+        B1·B2는 수·일에만, 운행표는 매일 바뀐다. 이름이 그대로인 파일은 다시 받지 않는다.
+        실패한 부분은 지난 것을 그대로 둔다.
+        """
         if not self._base:
             return False
         try:
             manifest = (await self._get(MANIFEST_FILE)).json()
             built_at = manifest["built_at"]
-            if built_at == self._built_at:
-                return True
-            b1 = await self._get_checked(manifest["b1"]["name"], manifest["b1"]["sha256"])
-            b2 = await self._get_checked(manifest["b2"]["name"], manifest["b2"]["sha256"])
-            # 압축 풀기·색인 만들기는 다른 스레드에서(요청 처리를 멈추지 않게, 최종 리뷰 #4)
-            data = await asyncio.to_thread(_build, b1, b2)
-        except Exception as e:  # 받기·검증 실패는 지난 것을 두고 넘어간다
+        except Exception as e:
             logger.warning("실측 결과물 받기 실패: %s", type(e).__name__)
             return False
-        self.replace(data, built_at)
-        logger.info("실측 결과물 바꿈: built_at=%s as_of=%s", built_at, data.as_of)
-        return True
+        if built_at == self._built_at:
+            return True
+        ok = True
+        try:
+            names = (manifest["b1"]["name"], manifest["b2"]["name"])
+            if names != self._b12_names:
+                b1 = await self._get_checked(names[0], manifest["b1"]["sha256"])
+                b2 = await self._get_checked(names[1], manifest["b2"]["sha256"])
+                # 압축 풀기·색인 만들기는 다른 스레드에서(요청 처리를 멈추지 않게, 최종 리뷰 #4)
+                self.replace(await asyncio.to_thread(_build, b1, b2))
+                self._b12_names = names
+                logger.info("실측 결과물 바꿈: %s", names[0])
+        except Exception as e:  # 받기·검증 실패는 지난 것을 두고 넘어간다
+            logger.warning("실측 결과물 받기 실패: %s", type(e).__name__)
+            ok = False
+        entry = manifest.get("trips")
+        try:
+            if entry and entry["name"] != self._trips_name:
+                body = await self._get_checked(entry["name"], entry["sha256"])
+                self.replace_trips(await asyncio.to_thread(_build_trips, body))
+                self._trips_name = entry["name"]
+                logger.info("운행표 바꿈: %s", entry["name"])
+        except Exception as e:
+            logger.warning("운행표 받기 실패: %s", type(e).__name__)
+            ok = False
+        if ok:
+            self._built_at = built_at
+        return ok
 
-    def replace(self, data: MeasuredData, built_at: str | None = None) -> None:
-        """결과물을 바꾼다(받기가 쓰고, 테스트가 픽스처를 넣을 때도 쓴다)."""
-        self._data, self._built_at = data, built_at or data.built_at
+    def replace(self, data: MeasuredData) -> None:
+        """실측 결과물을 바꾼다(받기가 쓰고, 테스트가 픽스처를 넣을 때도 쓴다)."""
+        self._data = data
+
+    def replace_trips(self, trips: TripsData) -> None:
+        """운행표를 바꾼다. 만든 날이 3일 넘게 지났으면 경고만 남긴다(쓰기는 계속)."""
+        today = kst_from_epoch(self._clock()).date()
+        if (today - trips.built_on).days > TRIPS_WARN_DAYS:
+            logger.warning("운행표가 오래됐습니다: built_on=%s", trips.built_on)
+        self._trips = trips
+
+    def current_trips(self) -> TripsData | None:
+        """지금 가진 운행표. `current()`처럼 새로 받을 때가 됐으면 백그라운드 받기를 띄운다."""
+        self._maybe_start_refresh()
+        return self._trips
 
     async def _get(self, name: str) -> httpx.Response:
         response = await self._http.get(
@@ -104,6 +144,10 @@ class MeasuredStore:
         if hashlib.sha256(body).hexdigest() != sha256:
             raise ValueError(f"{name} sha256이 manifest와 다릅니다")
         return body
+
+
+def _build_trips(body: bytes) -> TripsData:
+    return TripsData.from_artifact(json.loads(gzip.decompress(body).decode("utf-8")))
 
 
 def _build(b1: bytes, b2: bytes) -> MeasuredData:

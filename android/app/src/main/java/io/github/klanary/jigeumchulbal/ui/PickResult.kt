@@ -7,7 +7,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -21,18 +20,16 @@ private const val PICK_RESULT_KEY = "pick_result"
 /**
  * 결과를 받을 화면까지 돌아가며 그 화면의 SavedStateHandle에 결과를 JSON으로 넣는다.
  * 고르는 화면(검색)이 겹쳐 열렸으면 그 화면들을 모두 닫는다.
+ *
+ * 공개 API(`popBackStack`, `currentBackStackEntry`)만 쓴다. `currentBackStack`은
+ * Navigation 라이브러리 내부 전용(@RestrictTo)이라 lint 오류(RestrictedApi)가 난다.
  */
 fun NavController.returnPick(result: PickResult) {
-    val target = currentBackStack.value.asReversed().drop(1).firstOrNull { entry ->
-        val destination = entry.destination
-        destination !is NavGraph && !destination.hasRoute<SearchDest>()
+    if (!popBackStack()) return
+    while (currentDestination?.hasRoute<SearchDest>() == true) {
+        if (!popBackStack()) return
     }
-    if (target == null) {
-        popBackStack()
-        return
-    }
-    target.savedStateHandle[PICK_RESULT_KEY] = Json.encodeToString(result)
-    popBackStack(target.destination.id, inclusive = false)
+    currentBackStackEntry?.savedStateHandle?.set(PICK_RESULT_KEY, Json.encodeToString(result))
 }
 
 /** 돌아온 선택 결과를 한 번만 전달한다(꺼낸 뒤 지운다). */

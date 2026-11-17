@@ -48,6 +48,26 @@ class AppNavGraphTest {
         assertEquals(true, routeEdit.savedStateHandle.contains("pick_result"))
     }
 
+    @Test fun stackedSearchesAllCloseAndResultGoesBelowThem() {
+        val nav = navController()
+        nav.navigate(RouteFlowGraph())
+        val routeEdit = nav.currentBackStackEntry!!
+        nav.navigate(SearchDest(Slot.ORIGIN))
+        nav.navigate(SearchDest(Slot.ORIGIN))
+        nav.returnPick(PickResult(Slot.ORIGIN, StationRef("공덕", "공덕")))
+        assertEquals(routeEdit, nav.currentBackStackEntry)
+        assertEquals(true, routeEdit.savedStateHandle.contains("pick_result"))
+    }
+
+    @Test fun searchFromHomeReturnsToHome() {
+        val nav = navController()
+        val home = nav.currentBackStackEntry!!
+        nav.navigate(SearchDest(null))
+        nav.returnPick(PickResult(null, StationRef("공덕", "공덕")))
+        assertEquals(home, nav.currentBackStackEntry)
+        assertEquals(true, home.savedStateHandle.contains("pick_result"))
+    }
+
     @Test fun sessionScreenIsReachable() {
         val nav = navController()
         nav.navigate(SessionDest)

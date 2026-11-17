@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     seoul_openapi_key: str = ""  # 일반 인증키(시간표)
     kakao_rest_api_key: str = ""
 
-    seoul_realtime_daily_limit: int = 1000
-    seoul_timetable_daily_limit: int = 1000
+    # 0 = 제한 없음. 서울시 키는 2026-11-15부터 한도가 없다(호출 수는 그래도 센다).
+    seoul_realtime_daily_limit: int = 0
+    seoul_timetable_daily_limit: int = 0
     kakao_route_daily_limit: int = 1000
 
     rate_limit_per_minute: int = 60

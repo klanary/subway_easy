@@ -2,6 +2,8 @@
 
 - 한도의 80% 이상: 해당 API 캐시의 유효 시간을 3배로 늘린다(ttl_multiplier).
 - 한도 도달 또는 외부 API의 한도 초과 응답(mark_exhausted): 그날은 외부 호출을 멈춘다.
+- 한도 0은 "제한 없음"이다(서울시 키는 2026-11-15부터 한도가 없다). 호출 수는 그래도 세고,
+  외부 API가 한도 초과로 응답하면 그날은 멈춘다.
 - 한국 시간 00:00에 초기화한다. 카운터는 메모리에 있어 서버가 재시작되면 0부터 다시 센다.
 """
 
@@ -45,7 +47,13 @@ class QuotaGuard:
 
     def can_call(self) -> bool:
         self._roll_over()
-        return not self._exhausted and self._calls < self.daily_limit
+        if self._exhausted:
+            return False
+        return self.unlimited or self._calls < self.daily_limit
+
+    @property
+    def unlimited(self) -> bool:
+        return self.daily_limit <= 0
 
     def record_call(self) -> None:
         self._roll_over()
@@ -65,12 +73,14 @@ class QuotaGuard:
 
     def ttl_multiplier(self) -> float:
         self._roll_over()
+        if self.unlimited:
+            return 1.0
         return 3.0 if self._calls >= 0.8 * self.daily_limit else 1.0
 
-    def snapshot(self) -> dict[str, int]:
+    def snapshot(self) -> dict[str, int | None]:
         self._roll_over()
         return {
             "callsToday": self._calls,
-            "dailyLimit": self.daily_limit,
+            "dailyLimit": None if self.unlimited else self.daily_limit,
             "errorsToday": self._errors,
         }

@@ -19,7 +19,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -59,7 +58,7 @@ class StationSheetViewModelTest {
         val ui = content(vm)
         assertEquals(listOf("2호선", "5호선"), ui.lines)
         assertEquals(listOf("방화행 3분 · 그다음 11분", "방화행 1분"), ui.groups.map { it.trains.joinToString(" · ") })
-        assertFalse(ui.fromTimetable)
+        assertEquals(emptyList<String>(), ui.basis)
     }
 
     @Test fun plusOneHourUsesTimetable() = runTest {
@@ -68,7 +67,7 @@ class StationSheetViewModelTest {
         vm.select(SheetTime.PLUS_1H)
         advanceUntilIdle()
         val ui = content(vm)
-        assertTrue(ui.fromTimetable)
+        assertEquals(listOf(Copy.BY_TIMETABLE), ui.basis)
         val calls = stations.timetableCalls
         assertEquals(setOf("2호선" to "내선", "2호선" to "외선", "5호선" to "상행", "5호선" to "하행"), calls.map { it.line to it.direction }.toSet())
         assertTrue(calls.all { it.from == now.plusSeconds(3600) && it.count == 4 })
@@ -138,7 +137,31 @@ class StationSheetViewModelTest {
         vm.select(SheetTime.PLUS_1H)
         advanceTimeBy(10_000)
         runCurrent()
-        assertTrue(content(vm).fromTimetable)
+        assertEquals(listOf(Copy.BY_TIMETABLE), content(vm).basis)
         assertEquals(SheetTime.PLUS_1H, content(vm).time)
+    }
+
+    @Test fun measuredGroupsShowMeasuredBasis() = runTest {
+        stations.arrivalsResult = ApiResult.Ok(
+            ArrivalsDto("영등포구청", "2026-11-13T19:00:00+09:00", groups = listOf(group("상행", "measured", 300))),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        assertEquals(listOf(Copy.BY_MEASURED), content(vm).basis)
+    }
+
+    @Test fun mixedTimetableShowsBothBasesAndMeasuredLineIsNotMissing() = runTest {
+        stations.timetableResult = { call ->
+            val source = if (call.line == "5호선") "measured" else "official"
+            ApiResult.Ok(
+                TimetableDto(call.stationId, call.line, call.direction, listOf(TimetableTrainDto("2026-11-13T20:01:00+09:00", "방화")), source),
+            )
+        }
+        val vm = vm()
+        advanceUntilIdle()
+        vm.select(SheetTime.PLUS_1H)
+        advanceUntilIdle()
+        assertEquals(listOf(Copy.BY_TIMETABLE, Copy.BY_MEASURED), content(vm).basis)
+        assertEquals(emptyList<String>(), content(vm).noTimetableLines)
     }
 }

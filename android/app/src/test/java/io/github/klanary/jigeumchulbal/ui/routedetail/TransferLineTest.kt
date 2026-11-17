@@ -23,5 +23,17 @@ class TransferLineTest {
         transferLine(step(listOf(TransferTrainDto("2026-11-13T08:18:00+09:00", "대화")))),
     )
 
+    @Test fun measuredTrainsAreMarked() = assertEquals(
+        "을지로3가 도착 08:15 · 환승 열차 08:18 대화행(실측) · 그다음 08:21 구파발행(실측)",
+        transferLine(
+            step(
+                listOf(
+                    TransferTrainDto("2026-11-13T08:18:00+09:00", "대화", source = "measured"),
+                    TransferTrainDto("2026-11-13T08:21:00+09:00", "구파발", source = "measured"),
+                ),
+            ),
+        ),
+    )
+
     @Test fun noTransferInfo() = assertNull(transferLine(step(null)))
 }

@@ -1,6 +1,6 @@
 # 공식 시간표로 변경을 확정하기 Implementation Plan
 
-**Goal:** 1~9호선의 공식 시간표를 매일 받아, 달라진 단위를 그날 관측이 옛·새 시간표 가운데 어느 쪽에 맞는지로 확정한다.
+**Goal:** 서지 않고 지나가는 급행을 관측에서 빼고, 1~9호선의 공식 시간표를 매일 받아, 달라진 단위를 그날 관측이 옛·새 시간표 가운데 어느 쪽에 맞는지로 확정한다.
 
 **Architecture:** `ml/b0.py`가 매일 시간표를 받아 차이를 날짜별 목록(`official_diff.json`)에 더한다. 밤 작업(`ml/nightly.py`)이 그 항목을 상태 파일의 "후보"로 들이고, 새 모듈 `ml/official.py`가 후보를 판정해 기존 `ChangeRecord` 확정으로 넘긴다. 확정이 실측 시간표에 반영되는 것은 지금처럼 `--enforce`일 때만이다.
 
@@ -38,10 +38,82 @@
 | `server/ml/changes.py` (수정) | `Thresholds` 새 필드, `Candidate`, 상태 판 2, 차이 목록 읽기 |
 | `server/ml/official.py` (새로) | 후보 들이기, 판정 계산, 후보 판정 돌리기, 채우기 |
 | `server/ml/nightly.py` (수정) | 위를 밤 작업 순서에 잇기 |
-| `server/ml/b1.py` (수정) | `Entry.official` 필드 |
+| `server/ml/b1.py` (수정) | 지나가는 급행 빼기, `Entry.official` 필드 |
 | `server/ml/deploy/subway-ml-official.{service,timer}` (새로), `setup_vm.sh` (수정) | 매일 01:30 받기 |
 | `server/tests/unit/test_ml_official.py` (수정), `test_ml_candidates.py` (새로), `test_ml_nightly.py`·`test_ml_deploy.py` (수정) | 테스트 |
 | `docs/ml/timetable-changes.md`, `docs/ml/2026-11-13-train-eta-model-plan.md`, `docs/ml/collector.md` (수정) | 운영 안내 |
+
+---
+
+### Task 0: 서지 않고 지나가는 급행을 출발에서 빼기
+
+**배경(2026-11-17 VM 자료, 9호선 상행 급행 120대):** 위치 API는 급행이 서지 않는 역에서도 이벤트를 보낸다. 급행 정차역(당산·동작·여의도 등)은 도착→출발 간격이 70~115초였고, 지나가는 역은 ① 출발만 있거나(언주·흑석·선유도) ② 도착과 출발이 5~17초 간격이거나(삼전 5초, 구반포 9초, 한성백제 17초) ③ 진입과 출발만 있었다(국회의사당). 지금 `departure_points`는 이것을 모두 "그 역을 떠난 시각"으로 쳐서, 서지 않는 급행이 그 역의 실측 시간표에 들어가고 호선 정차 시간 중앙값도 흐려진다. 정차역에서도 출발이 안 찍힌 경우(염창: 진입·도착만)가 있어 "도착만 있음"으로는 가를 수 없다.
+
+**Files:**
+- Modify: `server/ml/b1.py`(`departure_points`, `line_dwell`), `server/ml/nightly.py`(`--reextract`)
+- Test: `server/tests/unit/test_ml_b1.py`, `server/tests/unit/test_ml_nightly.py`
+
+**Interfaces:**
+- Produces (`ml.b1`):
+  - 상수 `PASS_MAX_DWELL_SEC = 20`, `PASS_MIN_EVIDENCE = 5`.
+  - `passed_stations(runs: list[Run]) -> set[tuple[str, int, int, str]]` — 급행이 지나가는 것으로 본 `(호선, 방향, express 값, statn_id)`.
+  - `is_pass(run: Run, visit: Visit, passed: Set[tuple[str, int, int, str]]) -> bool`
+  - `departure_points`와 `line_dwell`은 서명이 그대로이고, 지나간 방문을 뺀다.
+- Produces (`ml.nightly`): `run_nightly(..., reextract: bool = False)`, CLI `--reextract`.
+
+**규칙**
+- 급행이 아닌 운행(`run.express == 0`)은 건드리지 않는다.
+- **방문 하나로 아는 경우:** 도착과 출발이 둘 다 있고 `0 <= dep - arr < 20`이면 지나간 것이다. 20초 이상이면 선 것이다.
+- **방문 하나로 모르는 경우**(도착이나 출발 하나만 있음): 같은 `(호선, 방향, express 값, 역)`의 그날 방문 가운데 둘 다 있는 것이 5개 이상이고 그 과반이 "지나감"이면 지나간 것으로 본다. 근거가 모자라면 선 것으로 둔다(지금 동작과 같다).
+- 지나간 방문은 `departure_points`가 내지 않고, `line_dwell`의 표본에도 넣지 않는다.
+- `--reextract`: 따라잡기 창(14일) 안의 모든 날을 호선 전부 다시 뽑는다(`store.extract_day(db, day)`). 이미 판단한 날의 변경 판단은 다시 하지 않는다.
+
+**한계(문서에 적는다):** 1호선은 출발 이벤트가 드물어(11-16 급행 이벤트 8,396건 가운데 출발 241건) 이 규칙으로 가를 근거가 거의 없다. 그런 노선은 지금과 같이 둔다.
+
+- [ ] **Step 1: 실패하는 테스트** — `express_run(visits)`는 `Run(..., line="9호선", direction=0, express=1, visits=...)`를 만드는 도우미, `H = 8 * 3600`.
+
+```python
+def test_express_visit_with_a_few_seconds_between_arrival_and_departure_is_a_pass():
+    run = express_run([Visit("stop", arr=H, dep=H + 80), Visit("thru", arr=H + 200, dep=H + 209),
+                       Visit("end", arr=H + 400)])
+    assert [p.statn_id for p in departure_points([run], fallback_dwell=30)] == ["stop"]
+
+def test_local_train_with_a_short_dwell_is_kept():
+    run = replace(express_run([Visit("a", arr=H, dep=H + 9), Visit("end", arr=H + 400)]), express=0)
+    assert [p.statn_id for p in departure_points([run], fallback_dwell=30)] == ["a"]
+
+def test_departure_only_visit_follows_the_majority_at_that_station():
+    seen = [express_run([Visit("thru", arr=H + i * 600, dep=H + i * 600 + 8), Visit("end", arr=H + i * 600 + 300)], train_no=f"9{i}") for i in range(5)]
+    only_dep = express_run([Visit("thru", dep=H + 5000), Visit("end", arr=H + 5300)], train_no="99")
+    assert ("9호선", 0, 1, "thru") in passed_stations(seen + [only_dep])
+    assert departure_points(seen + [only_dep], fallback_dwell=30) == []
+
+def test_arrival_only_visit_at_a_stop_station_is_kept():
+    seen = [express_run([Visit("stop", arr=H + i * 600, dep=H + i * 600 + 80), Visit("end", arr=H + i * 600 + 300)], train_no=f"9{i}") for i in range(5)]
+    only_arr = express_run([Visit("stop", arr=H + 5000), Visit("end", arr=H + 5300)], train_no="99")
+    points = departure_points(seen + [only_arr], fallback_dwell=30)
+    assert len(points) == 6 and points[-1].estimated
+
+def test_one_sided_visit_without_enough_evidence_is_kept():
+    only_dep = express_run([Visit("thru", dep=H), Visit("end", arr=H + 300)])
+    assert len(departure_points([only_dep], fallback_dwell=30)) == 1
+
+def test_pass_visits_do_not_pull_down_the_line_dwell():
+    stops = [express_run([Visit("stop", arr=H + i * 600, dep=H + i * 600 + 60), Visit("thru", arr=H + i * 600 + 200, dep=H + i * 600 + 208), Visit("end", arr=H + i * 600 + 400)], train_no=f"9{i}") for i in range(20)]
+    assert line_dwell(stops, fallback=30) == {"9호선": 60}
+```
+
+`test_ml_nightly.py`:
+
+```python
+def test_reextract_replaces_points_for_days_in_the_window(tmp_path, paths): ...
+    # 한 번 돌린 뒤 points.sqlite에서 한 날의 출발을 지우고 night(reextract=True) → 다시 채워짐, state.checked는 그대로
+```
+
+- [ ] **Step 2: 실패 확인**
+- [ ] **Step 3: 구현**
+- [ ] **Step 4: 전체 테스트·린트 통과** — 급행을 쓰는 기존 합성 자료의 정차 시간이 20초 미만이면 그 자료를 20초 이상으로 고친다(뜻이 "정차"인 자료이므로).
+- [ ] **Step 5: 커밋** — `fix(ml): 서지 않고 지나가는 급행을 출발 시각에서 빼기`
 
 ---
 
@@ -554,5 +626,5 @@ def test_setup_script_installs_the_official_units():
 ## 올린 뒤 할 일(사용자 승인 뒤, 이 계획의 Task가 아니다)
 
 1. `develop` 푸시.
-2. VM: `git pull`, `.env`에 `SEOUL_OPENAPI_KEY` 더하기(값을 출력하지 않고 옮긴다), `setup_vm.sh` 다시 실행, `python -m ml.b0 --refresh`를 한 번 손으로 돌려 캐시를 만든다.
+2. VM: `git pull` 뒤 `python -m ml.nightly --reextract`를 한 번 돌려 이미 뽑은 날에서 지나가는 급행을 뺀다. 그리고 `.env`에 `SEOUL_OPENAPI_KEY` 더하기(값을 출력하지 않고 옮긴다), `setup_vm.sh` 다시 실행, `python -m ml.b0 --refresh`를 한 번 손으로 돌려 캐시를 만든다.
 3. **1호선 확인**(스펙 5.8): VM 자료로 `python -m ml.analyze --timetable-cache ml_data/timetable_cache`를 돌려 1호선의 공식 시간표와 관측의 차이를 `docs/ml/`에 적는다. 전혀 맞지 않으면 `TIMETABLE_LINES`에서 1호선을 다시 뺀다.

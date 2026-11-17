@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import NonNegativeInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,9 +14,10 @@ class Settings(BaseSettings):
     kakao_rest_api_key: str = ""
 
     # 0 = 제한 없음. 서울시 키는 2026-11-15부터 한도가 없다(호출 수는 그래도 센다).
-    seoul_realtime_daily_limit: int = 0
-    seoul_timetable_daily_limit: int = 0
-    kakao_route_daily_limit: int = 1000
+    # 음수는 오타로 보고 받지 않는다(서버가 뜨지 않음).
+    seoul_realtime_daily_limit: NonNegativeInt = 0
+    seoul_timetable_daily_limit: NonNegativeInt = 0
+    kakao_route_daily_limit: NonNegativeInt = 1000
 
     rate_limit_per_minute: int = 60
     mock_upstream: bool = False

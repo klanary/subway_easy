@@ -459,7 +459,7 @@ Task 1~8을 구현했다(전체 테스트 476개 통과). Task 9(기준값 맞�
 
 함께 넣을 것: 밤 작업 실패 알림(종료 코드 1·2일 때), `diff_caches`의 "갑자기 빈 역" 방어.
 
-**2026-11-17 뒤이음:** 이 제안은 설계 `docs/superpowers/specs/2026-11-17-official-timetable-confirmation-design.md`와 계획 `docs/superpowers/plans/2026-11-17-official-timetable-confirmation.md`로 옮겨 구현했다(실패 알림은 빼고, 1호선과 "지나가는 급행 빼기"를 더했다). VM에는 아직 반영하지 않았다.
+**2026-11-17 뒤이음:** 이 제안은 설계 `docs/superpowers/specs/2026-11-17-official-timetable-confirmation-design.md`와 계획 `docs/superpowers/plans/2026-11-17-official-timetable-confirmation.md`로 옮겨 구현했다(실패 알림은 빼고, 1호선과 "지나가는 급행 빼기"를 더했다). 2026-11-17 15시에 VM에 반영했다(`docs/ml/timetable-changes.md` 맨 위).
 
 ## 다른 PC에서 이어서 하기
 
@@ -470,4 +470,6 @@ Task 1~8을 구현했다(전체 테스트 476개 통과). Task 9(기준값 맞�
   - VM 접속 키 `~/.ssh/subway_vm` — 처음 만든 PC에만 있다. 옮기거나, 새 키를 만들어 VM의 `~/.ssh/authorized_keys`에 공개 키를 더한다.
   - `server/ml_data/` — 로컬 수집 자료·시간표 캐시(2·5호선 휴일). VM의 것이 본자료다.
 - 테스트: `cd server && .venv/Scripts/python -m pytest -q`(2026-11-17 뒤이음 뒤 536개 통과, 1개 건너뜀).
+- VM 접속 키는 PC마다 따로 만든다. 2026-11-17에 노트북 키(`subway_vm-notebook`)를 Azure Portal의 "실행 명령"으로 `~/.ssh/authorized_keys`에 더했다. 다른 PC도 같은 방법으로 공개 키를 더하면 된다.
+- 다음 할 일: ① 11-18 01:30 받기와 02:40 밤 작업 결과 확인(`journalctl -u subway-ml-official -n 5`, `cat ml_data/changes.md`), ② 자료가 며칠 쌓이면 1호선 공식 시간표와 관측 견주기(`python -m ml.analyze --timetable-cache ml_data/timetable_cache`), ③ 평일 15일 이상 쌓이면(12-07 이후) 기준값 맞추기(앞선 계획 Task 9), ④ 밤 작업 실패 알림(채널 정한 뒤).
 - 읽을 순서: `docs/ml/2026-11-13-train-eta-model-plan.md`(설계) → `docs/ml/collector.md`(수집기·VM) → `docs/ml/timetable-changes.md`(변경 감지 운영) → 이 문서.

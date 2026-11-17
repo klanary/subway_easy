@@ -36,6 +36,7 @@ def test_settings() -> Settings:
         seoul_openapi_key="TESTOPENAPIKEY",
         kakao_rest_api_key="TESTKAKAOKEY",
         metrics_token="TESTMETRICSTOKEN",
+        measured_base_url="",
         upstream_retry_delay_sec=0,
     )
 

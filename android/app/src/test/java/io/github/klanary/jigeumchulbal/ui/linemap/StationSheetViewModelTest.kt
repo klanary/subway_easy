@@ -116,7 +116,7 @@ class StationSheetViewModelTest {
         assertEquals(before + 1, stations.arrivalCalls.size)
     }
 
-    @Test fun lineWithoutTimetableIsNamed() = runTest { // 2026-11-12: 서울시 시간표는 2~9호선만 있다
+    @Test fun lineWithoutTimetableIsNamed() = runTest { // 서울시 시간표는 1~9호선만 있다(2026-11-17 확인)
         stations.timetableResult = { call ->
             val trains = if (call.line == "2호선") listOf(TimetableTrainDto("2026-11-13T20:01:00+09:00", "성수")) else emptyList()
             ApiResult.Ok(TimetableDto(call.stationId, call.line, call.direction, trains))

@@ -21,7 +21,7 @@ from pathlib import Path
 
 from app.core.clock import KST
 from app.services.station_index import StationIndex
-from ml.alerts import Notify, notifier_from_env, report_exit
+from ml.alerts import Notify, run_with_alert, send_lines
 from ml.b0 import B0, TimetableCache, load_diff_log, station_codes
 from ml.b1 import STALE_DAYS, WINDOW, build_b1_from_points
 from ml.changes import (
@@ -266,12 +266,7 @@ def run_nightly(
         state.save(state_path)
         latest = list({id(r): r for r in changed}.values())
         append_log(log_path, as_of, candidate_log + render(latest))
-        if notify is not None:
-            for text in render([r for r in latest if r.status == "confirmed"]):
-                try:
-                    notify(text)
-                except Exception as e:
-                    logger.warning("알림 실패: %s", type(e).__name__)
+        send_lines(notify, render([r for r in latest if r.status == "confirmed"]))
         store.prune(today - timedelta(days=keep_points_days))
     finally:
         store.close()
@@ -311,13 +306,9 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
     parser.add_argument("--env-file", default=".env", help="DISCORD_WEBHOOK_URL을 읽을 파일")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-    notify = notifier_from_env(args.env_file, os.environ)
-    try:
-        code = _run(args, now, notify)
-    except Exception:
-        logger.exception("밤 작업이 예기치 않게 멈췄습니다")
-        code = 1
-    return report_exit(code, notify, "밤 작업", "subway-ml-nightly")
+    return run_with_alert(
+        "밤 작업", "subway-ml-nightly", args.env_file, lambda notify: _run(args, now, notify)
+    )
 
 
 def _run(args: argparse.Namespace, now: datetime | None, notify: Notify | None) -> int:

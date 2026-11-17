@@ -6,7 +6,7 @@ import pytest
 import respx
 
 from app.core.clock import KST
-from ml import nightly
+from ml import alerts, nightly
 from ml.b0 import RefreshResult, record_refresh
 from ml.changes import ChangeState
 from ml.nightly import main, run_nightly
@@ -227,6 +227,7 @@ def test_main_uses_day_option_and_enforce_flag(tmp_path, paths):
         "--db", str(db), "--points", str(paths["points_path"]), "--state", str(paths["state_path"]),
         "--out", str(paths["out_path"]), "--log", str(paths["log_path"]),
         "--day", (DAYS[4] + timedelta(days=1)).isoformat(),
+        "--env-file", str(tmp_path / "없음.env"),  # 진짜 server/.env를 읽지 않게
     ]  # fmt: skip
     assert main(args) == 0
     assert artifact(paths)["as_of"] == DAYS[4].isoformat()
@@ -472,7 +473,7 @@ def test_main_success_sends_nothing_and_alert_error_keeps_exit_code(tmp_path, pa
 
 def test_main_crash_is_reported_as_failure(tmp_path, paths, monkeypatch):
     sent: list[str] = []
-    monkeypatch.setattr(nightly, "notifier_from_env", lambda *_: sent.append)
+    monkeypatch.setattr(alerts, "notifier_from_env", lambda *_: sent.append)
 
     def boom(**_):
         raise RuntimeError("boom")

@@ -7,11 +7,14 @@
 
 import json
 import logging
-from collections.abc import Callable, Mapping
+import os
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 
 import httpx
 from dotenv import dotenv_values
+
+from app.core.logging import quiet_http_loggers
 
 logger = logging.getLogger("ml.alerts")
 
@@ -23,10 +26,10 @@ Notify = Callable[[str], None]
 
 
 def discord_notifier(url: str) -> Notify:
-    """text를 Discord 채널에 보낸다. 실패해도 예외를 올리지 않는다."""
-    # httpx·httpcore는 INFO·DEBUG로 요청 URL 전체(웹훅 토큰 포함)를 찍는다.
-    for name in ("httpx", "httpcore"):
-        logging.getLogger(name).setLevel(logging.WARNING)
+    """text를 Discord 채널에 보낸다. 실패해도 예외를 올리지 않는다.
+
+    httpx 요청 로그(URL 전체)는 작업 시작 때 `run_with_alert`가 끈다.
+    """
 
     def send(text: str) -> None:
         body = json.dumps({"content": text[:MAX_LEN]}, ensure_ascii=False, separators=(",", ":"))
@@ -55,6 +58,37 @@ def notifier_from_env(env_file: str | Path | None, environ: Mapping[str, str]) -
     return discord_notifier(url)
 
 
+def chunk_lines(lines: Iterable[str], limit: int = MAX_LEN) -> list[str]:
+    """줄들을 줄바꿈으로 이어 limit 글자 이하의 메시지로 나눈다. 너무 긴 한 줄은 자른다.
+
+    Discord 웹훅은 약 2초에 5건만 받는다. 줄마다 보내면 확정이 여럿인 밤에 대부분이 429로 사라진다.
+    """
+    chunks: list[str] = []
+    current = ""
+    for line in lines:
+        line = line[:limit]
+        if current and len(current) + 1 + len(line) <= limit:
+            current += "\n" + line
+        else:
+            if current:
+                chunks.append(current)
+            current = line
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def send_lines(notify: Notify | None, lines: Iterable[str]) -> None:
+    """줄들을 몇 개의 메시지로 묶어 보낸다. 실패해도 예외를 올리지 않는다."""
+    if notify is None:
+        return
+    for chunk in chunk_lines(lines):
+        try:
+            notify(chunk)
+        except Exception as e:
+            logger.warning("알림 실패: %s", type(e).__name__)
+
+
 def failure_text(job: str, unit: str, code: int) -> str:
     return (
         f"⚠️ 지금출발 {job} 실패(종료 코드 {code})."
@@ -70,3 +104,20 @@ def report_exit(code: int, notify: Notify | None, job: str, unit: str) -> int:
         except Exception as e:
             logger.warning("알림 실패: %s", type(e).__name__)
     return code
+
+
+def run_with_alert(
+    job: str, unit: str, env_file: str | Path | None, run: Callable[[Notify | None], int]
+) -> int:
+    """작업 하나를 돌리고, 실패(종료 코드 1·2, 예기치 않은 예외)면 Discord로 알린다.
+
+    httpx 요청 로그를 먼저 끄고, 알림 함수(웹훅이 없으면 None)를 작업에 넘긴다.
+    """
+    quiet_http_loggers()
+    notify = notifier_from_env(env_file, os.environ)
+    try:
+        code = run(notify)
+    except Exception:
+        logger.exception("%s이(가) 예기치 않게 멈췄습니다", job)
+        code = 1
+    return report_exit(code, notify, job, unit)

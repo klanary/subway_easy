@@ -53,7 +53,7 @@ class QuotaGuard:
 
     @property
     def unlimited(self) -> bool:
-        return self.daily_limit <= 0
+        return self.daily_limit == 0
 
     def record_call(self) -> None:
         self._roll_over()

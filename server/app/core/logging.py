@@ -34,6 +34,12 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False, default=str)
 
 
+def quiet_http_loggers() -> None:
+    """httpx·httpcore의 INFO·DEBUG 로그(요청 URL 전체: 서울시 키, 웹훅 토큰)를 끈다."""
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+
 def configure_logging() -> None:
     """루트 로거에 JSON 처리기를 하나만 단다. create_app이 여러 번 불러도 중복되지 않는다."""
     root = logging.getLogger()
@@ -43,8 +49,7 @@ def configure_logging() -> None:
         handler._jigeumchulbal = True  # type: ignore[attr-defined]
         root.addHandler(handler)
     root.setLevel(logging.INFO)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    quiet_http_loggers()
     # uvicorn 기본 접근 로그는 쿼리의 좌표를 그대로 남긴다(스펙 5.4 위반).
     # 쿼리를 뺀 접근 로그는 app.access가 남긴다.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

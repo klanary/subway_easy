@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 import httpx
@@ -9,6 +10,22 @@ from app.core.config import Settings
 from app.main import create_app
 from app.services.station_index import StationIndex
 from tests.helpers import FIXTURES_DIR, FakeClock, fixture_response
+
+
+@pytest.fixture(autouse=True)
+def _no_real_discord_webhook(monkeypatch):
+    """셸이나 VM에 웹훅이 있어도 테스트가 진짜 Discord로 알림을 보내지 않게 한다."""
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+
+
+@pytest.fixture
+def http_log_levels():
+    """httpx·httpcore 로거 수준을 바꾸는 테스트가 끝나면 원래대로 돌린다."""
+    loggers = [logging.getLogger(name) for name in ("httpx", "httpcore")]
+    saved = [logger.level for logger in loggers]
+    yield
+    for logger, level in zip(loggers, saved, strict=True):
+        logger.setLevel(level)
 
 
 @pytest.fixture

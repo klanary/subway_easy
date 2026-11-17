@@ -27,6 +27,7 @@ import httpx
 from app.clients.endpoints import SEOUL_REALTIME_BASE
 from app.clients.http import mask_url
 from app.core.clock import KST
+from app.core.logging import quiet_http_loggers
 from app.services.station_index import StationIndex
 from ml.keys import KEY_ENV, KeyRing, load_keys
 from ml.parse import (
@@ -282,8 +283,7 @@ def _setup_logging(log_file: str) -> None:
         handler.setFormatter(fmt)
         root.addHandler(handler)
     # httpx는 요청 URL(키 포함)을 INFO로 찍는다. 수집기에서는 끈다.
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    quiet_http_loggers()
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:

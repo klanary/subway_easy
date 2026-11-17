@@ -51,12 +51,16 @@ class SlidingWindowRateLimiter:
 
 
 def client_ip(request: Request) -> str:
-    """호스팅의 프록시 뒤에 있으므로 X-Forwarded-For의 첫 번째 IP를 쓴다."""
+    """호스팅의 프록시 뒤에 있으므로 X-Forwarded-For의 마지막 IP를 쓴다.
+
+    앞쪽 값은 요청을 보내는 쪽이 마음대로 넣을 수 있다(요청마다 바꾸면 제한을 피한다).
+    마지막 값은 호스팅 프록시(Render)가 실제 접속 주소로 붙인 것이다.
+    """
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
+        last = forwarded.split(",")[-1].strip()
+        if last:
+            return last
     if request.client is not None and request.client.host:
         return request.client.host
     return "unknown"

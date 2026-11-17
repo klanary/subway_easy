@@ -16,6 +16,8 @@ _MIN = re.compile(r"(\d+)분\s*후")
 _TRAIN_LINE_NM = re.compile(r"(.+?)행\s*-\s*(.+?)방면")
 
 _SEC_PER_PREVIOUS_STATION = 120
+# 이보다 오래전에 만든 정보는 버린다. recptnDt가 18분 늦게 온 적이 있다(위치 결합 스펙 4.2).
+STALE_SEC = 600
 
 
 def _parse_message(message: str | None) -> int | None:
@@ -62,7 +64,8 @@ def compute_remaining_sec(item: dict, now: datetime) -> int | None:
     barvl = _to_int(item.get("barvlDt"))
     if barvl is not None and barvl > 0:
         generated = _parse_recptn(item.get("recptnDt"))
-        elapsed = (now - generated).total_seconds() if generated is not None else 0
+        # 생성 시각이 미래로 오면(최대 +160초 실측) 지금 만든 것으로 본다.
+        elapsed = max(0.0, (now - generated).total_seconds()) if generated is not None else 0
         sec: int | None = round(barvl - elapsed)
     else:
         sec = _parse_message(item.get("arvlMsg2"))
@@ -71,13 +74,22 @@ def compute_remaining_sec(item: dict, now: datetime) -> int | None:
     return max(sec, 0)
 
 
+def is_stale(item: dict, now: datetime) -> bool:
+    """생성 시각이 [STALE_SEC]보다 오래된 항목. 지나간 열차를 "곧 도착"으로 보이지 않게 뺀다.
+
+    생성 시각을 모르면 버리지 않는다.
+    """
+    generated = _parse_recptn(item.get("recptnDt"))
+    return generated is not None and (now - generated).total_seconds() > STALE_SEC
+
+
 def is_departed(message: str | None) -> bool:
-    """"OO 출발"은 이미 이 역을 떠난 열차다. "전역 출발"은 아직 오는 중이다(규칙 5)."""
+    """ "OO 출발"은 이미 이 역을 떠난 열차다. "전역 출발"은 아직 오는 중이다(규칙 5)."""
     return bool(message) and "출발" in message and "전역" not in message
 
 
 def parse_train_line_nm(value: str | None) -> tuple[str | None, str | None]:
-    """"OO행 - XX방면" → (OO, XX). 해석할 수 없으면 (None, None)."""
+    """ "OO행 - XX방면" → (OO, XX). 해석할 수 없으면 (None, None)."""
     if not value or not (m := _TRAIN_LINE_NM.search(value)):
         return None, None
     return m.group(1).strip(), m.group(2).strip()

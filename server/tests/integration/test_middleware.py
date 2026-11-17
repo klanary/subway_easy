@@ -28,6 +28,17 @@ async def test_rate_limited_response_and_metric(limited_client, limited_services
     assert r.status_code == 200
 
 
+async def test_spoofed_forwarded_for_does_not_bypass_limit(limited_client):
+    # 앞쪽 값은 보내는 쪽이 마음대로 넣는다. 호스팅 프록시가 붙인 마지막 값으로 센다.
+    codes = [
+        (
+            await limited_client.get(PROBE, headers={"X-Forwarded-For": f"9.9.9.{i}, 5.5.5.5"})
+        ).status_code
+        for i in range(4)
+    ]
+    assert codes == [200, 200, 200, 429]
+
+
 async def test_rate_limited_body_uses_spec_format(limited_client):
     for _ in range(3):
         await limited_client.get(PROBE)

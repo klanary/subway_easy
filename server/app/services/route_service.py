@@ -4,6 +4,7 @@
 경유역이 있으면 두 구간을 따로 구해 합친다. 출발 시각을 주면 시간표 열차를 붙인다.
 """
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -84,8 +85,9 @@ class RouteService:
         if not routes:
             raise NoRoute("NO_SUBWAY")
         routes = [r.model_copy(deep=True) for r in routes]
-        for route in routes:
-            await self._attach_trains(route, depart_at)
+        # 경로마다 동시에 붙인다(각자 자기 사본만 고친다).
+        # 차례로 기다리면 환승이 많을수록 느려진다.
+        await asyncio.gather(*(self._attach_trains(route, depart_at) for route in routes))
         response = RoutesResponse(
             updated_at=kst_from_epoch(min(p.fetched_at for p in parts)),
             stale=any(p.stale for p in parts),

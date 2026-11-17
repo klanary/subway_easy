@@ -18,6 +18,7 @@ _MESSAGES: dict[tuple[str, str | None], str] = {
     ("RATE_LIMITED", None): "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.",
     ("UPSTREAM_ERROR", None): "정보를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.",
     ("QUOTA_EXCEEDED", None): "오늘 조회할 수 있는 횟수를 모두 썼어요. 내일 다시 시도해 주세요.",
+    ("QUOTA_EXCEEDED", "PAUSED"): "요청이 몰려 잠시 쉬고 있어요. 1분 뒤 다시 시도해 주세요.",
     ("UPSTREAM_TIMEOUT", None): "응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.",
 }
 
@@ -28,8 +29,10 @@ class AppError(Exception):
 
     def __init__(self, reason: str | None = None, message: str | None = None):
         self.reason = reason
-        self.message = message or _MESSAGES.get((self.code, reason)) or _MESSAGES.get(
-            (self.code, None), "알 수 없는 오류가 발생했어요."
+        self.message = (
+            message
+            or _MESSAGES.get((self.code, reason))
+            or _MESSAGES.get((self.code, None), "알 수 없는 오류가 발생했어요.")
         )
         super().__init__(self.code if reason is None else f"{self.code}: {reason}")
 

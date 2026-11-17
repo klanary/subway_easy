@@ -2,6 +2,7 @@
 
 - 한도의 80% 이상: 해당 API 캐시의 유효 시간을 3배로 늘린다(ttl_multiplier).
 - 한도 도달 또는 외부 API의 한도 초과 응답(mark_exhausted): 그날은 외부 호출을 멈춘다.
+- HTTP 429(pause): "잠깐 너무 빠름"일 수 있어 하루가 아니라 PAUSE_SEC 동안만 멈춘다.
 - 한도 0은 "제한 없음"이다(서울시 키는 2026-11-15부터 한도가 없다). 호출 수는 그래도 세고,
   외부 API가 한도 초과로 응답하면 그날은 멈춘다.
 - 한국 시간 00:00에 초기화한다. 카운터는 메모리에 있어 서버가 재시작되면 0부터 다시 센다.
@@ -11,6 +12,8 @@ from collections.abc import Callable
 from datetime import date
 
 from app.core.clock import kst_from_epoch
+
+PAUSE_SEC = 60
 
 
 class QuotaGuard:
@@ -22,6 +25,7 @@ class QuotaGuard:
         self._calls = 0
         self._errors = 0
         self._exhausted = False
+        self._paused_until = 0.0
 
     def _today(self) -> date:
         return kst_from_epoch(self._clock()).date()
@@ -47,7 +51,7 @@ class QuotaGuard:
 
     def can_call(self) -> bool:
         self._roll_over()
-        if self._exhausted:
+        if self._exhausted or self._clock() < self._paused_until:
             return False
         return self.unlimited or self._calls < self.daily_limit
 
@@ -70,6 +74,14 @@ class QuotaGuard:
         """
         self._roll_over()
         self._exhausted = True
+
+    @property
+    def paused(self) -> bool:
+        return self._clock() < self._paused_until
+
+    def pause(self, seconds: float = PAUSE_SEC) -> None:
+        """잠시 외부 호출을 멈춘다(HTTP 429). 하루 한도 소진과 달리 곧 다시 부른다."""
+        self._paused_until = self._clock() + seconds
 
     def ttl_multiplier(self) -> float:
         self._roll_over()

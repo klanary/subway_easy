@@ -1,8 +1,13 @@
+import httpx
 import pytest
+
+from app.main import create_app
+
+AUTH = {"X-Metrics-Token": "TESTMETRICSTOKEN"}
 
 
 async def test_metrics_on_fresh_server(client):
-    r = await client.get("/v1/metrics")
+    r = await client.get("/v1/metrics", headers=AUTH)
     body = r.json()
     assert r.status_code == 200 and body["cache"] == {"hits": 0, "misses": 0, "hitRate": 0.0}
     assert list(body["upstream"]) == [
@@ -23,7 +28,7 @@ async def test_metrics_reflect_counters(client, services):
     services.metrics.cache_hits, services.metrics.cache_misses = 3, 1
     services.metrics.unmatched_station_names.update({"가나", "다라"})
     services.quotas["kakaoRoute"].record_call()
-    body = (await client.get("/v1/metrics")).json()
+    body = (await client.get("/v1/metrics", headers=AUTH)).json()
     assert body["cache"] == {"hits": 3, "misses": 1, "hitRate": 0.75}
     assert body["upstream"]["kakaoRoute"]["callsToday"] == 1
     assert body["unmatchedStations"] == 2
@@ -35,6 +40,21 @@ async def test_metrics_after_miss_and_hit(client, seoul):
     seoul("seoul_realtime_hongdae.json")
     for _ in range(2):
         await client.get("/v1/stations/홍대입구/arrivals")
-    body = (await client.get("/v1/metrics")).json()
+    body = (await client.get("/v1/metrics", headers=AUTH)).json()
     assert body["cache"] == {"hits": 1, "misses": 1, "hitRate": 0.5}
     assert body["upstream"]["seoulRealtime"]["callsToday"] == 1 and body["requests"]["total"] == 2
+
+
+async def test_metrics_needs_token(client):
+    assert (await client.get("/v1/metrics")).status_code == 404
+    wrong = {"X-Metrics-Token": "nope"}
+    assert (await client.get("/v1/metrics", headers=wrong)).status_code == 404
+
+
+async def test_metrics_closed_when_no_token_is_configured(test_settings, clock):
+    app = create_app(test_settings.model_copy(update={"metrics_token": ""}), clock=clock)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        r = await c.get("/v1/metrics", headers={"X-Metrics-Token": ""})
+    assert r.status_code == 404

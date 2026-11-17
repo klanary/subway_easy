@@ -178,7 +178,7 @@ scp -i <개인 키 파일> "ubuntu@<VM 주소>:subway_easy/server/ml_data/backup
 
 ### 실측 결과물 내보내기 (수·일 03:30, 2026-11-18)
 
-`setup_vm.sh`는 `subway-ml-publish.timer`도 등록한다. 수·일 03:30에 `python -m ml.publish`가 최근 7일로 구간 시간(B2)을 호선마다 만들고, 밤 작업이 만든 실측 시간표(B1)와 함께 GitHub 릴리스 `measured-timetable`에 올린다(`measured_timetable.json.gz`, `segment_times.json.gz`, 마지막에 `manifest.json`). 서버는 이 릴리스를 6시간마다 확인해 받아 간다. 실패하면 Discord로 알린다.
+`setup_vm.sh`는 `subway-ml-publish.timer`도 등록한다. 수·일 03:30에 `python -m ml.publish`가 최근 7일로 구간 시간(B2)을 호선마다 만들고, 밤 작업이 만든 실측 시간표(B1)와 함께 GitHub 릴리스 `measured-timetable`에 올린다. 서버용으로 줄인 사본(시간표 API가 없는 노선만, 필요한 칸만)을 빌드마다 다른 이름(`measured_timetable-<시각>.json.gz`, `segment_times-<시각>.json.gz`)으로 먼저 올리고, `manifest.json`을 바꾼 뒤 옛 파일을 지운다. 올리다 실패해도 옛 파일과 옛 manifest가 그대로 남는다. 서버는 이 릴리스를 6시간마다 확인해 받아 간다. 실패하면 Discord로 알린다.
 
 **사용자가 할 일 — 토큰 만들기**
 

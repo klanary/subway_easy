@@ -8,6 +8,7 @@
 - 변경 의심(`suspect`)·재학습 중(`retraining`)인 단위(요일|호선|방향|시간대)의 칸은 내지 않는다.
 """
 
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -16,8 +17,10 @@ from app.core.clock import KST
 from app.models.schemas import TimetableTrain
 from app.services.timetable import service_days, week_tag
 
-B1_VERSION = 2
-B2_VERSION = 1
+# 서버용 사본(ml/publish.server_b1·server_b2). 시간표 API가 없는 노선만, 필요한 칸만 담는다
+# (최종 리뷰 #1: 전체 B1을 그대로 올리면 Render 512MB를 넘는다).
+B1_KIND, B1_VERSION = "b1-server", 1
+B2_KIND, B2_VERSION = "b2-server", 1
 _EXCLUDED_STATES = frozenset({"suspect", "retraining"})
 _HOP_SERVICE_DAY_START_HOUR = 1  # 수집기는 01시 전 이벤트를 전날 운행일로 센다
 
@@ -32,7 +35,7 @@ def direction_code(direction: str) -> int:
     return 0 if direction in ("상행", "내선") else 1
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _Entry:
     secs: int
     train_no: str | None
@@ -50,20 +53,20 @@ class MeasuredData:
     modes: Mapping[str, str]
     cells: Mapping[Key, tuple[_Entry, ...]]
     statn_of: Mapping[tuple[str, str], str]  # (호선, 우리 역 id) → statn_id
-    hops: Mapping[str, Mapping[str, float]] = field(default_factory=dict)
+    hops: Mapping[str, Mapping[str, float]] = field(default_factory=dict)  # 표 이름 → 키 → 중앙값
 
     @classmethod
     def from_artifacts(cls, b1: dict, b2: dict | None) -> "MeasuredData":
         """형식이 맞지 않으면 ValueError."""
-        if b1.get("kind") != "b1" or b1.get("version") != B1_VERSION:
+        if b1.get("kind") != B1_KIND or b1.get("version") != B1_VERSION:
             raise ValueError("B1 결과물 형식이 다릅니다")
-        if b2 is not None and (b2.get("kind") != "b2" or b2.get("version") != B2_VERSION):
+        if b2 is not None and (b2.get("kind") != B2_KIND or b2.get("version") != B2_VERSION):
             raise ValueError("B2 결과물 형식이 다릅니다")
         stations = b1.get("stations") or {}
+        dests = [sys.intern(name) for name in b1.get("dests") or []]
         excluded = {
-            key for key, scope in (b1.get("scopes") or {}).items()
-            if scope.get("state") in _EXCLUDED_STATES
-        }  # fmt: skip
+            key for key, state in (b1.get("scopes") or {}).items() if state in _EXCLUDED_STATES
+        }
         cells: dict[Key, list[_Entry]] = {}
         statn_of: dict[tuple[str, str], str] = {}
         for key, entries in (b1.get("cells") or {}).items():
@@ -73,14 +76,15 @@ class MeasuredData:
             if not station_id:
                 continue
             statn_of[(line, station_id)] = statn_id
-            kept = [
-                _Entry(
-                    int(e["secs"]), e.get("train_no"), e.get("dest_name"), bool(e.get("express"))
-                )
-                for e in entries
-                if f"{day_type}|{line}|{code}|{int(e['secs']) // 3600}" not in excluded
-                and e.get("dest_name") != station.get("name")
-            ]
+            kept = []
+            for secs, train_no, dest, express in entries:
+                dest_name = dests[dest] if dest >= 0 else None
+                if f"{day_type}|{line}|{code}|{secs // 3600}" in excluded:
+                    continue
+                if dest_name is not None and dest_name == station.get("name"):
+                    continue  # 이 역이 종착인 열차
+                number = sys.intern(train_no) if train_no else None  # 역마다 같은 번호가 되풀이된다
+                kept.append(_Entry(secs, number, dest_name, bool(express)))
             name = direction_name(line, int(code))
             cells[(int(day_type), line, name, station_id)] = tuple(
                 sorted(kept, key=lambda x: x.secs)
@@ -163,5 +167,5 @@ class MeasuredData:
         ):
             found = (self.hops.get(table) or {}).get(key)
             if found:
-                return float(found["median"])
+                return float(found)
         return None

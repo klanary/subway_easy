@@ -7,6 +7,7 @@ import pytest
 
 from app.core.clock import KST
 from app.services.measured import MeasuredData
+from ml.publish import server_b1, server_b2
 from tests.helpers import FIXTURES_DIR
 
 
@@ -20,7 +21,9 @@ def load(name: str) -> dict:
 
 @pytest.fixture
 def data() -> MeasuredData:
-    return MeasuredData.from_artifacts(load("b1_small.json"), load("b2_small.json"))
+    return MeasuredData.from_artifacts(
+        server_b1(load("b1_small.json")), server_b2(load("b2_small.json"))
+    )
 
 
 def hm(trains) -> list[str]:

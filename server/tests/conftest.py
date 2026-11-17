@@ -161,6 +161,10 @@ def measured_loaded(services):
     def load(name: str) -> dict:
         return json.loads((FIXTURES_DIR / "measured" / name).read_text(encoding="utf-8"))
 
-    data = MeasuredData.from_artifacts(load("b1_small.json"), load("b2_small.json"))
+    from ml.publish import server_b1, server_b2
+
+    data = MeasuredData.from_artifacts(
+        server_b1(load("b1_small.json")), server_b2(load("b2_small.json"))
+    )
     services.measured.replace(data)
     return data

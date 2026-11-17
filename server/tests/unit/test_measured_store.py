@@ -11,13 +11,8 @@ import pytest
 import respx
 
 from app.core.clock import KST
-from app.services.measured_store import (
-    B1_FILE,
-    B2_FILE,
-    MANIFEST_FILE,
-    REFRESH_SEC,
-    MeasuredStore,
-)
+from app.services.measured_store import MANIFEST_FILE, REFRESH_SEC, MeasuredStore
+from ml.publish import server_b1, server_b2
 from tests.helpers import FIXTURES_DIR, FakeClock
 
 BASE = "https://example.test/releases/download/measured-timetable"
@@ -31,12 +26,24 @@ def pack(data: dict) -> bytes:
     return gzip.compress(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
 
-def release(built_at: str = "2026-11-18T03:30:00+09:00", as_of: str = "2026-11-17", **override):
-    b1 = {**fixture("b1_small.json"), "as_of": as_of}
-    files = {B1_FILE: pack(b1), B2_FILE: pack(fixture("b2_small.json"))}
-    sums = {name: hashlib.sha256(body).hexdigest() for name, body in files.items()}
-    sums.update(override)
-    manifest = {"built_at": built_at, "as_of": as_of, "files": sums}
+B1_NAME = "measured_timetable-20261118T033000.json.gz"
+B2_NAME = "segment_times-20261118T033000.json.gz"
+
+
+def release(
+    built_at: str = "2026-11-18T03:30:00+09:00",
+    as_of: str = "2026-11-17",
+    b1_sha: str | None = None,
+    b1: dict | None = None,
+):
+    b1 = b1 or server_b1({**fixture("b1_small.json"), "as_of": as_of})
+    files = {B1_NAME: pack(b1), B2_NAME: pack(server_b2(fixture("b2_small.json")))}
+    manifest = {
+        "built_at": built_at,
+        "as_of": as_of,
+        "b1": {"name": B1_NAME, "sha256": b1_sha or hashlib.sha256(files[B1_NAME]).hexdigest()},
+        "b2": {"name": B2_NAME, "sha256": hashlib.sha256(files[B2_NAME]).hexdigest()},
+    }
     return manifest, files
 
 
@@ -75,7 +82,7 @@ async def test_same_built_at_does_not_download_again(store):
     routes = serve(respx, *release())
     await store.refresh()
     await store.refresh()
-    assert routes[MANIFEST_FILE].call_count == 2 and routes[B1_FILE].call_count == 1
+    assert routes[MANIFEST_FILE].call_count == 2 and routes[B1_NAME].call_count == 1
 
 
 @respx.mock
@@ -84,7 +91,7 @@ async def test_bad_checksum_keeps_previous(store):
     await store.refresh()
     first = store.current()
     respx.reset()
-    serve(respx, *release(built_at="2026-11-22T03:30:00+09:00", **{B1_FILE: "0" * 64}))
+    serve(respx, *release(built_at="2026-11-22T03:30:00+09:00", b1_sha="0" * 64))
     assert await store.refresh() is False
     assert store.current() is first
 
@@ -95,11 +102,8 @@ async def test_wrong_version_keeps_previous(store):
     await store.refresh()
     first = store.current()
     respx.reset()
-    manifest, files = release(built_at="2026-11-22T03:30:00+09:00")
-    bad = pack({**fixture("b1_small.json"), "version": 99})
-    files[B1_FILE] = bad
-    manifest["files"][B1_FILE] = hashlib.sha256(bad).hexdigest()
-    serve(respx, manifest, files)
+    bad = {**server_b1(fixture("b1_small.json")), "version": 99}
+    serve(respx, *release(built_at="2026-11-22T03:30:00+09:00", b1=bad))
     assert await store.refresh() is False and store.current() is first
 
 

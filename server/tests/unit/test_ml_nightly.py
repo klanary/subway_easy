@@ -268,3 +268,37 @@ def test_missing_timetable_cache_is_skipped(tmp_path, paths):
         "--official-diff", str(tmp_path / "없는파일.json"),
     ]  # fmt: skip
     assert main(args) == 0
+
+
+def _n_points(paths, day):
+    import sqlite3
+
+    con = sqlite3.connect(paths["points_path"])
+    try:
+        return con.execute(
+            "SELECT COUNT(*) FROM departures WHERE service_date = ?", (day.isoformat(),)
+        ).fetchone()[0]
+    finally:
+        con.close()
+
+
+def test_reextract_replaces_points_for_days_in_the_window(tmp_path, paths):
+    import sqlite3
+
+    db = make_db(tmp_path, [0, 0, 0])
+    assert night(db, paths, 3) == 0
+    full = _n_points(paths, DAYS[1])
+    con = sqlite3.connect(paths["points_path"])
+    con.execute(
+        "DELETE FROM departures WHERE service_date = ? AND train_no ="
+        " (SELECT MIN(train_no) FROM departures)",
+        (DAYS[1].isoformat(),),
+    )
+    con.commit()
+    con.close()
+    checked = ChangeState.load(paths["state_path"]).checked
+    assert night(db, paths, 3) == 0
+    assert _n_points(paths, DAYS[1]) < full  # 보통 밤에는 이미 뽑은 날을 다시 뽑지 않는다
+    assert night(db, paths, 3, reextract=True) == 0
+    assert _n_points(paths, DAYS[1]) == full
+    assert ChangeState.load(paths["state_path"]).checked == checked

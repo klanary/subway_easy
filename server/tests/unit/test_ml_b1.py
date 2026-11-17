@@ -291,3 +291,84 @@ def test_stability_survives_a_few_badly_delayed_days():
     # 날마다 30분씩 다르면 여전히 불안정이다.
     moving = [p for i, d in enumerate(days) for p in _points([d], {"100": H8 + 1800 * i})]
     assert stability_from_points(moving) == {"9호선": 0.0}
+
+
+# --- 서지 않고 지나가는 급행 ---
+
+
+def express_run(visits, train_no="9501", express=1):
+    from ml.dataset import Run
+
+    return Run(
+        service_date=MON, day_type=1, line="9호선", direction=0, train_no=train_no,
+        express=express, dest_statn_id="end", dest_name="끝행", visits=tuple(visits),
+    )  # fmt: skip
+
+
+def _trains(make_visits, n):
+    return [express_run(make_visits(H8 + i * 600), train_no=f"95{i:02d}") for i in range(n)]
+
+
+def test_express_visit_with_a_few_seconds_between_arrival_and_departure_is_a_pass():
+    from ml.dataset import Visit
+
+    run = express_run(
+        [
+            Visit("stop", arr=H8, dep=H8 + 80),
+            Visit("thru", arr=H8 + 200, dep=H8 + 209),
+            Visit("end", arr=H8 + 400),
+        ]
+    )
+    assert [p.statn_id for p in departure_points([run], fallback_dwell=30)] == ["stop"]
+
+
+def test_local_train_with_a_short_dwell_is_kept():
+    from ml.dataset import Visit
+
+    run = express_run([Visit("a", arr=H8, dep=H8 + 9), Visit("end", arr=H8 + 400)], express=0)
+    assert [p.statn_id for p in departure_points([run], fallback_dwell=30)] == ["a"]
+
+
+def test_departure_only_visit_follows_the_majority_at_that_station():
+    from ml.b1 import passed_stations
+    from ml.dataset import Visit
+
+    seen = _trains(lambda t: [Visit("thru", arr=t, dep=t + 8), Visit("end", arr=t + 300)], 5)
+    only_dep = express_run(
+        [Visit("thru", dep=H8 + 5000), Visit("end", arr=H8 + 5300)], train_no="9599"
+    )
+    assert ("9호선", 0, 1, "thru") in passed_stations(seen + [only_dep])
+    assert departure_points(seen + [only_dep], fallback_dwell=30) == []
+
+
+def test_arrival_only_visit_at_a_stop_station_is_kept():
+    from ml.dataset import Visit
+
+    seen = _trains(lambda t: [Visit("stop", arr=t, dep=t + 80), Visit("end", arr=t + 300)], 5)
+    only_arr = express_run(
+        [Visit("stop", arr=H8 + 5000), Visit("end", arr=H8 + 5300)], train_no="9599"
+    )
+    points = departure_points(seen + [only_arr], fallback_dwell=30)
+    assert len(points) == 6 and points[-1].estimated
+
+
+def test_one_sided_visit_without_enough_evidence_is_kept():
+    from ml.dataset import Visit
+
+    only_dep = express_run([Visit("thru", dep=H8), Visit("end", arr=H8 + 300)])
+    assert len(departure_points([only_dep], fallback_dwell=30)) == 1
+
+
+def test_pass_visits_do_not_pull_down_the_line_dwell():
+    from ml.b1 import line_dwell
+    from ml.dataset import Visit
+
+    runs = _trains(
+        lambda t: [
+            Visit("stop", arr=t, dep=t + 60),
+            Visit("thru", arr=t + 200, dep=t + 208),
+            Visit("end", arr=t + 400),
+        ],
+        20,
+    )
+    assert line_dwell(runs, fallback=30) == {"9호선": 60}

@@ -141,6 +141,7 @@ def run_nightly(
     official_diff_path: str | Path | None = None,
     b0: B0 | None = None,
     notify: Callable[[str], None] | None = None,
+    reextract: bool = False,
     catch_up_days: int = CATCH_UP_DAYS,
     keep_points_days: int = KEEP_POINTS_DAYS,
     th: Thresholds = DEFAULT,
@@ -169,7 +170,7 @@ def run_nightly(
         days = service_dates(db, date_from=today - timedelta(days=catch_up_days), date_to=as_of)
         for day in days:
             try:
-                have = {line for line, _ in store.lines(day)}
+                have = set() if reextract else {line for line, _ in store.lines(day)}
                 missing = [line for line in _event_lines(db, day) if line not in have]
                 if missing:
                     store.extract_day(db, day, lines=missing)
@@ -247,6 +248,9 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
     parser.add_argument("--enforce", action="store_true", help="확정된 변경을 B1에 적용한다")
     parser.add_argument("--day", default="", help="오늘 날짜 대신 쓸 날짜(YYYY-MM-DD)")
     parser.add_argument(
+        "--reextract", action="store_true", help="따라잡기 창 안의 날을 모두 다시 뽑는다"
+    )
+    parser.add_argument(
         "--official-diff", default="ml_data/official_diff.json", help="ml.b0 --refresh가 쓴 파일"
     )
     parser.add_argument(
@@ -269,7 +273,7 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
     return run_nightly(
         db=args.db, points_path=args.points, state_path=args.state, out_path=args.out,
         log_path=args.log, today=today, enforce=args.enforce,
-        official_diff_path=args.official_diff, b0=b0,
+        official_diff_path=args.official_diff, b0=b0, reextract=args.reextract,
     )  # fmt: skip
 
 

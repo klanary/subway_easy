@@ -35,14 +35,16 @@ def release(
     as_of: str = "2026-11-17",
     b1_sha: str | None = None,
     b1: dict | None = None,
+    stamp: str = "20261118T033000",
 ):
+    b1_name, b2_name = f"measured_timetable-{stamp}.json.gz", f"segment_times-{stamp}.json.gz"
     b1 = b1 or server_b1({**fixture("b1_small.json"), "as_of": as_of})
-    files = {B1_NAME: pack(b1), B2_NAME: pack(server_b2(fixture("b2_small.json")))}
+    files = {b1_name: pack(b1), b2_name: pack(server_b2(fixture("b2_small.json")))}
     manifest = {
         "built_at": built_at,
         "as_of": as_of,
-        "b1": {"name": B1_NAME, "sha256": b1_sha or hashlib.sha256(files[B1_NAME]).hexdigest()},
-        "b2": {"name": B2_NAME, "sha256": hashlib.sha256(files[B2_NAME]).hexdigest()},
+        "b1": {"name": b1_name, "sha256": b1_sha or hashlib.sha256(files[b1_name]).hexdigest()},
+        "b2": {"name": b2_name, "sha256": hashlib.sha256(files[b2_name]).hexdigest()},
     }
     return manifest, files
 
@@ -91,7 +93,10 @@ async def test_bad_checksum_keeps_previous(store):
     await store.refresh()
     first = store.current()
     respx.reset()
-    serve(respx, *release(built_at="2026-11-22T03:30:00+09:00", b1_sha="0" * 64))
+    serve(
+        respx,
+        *release(built_at="2026-11-22T03:30:00+09:00", b1_sha="0" * 64, stamp="20261122T033000"),
+    )
     assert await store.refresh() is False
     assert store.current() is first
 
@@ -103,7 +108,7 @@ async def test_wrong_version_keeps_previous(store):
     first = store.current()
     respx.reset()
     bad = {**server_b1(fixture("b1_small.json")), "version": 99}
-    serve(respx, *release(built_at="2026-11-22T03:30:00+09:00", b1=bad))
+    serve(respx, *release(built_at="2026-11-22T03:30:00+09:00", b1=bad, stamp="20261122T033000"))
     assert await store.refresh() is False and store.current() is first
 
 
@@ -180,3 +185,61 @@ async def test_decode_and_build_run_off_the_event_loop(store, monkeypatch):
     serve(respx, *release())
     assert await store.refresh() is True
     assert seen and seen[0] != threading.get_ident()
+
+
+TRIPS_ART = {
+    "kind": "trips-server", "version": 1, "built_on": "2026-11-18", "stations": ["마포", "공덕"],
+    "day_types": {"1": [{"line": "5호선", "direction": "하행", "stops": [0, 1],
+                         "trips": [["5201", 0, "마천", 0, 0, [100, 130, 220, 250]]]}]},
+}  # fmt: skip
+
+
+def with_trips(manifest, files, *, name="trips-20261118T033000.json.gz", body=None, sha=None):
+    body = body or pack(TRIPS_ART)
+    files = {**files, name: body}
+    manifest = {
+        **manifest,
+        "trips": {"name": name, "sha256": sha or hashlib.sha256(body).hexdigest(),
+                  "built_on": "2026-11-18"},
+    }  # fmt: skip
+    return manifest, files
+
+
+@respx.mock
+async def test_store_loads_trips_from_manifest(store):
+    serve(respx, *with_trips(*release()))
+    assert await store.refresh() is True
+    trips = store.current_trips()
+    assert trips is not None and str(trips.built_on) == "2026-11-18"
+    assert store.current() is not None
+
+
+@respx.mock
+async def test_trips_bad_checksum_keeps_previous(store):
+    serve(respx, *with_trips(*release()))
+    await store.refresh()
+    first = store.current_trips()
+    respx.reset()
+    manifest, files = with_trips(
+        *release(built_at="2026-11-19T03:30:00+09:00"),
+        name="trips-20261119T033000.json.gz",
+        sha="0" * 64,
+    )
+    serve(respx, manifest, files)
+    assert await store.refresh() is False
+    assert store.current_trips() is first
+
+
+@respx.mock
+async def test_unchanged_b1_b2_are_not_downloaded_again(store):
+    routes = serve(respx, *with_trips(*release()))
+    await store.refresh()
+    respx.reset()
+    manifest, files = with_trips(
+        *release(built_at="2026-11-19T03:30:00+09:00"), name="trips-20261119T033000.json.gz"
+    )
+    routes = serve(respx, manifest, files)
+    assert await store.refresh() is True
+    assert (
+        routes[B1_NAME].call_count == 0 and routes["trips-20261119T033000.json.gz"].call_count == 1
+    )

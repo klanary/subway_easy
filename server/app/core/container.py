@@ -16,6 +16,7 @@ from app.core.config import Settings
 from app.core.metrics import Metrics
 from app.core.rate_limit import SlidingWindowRateLimiter
 from app.services.arrival_service import ARRIVALS_TTL_SEC, ArrivalService
+from app.services.measured_store import MeasuredStore
 from app.services.route_service import ROUTE_TTL_SEC, RouteService
 from app.services.station_index import StationIndex
 from app.services.timetable_service import TIMETABLE_TTL_SEC, TimetableService
@@ -33,6 +34,7 @@ class AppServices:
     arrivals: ArrivalService
     timetable: TimetableService
     routes: RouteService
+    measured: MeasuredStore
 
 
 def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, QuotaGuard]:
@@ -54,6 +56,7 @@ def build_services(
     quotas = build_quotas(settings, clock)
     http = httpx.AsyncClient(transport=transport, timeout=settings.upstream_timeout_sec)
     stations = StationIndex.load(settings.stations_db_path)
+    measured = MeasuredStore(http, settings.measured_base_url, clock)
     timetable_guard = quotas["seoulTimetable"]
     timetable = TimetableService(
         SeoulTimetableClient(http, timetable_guard, settings),
@@ -103,6 +106,7 @@ def build_services(
         arrivals=arrivals,
         timetable=timetable,
         routes=routes,
+        measured=measured,
     )
 
 

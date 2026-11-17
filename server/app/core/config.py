@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     seoul_timetable_daily_limit: NonNegativeInt = 0
     kakao_route_daily_limit: NonNegativeInt = 1000
 
+    # VM 실측 결과물(GitHub 릴리스)을 받는 주소. 비우면 실측을 쓰지 않는다(설계 2026-11-17).
+    measured_base_url: str = (
+        "https://github.com/klanary/subway_easy/releases/download/measured-timetable"
+    )
+
     # /v1/metrics를 볼 때 X-Metrics-Token 헤더로 보내는 값. 비어 있으면 지표 주소를 닫는다(404).
     metrics_token: str = ""
 

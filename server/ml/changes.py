@@ -40,6 +40,19 @@ class Thresholds:
     min_coverage: int = 96  # 시간대의 정상 응답 수(기대 120회의 80%)
     streak: int = 3  # 서로 안 맞아도 이만큼 연속 의심이면 확정
     give_up: int = 4  # 이만큼 판단 못 하면 의심을 내려놓는다
+    # 공식 시간표 후보 판정(ml.official). 모두 초안이다.
+    same_sec: int = 20  # 옛·새 공식 시각이 이 안이면 "그대로"인 자리
+    tie_sec: int = 20  # 옛·새까지의 거리 차가 이보다 작으면 표가 아니다
+    vote_reach_sec: int = 300  # 옛·새 어느 쪽에도 이 안에 없으면 표가 아니다
+    delay_reach_sec: int = 180  # 평소 지연을 구할 때 관측과 "그대로" 자리를 잇는 거리
+    base_reach_sec: int = 60  # "그대로" 자리에 관측이 있다고 보는 거리(지연을 뺀 뒤)
+    base_fit: float = 0.60  # 그 비율이 이보다 낮으면 공식 시간표가 이 단위를 설명하지 못한다
+    base_min_slots: int = 10  # "그대로" 자리가 이보다 적으면 위 확인을 하지 않는다
+    min_votes: int = 20  # 표가 이보다 적으면 정하지 않는다
+    new_share: float = 0.70  # 새 쪽 표가 이 비율 이상이면 확정
+    old_share: float = 0.30  # 이 비율 이하면 공식 시간표가 먼저 바뀐 것
+    tries_weekday: int = 5  # 평일 후보를 이만큼 판정하고도 못 정하면 만료
+    tries_other: int = 3  # 토요일·휴일 후보
 
 
 DEFAULT = Thresholds()
@@ -234,7 +247,7 @@ def agree(
 
 # --- 의심 → 확정 상태, 상태 파일, 변경 기록 ---
 
-STATE_VERSION = 1
+STATE_VERSION = 2  # 2: candidates(공식 시간표 후보), delays(평소 지연)
 OFFICIAL_CHANGED_MIN = 0.10  # 공식 시간표가 이 비율 이상 달라진 단위를 "바뀜"으로 본다
 OFFICIAL_FIT_AFTER_DAYS = 3  # 확정 뒤 이만큼 지나서 공식 시간표가 따라왔는지 본다
 CHANGED_SHOW_DAYS = 14  # 확정 뒤 이 기간은 결과물에 "changed"로 표시한다
@@ -304,15 +317,60 @@ class ChangeRecord:
 
 
 @dataclass
+class Candidate:
+    """공식 시간표가 달라진 단위. 관측으로 확인될 때까지는 후보일 뿐이다."""
+
+    scope: Scope
+    found_on: date  # 공식 시간표를 받은 날
+    old_cache: str  # 옛 캐시 폴더 이름
+    ratio: float
+    status: str = "open"  # open | confirmed | expired | superseded
+    tries: list[tuple[date, str]] = field(default_factory=list)  # (판정한 날, 결과)
+    closed_on: date | None = None
+    note: str = ""
+
+    def to_json(self) -> dict:
+        return {
+            "scope": scope_key(self.scope),
+            "found_on": self.found_on.isoformat(),
+            "old_cache": self.old_cache,
+            "ratio": self.ratio,
+            "status": self.status,
+            "tries": [[day.isoformat(), result] for day, result in self.tries],
+            "closed_on": self.closed_on.isoformat() if self.closed_on else None,
+            "note": self.note,
+        }
+
+    @classmethod
+    def from_json(cls, data: dict) -> "Candidate":
+        return cls(
+            scope=parse_scope_key(data["scope"]),
+            found_on=date.fromisoformat(data["found_on"]),
+            old_cache=data["old_cache"],
+            ratio=float(data["ratio"]),
+            status=data["status"],
+            tries=[(date.fromisoformat(day), str(result)) for day, result in data["tries"]],
+            closed_on=date.fromisoformat(data["closed_on"]) if data.get("closed_on") else None,
+            note=data.get("note", ""),
+        )
+
+
+@dataclass
 class ChangeState:
     records: list[ChangeRecord] = field(default_factory=list)
     checked: dict[str, date] = field(default_factory=dict)  # "호선|day_type" → 마지막 판단일
+    candidates: list[Candidate] = field(default_factory=list)
+    delays: dict[str, int] = field(
+        default_factory=dict
+    )  # "호선|방향" → 공식 시각 대비 평소 지연(초)
 
     def to_json(self) -> dict:
         return {
             "version": STATE_VERSION,
             "checked": {key: day.isoformat() for key, day in sorted(self.checked.items())},
             "records": [record.to_json() for record in self.records],
+            "candidates": [candidate.to_json() for candidate in self.candidates],
+            "delays": dict(sorted(self.delays.items())),
         }
 
     @classmethod
@@ -326,6 +384,8 @@ class ChangeState:
             return cls(
                 records=[ChangeRecord.from_json(item) for item in data["records"]],
                 checked={k: date.fromisoformat(v) for k, v in data.get("checked", {}).items()},
+                candidates=[Candidate.from_json(item) for item in data.get("candidates", [])],
+                delays={k: int(v) for k, v in data.get("delays", {}).items()},
             )
         except (ValueError, KeyError, TypeError, AttributeError) as e:
             raise CorruptState(f"{path.name}: {type(e).__name__}") from e
@@ -354,6 +414,12 @@ class ChangeState:
         for record in self.records:
             if record.scope == scope and record.status == "suspect":
                 return record
+        return None
+
+    def open_candidate(self, scope: Scope) -> Candidate | None:
+        for candidate in self.candidates:
+            if candidate.scope == scope and candidate.status == "open":
+                return candidate
         return None
 
     def incidents(self) -> dict[Scope, set[date]]:

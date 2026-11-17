@@ -76,9 +76,10 @@ class MeasuredStore:
             built_at = manifest["built_at"]
             if built_at == self._built_at:
                 return True
-            b1 = await self._get_json(manifest["b1"]["name"], manifest["b1"]["sha256"])
-            b2 = await self._get_json(manifest["b2"]["name"], manifest["b2"]["sha256"])
-            data = MeasuredData.from_artifacts(b1, b2)
+            b1 = await self._get_checked(manifest["b1"]["name"], manifest["b1"]["sha256"])
+            b2 = await self._get_checked(manifest["b2"]["name"], manifest["b2"]["sha256"])
+            # 압축 풀기·색인 만들기는 다른 스레드에서(요청 처리를 멈추지 않게, 최종 리뷰 #4)
+            data = await asyncio.to_thread(_build, b1, b2)
         except Exception as e:  # 받기·검증 실패는 지난 것을 두고 넘어간다
             logger.warning("실측 결과물 받기 실패: %s", type(e).__name__)
             return False
@@ -97,8 +98,15 @@ class MeasuredStore:
         response.raise_for_status()
         return response
 
-    async def _get_json(self, name: str, sha256: str) -> dict:
+    async def _get_checked(self, name: str, sha256: str) -> bytes:
         body = (await self._get(name)).content
         if hashlib.sha256(body).hexdigest() != sha256:
             raise ValueError(f"{name} sha256이 manifest와 다릅니다")
+        return body
+
+
+def _build(b1: bytes, b2: bytes) -> MeasuredData:
+    def load(body: bytes) -> dict:
         return json.loads(gzip.decompress(body).decode("utf-8"))
+
+    return MeasuredData.from_artifacts(load(b1), load(b2))

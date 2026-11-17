@@ -1,7 +1,8 @@
+import asyncio
 import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from uuid import uuid4
 
 import httpx
@@ -22,8 +23,16 @@ _UNLIMITED_PATHS = {"/health"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    services = app.state.services
+    # 잠든 서버가 깨어날 때(/health) 실측 결과물 받기를 바로 시작한다(기다리지 않음, 최종 리뷰 #3).
+    services.measured.current()
     yield
-    await app.state.services.http.aclose()
+    task = services.measured.refreshing
+    if task is not None and not task.done():
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    await services.http.aclose()
 
 
 async def request_context(

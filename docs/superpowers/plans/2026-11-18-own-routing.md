@@ -206,7 +206,7 @@ async def test_same_station_is_400(client, trips_loaded): ...
 
 ## 측정 (Task 4에서 채움)
 
-- 정차 수: … / 최대 메모리: … MB / 검색 한 번: … 초
+- 2026-11-18 `scripts/measure_raptor.py`(개발 PC): 정차 576,460개(19노선 × 37역 × 2방향 × 요일 3), gzip 2.7MB. 올리는 동안 최대 61MB, 올린 뒤 8MB. 검색 30번 모두 경로를 찾았고 중앙 0.001초, 최대 0.024초.
 
 ## 실행 뒤 사용자에게 물을 것
 

@@ -191,7 +191,9 @@ class RouteService:
                 more = []
             found += [
                 TransferTrain(
-                    departs_at=t.departs_at, destination=t.destination, source="timetable"
+                    departs_at=t.departs_at,
+                    destination=t.destination,
+                    source="measured" if t.source == "measured" else "timetable",
                 )
                 for t in more
             ]

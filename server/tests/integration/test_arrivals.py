@@ -273,3 +273,34 @@ async def test_meaningless_destination_is_dropped(client, seoul, respx_mock):
     )
     groups = (await client.get(ARRIVALS.format("서울"))).json()["groups"]
     assert groups and all(t["destination"] is None for g in groups for t in g["trains"])
+
+
+async def test_arrivals_fill_uses_measured_group_source(client, seoul, respx_mock, measured_loaded):
+    # 실시간이 없는 신분당선 방향은 실측으로 채우고 출처를 measured로 표시한다.
+    seoul("seoul_realtime_nodata.json")
+    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE).mock(
+        return_value=fixture_response("seoul_timetable_nodata.json")
+    )
+    body = (await client.get("/v1/stations/강남/arrivals", params={"line": "신분당선"})).json()
+    sources = {g["direction"]: g["source"] for g in body["groups"]}
+    assert sources == {"상행": "measured", "하행": "measured"}
+
+
+async def test_transfer_trains_carry_measured_source(services, seoul, respx_mock, measured_loaded):
+    from datetime import datetime
+
+    from app.core.clock import KST
+    from app.models.schemas import Step
+
+    seoul("seoul_realtime_nodata.json")
+    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE).mock(
+        return_value=fixture_response("seoul_timetable_nodata.json")
+    )
+    step = Step(
+        mode="SUBWAY", duration_sec=180, distance_m=3000, guidance="", path=[],
+        line_name="신분당선", stops=["강남", "양재"], board_station_id="강남",
+        alight_station_id="양재",
+    )  # fmt: skip
+    now = datetime(2026, 11, 3, 8, 0, tzinfo=KST)
+    found = await services.routes._transfer_trains(step, now, now)
+    assert found and all(t.source == "measured" for t in found)

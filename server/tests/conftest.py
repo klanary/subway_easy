@@ -149,3 +149,18 @@ def timetable_mock(respx_mock):
     return respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
         return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
     )
+
+
+@pytest.fixture
+def measured_loaded(services):
+    """실측 결과물 픽스처(tests/fixtures/measured)를 서버에 넣어 둔다(받기 없이)."""
+    import json
+
+    from app.services.measured import MeasuredData
+
+    def load(name: str) -> dict:
+        return json.loads((FIXTURES_DIR / "measured" / name).read_text(encoding="utf-8"))
+
+    data = MeasuredData.from_artifacts(load("b1_small.json"), load("b2_small.json"))
+    services.measured.replace(data)
+    return data

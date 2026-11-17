@@ -92,5 +92,9 @@ async def station_timetable(
     )
     request.state.cache_status = cache_status
     return TimetableResponse(
-        station_id=station_id, line=normalize_line(line), direction=direction, trains=trains
+        station_id=station_id,
+        line=normalize_line(line),
+        direction=direction,
+        trains=trains,
+        source=trains[0].source if trains else "none",
     )

@@ -113,3 +113,27 @@ async def test_early_morning_survives_failed_previous_day(client, respx_mock):
     params = {"line": "5호선", "direction": "상행", "from": "2026-11-14T02:00:00+09:00", "count": 1}
     r = await client.get(URL.format("영등포구청"), params=params)
     assert r.status_code == 200 and r.json()["trains"][0]["departsAt"][:16] == "2026-11-14T05:35"
+
+
+async def test_line_without_official_timetable_uses_measured(client, respx_mock, measured_loaded):
+    mock_timetable(respx_mock, "seoul_timetable_nodata.json")
+    params = {"line": "신분당선", "direction": "상행", "from": "2026-11-18T07:00:00+09:00"}
+    body = (await client.get(URL.format("강남"), params=params)).json()
+    assert body["source"] == "measured"
+    assert body["trains"][0]["departsAt"][11:16] == "07:05"
+    assert body["trains"][0]["source"] == "measured"
+
+
+async def test_official_line_stays_official(client, respx_mock, measured_loaded):
+    mock_timetable(respx_mock)
+    params = {"line": "5호선", "direction": "상행", "from": FRIDAY_8}
+    body = (await client.get(URL.format("영등포구청"), params=params)).json()
+    assert body["source"] == "official" and body["trains"]
+
+
+async def test_first_request_does_not_wait_for_download(client, respx_mock):
+    # 결과물을 아직 못 받았으면 기다리지 않고 예전처럼 빈 목록이다.
+    mock_timetable(respx_mock, "seoul_timetable_nodata.json")
+    params = {"line": "신분당선", "direction": "상행", "from": "2026-11-18T07:00:00+09:00"}
+    body = (await client.get(URL.format("강남"), params=params)).json()
+    assert body == {**body, "trains": [], "source": "none"}

@@ -17,8 +17,9 @@ import shutil
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Callable, Iterable
-from datetime import date, datetime
+from collections.abc import Callable, Iterable, Set
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -39,6 +40,11 @@ TIMETABLE_LINES: tuple[str, ...] = tuple(f"{n}호선" for n in range(1, 10))
 DAY_TYPES: tuple[int, ...] = (1, 2, 3)  # 평일·토요일·휴일. 본 적 없는 요일 구분도 미리 받는다
 NEAREST_MAX_GAP_SEC = 600  # 열차 번호가 안 맞을 때, 이 안의 가장 가까운 시각만 같은 열차로 본다
 _KEY_ENV = "SEOUL_OPENAPI_KEY"
+EMPTY_STREAK_ACCEPT = 3  # 이만큼 연속으로 빈 응답이면 실제로 없어진 것으로 받아들인다
+EMPTY_FAIL_SHARE = 0.20  # 갑자기 빈 대상이 이 비율을 넘으면 받기 전체를 실패로 본다
+KEEP_OLD_CACHES = 6  # 남겨 두는 옛 캐시 폴더 수(열린 후보가 가리키는 것은 따로 지킨다)
+DIFF_KEEP_DAYS = 30  # 차이 목록에 남기는 기간
+DIFF_VERSION = 2
 
 Target = tuple[str, int, int]  # (역 코드, 요일 코드, 방향 코드 1 상행·내선 / 2 하행·외선)
 
@@ -244,6 +250,20 @@ def diff_caches(
     return {scope: differ[scope] / union[scope] for scope in differ}
 
 
+def target_key(target: Target) -> str:
+    station_cd, week_tag, inout_tag = target
+    return f"{station_cd}_{week_tag}_{inout_tag}"
+
+
+@dataclass(frozen=True)
+class RefreshResult:
+    changed: dict[Scope, float]
+    failed: int  # 0이 아니면 아무것도 바꾸지 않았다
+    skipped: list[str]  # 빈 응답이라 지난 행을 유지한 대상(target_key)
+    old_cache: str | None  # 차이가 있어 남긴 옛 캐시 폴더 이름
+    empty_streaks: dict[str, int]  # 대상별 연속 빈 응답 횟수(다음 받기에 넘긴다)
+
+
 def refresh(
     http: httpx.Client,
     key: str,
@@ -252,41 +272,152 @@ def refresh(
     *,
     today: date,
     lines_by_code: dict[str, str],
-    keep: int = 4,
+    empty_streaks: dict[str, int] | None = None,
+    protected: Set[str] = frozenset(),
+    keep: int = KEEP_OLD_CACHES,
     sleep: Callable[[float], None] = time.sleep,
-) -> tuple[dict[Scope, float], int]:
-    """모두 새로 받아 지난 캐시와 견준다. (단위별 차이, 실패 수).
+) -> RefreshResult:
+    """모두 새로 받아 지난 캐시와 견준다.
 
-    하나라도 실패하면 아무것도 바꾸지 않는다. 성공하면 지난 캐시는 `캐시-YYYYMMDD`로 남기고
-    (최근 `keep`개만) 새로 받은 것이 캐시가 된다.
+    - 하나라도 실패하면 아무것도 바꾸지 않는다.
+    - 지난번에 행이 있던 대상이 0행으로 오면 받기 오류로 보고 지난 행을 유지한다(차이에서 뺀다).
+      `EMPTY_STREAK_ACCEPT`번 연속이면 실제로 없어진 것으로 받아들인다. 그런 대상이 전체의
+      `EMPTY_FAIL_SHARE`를 넘으면 받기 전체를 실패로 본다.
+    - 차이가 있을 때만 지난 캐시를 `캐시-YYYYMMDD`로 남긴다. 그 이름이 이미 있으면 있던 것을
+      둔다(그날 처음의 옛 시간표). `protected`에 든 폴더는 지우지 않고 나머지는 최근 `keep`개.
     """
     cache_dir = Path(cache_dir)
     targets = list(targets)
+    streaks = dict(empty_streaks or {})
     fresh_dir = cache_dir.with_name(cache_dir.name + ".next")
     shutil.rmtree(fresh_dir, ignore_errors=True)
     fresh = TimetableCache(fresh_dir)
     _, failed = fetch_timetables(http, key, targets, fresh, sleep=sleep)
     if failed:
         shutil.rmtree(fresh_dir, ignore_errors=True)
-        return {}, failed
-    changed = diff_caches(TimetableCache(cache_dir), fresh, targets, lines_by_code)
+        return RefreshResult({}, failed, [], None, streaks)
+
+    old = TimetableCache(cache_dir)
+    new_streaks = dict(streaks)
+    skipped: list[Target] = []
+    for target in targets:
+        name = target_key(target)
+        if old.rows(*target) and fresh.rows(*target) == []:
+            count = streaks.get(name, 0) + 1
+            if count < EMPTY_STREAK_ACCEPT:
+                skipped.append(target)
+                new_streaks[name] = count
+                continue
+        new_streaks.pop(name, None)
+    if len(skipped) > EMPTY_FAIL_SHARE * len(targets):
+        shutil.rmtree(fresh_dir, ignore_errors=True)
+        return RefreshResult({}, len(skipped), [], None, streaks)
+    for target in skipped:
+        fresh.save(*target, old.rows(*target) or [])
+    held = set(skipped)
+    changed = diff_caches(old, fresh, [t for t in targets if t not in held], lines_by_code)
+
+    old_cache: str | None = None
     if cache_dir.is_dir():
-        kept = cache_dir.with_name(f"{cache_dir.name}-{today:%Y%m%d}")
-        shutil.rmtree(kept, ignore_errors=True)
-        cache_dir.rename(kept)
+        aside = cache_dir.with_name(cache_dir.name + ".old")
+        shutil.rmtree(aside, ignore_errors=True)
+        if changed:
+            kept = cache_dir.with_name(f"{cache_dir.name}-{today:%Y%m%d}")
+            old_cache = kept.name
+            cache_dir.rename(aside if kept.exists() else kept)
+        else:
+            cache_dir.rename(aside)
+        fresh_dir.rename(cache_dir)
+        shutil.rmtree(aside, ignore_errors=True)
         dated = sorted(
-            p for p in cache_dir.parent.glob(f"{cache_dir.name}-*") if p.name[-8:].isdigit()
+            p
+            for p in cache_dir.parent.glob(f"{cache_dir.name}-*")
+            if p.name[-8:].isdigit() and p.name not in protected and p.name != old_cache
         )
-        for stale in dated[: max(0, len(dated) - keep)]:
+        budget = keep - (1 if old_cache else 0)
+        for stale in dated[: max(0, len(dated) - budget)]:
             shutil.rmtree(stale, ignore_errors=True)
-    fresh_dir.rename(cache_dir)
-    return changed, 0
+    else:
+        fresh_dir.rename(cache_dir)
+    return RefreshResult(changed, 0, [target_key(t) for t in skipped], old_cache, new_streaks)
+
+
+def load_diff_log(path: str | Path) -> dict:
+    """차이 목록. 파일이 없거나 옛 꼴·깨진 파일이면 빈 목록."""
+    empty = {"version": DIFF_VERSION, "entries": [], "empty_streaks": {}}
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return empty
+    if (
+        not isinstance(data, dict)
+        or data.get("version") != DIFF_VERSION
+        or not isinstance(data.get("entries"), list)
+    ):
+        return empty
+    streaks = data.get("empty_streaks")
+    return {
+        "version": DIFF_VERSION,
+        "entries": data["entries"],
+        "empty_streaks": dict(streaks) if isinstance(streaks, dict) else {},
+    }
+
+
+def record_refresh(path: str | Path, result: RefreshResult, *, today: date) -> None:
+    """그날의 받기 결과를 차이 목록에 더한다. `DIFF_KEEP_DAYS`일 지난 항목은 버린다.
+
+    같은 날 항목이 이미 있으면 합친다(먼저 적은 옛 캐시 이름을 지킨다). 밤 작업이 하루
+    빠져도 그 날의 차이를 잃지 않게 날짜별로 둔다.
+    """
+    path = Path(path)
+    data = load_diff_log(path)
+    iso = today.isoformat()
+    changed = {scope_key(scope): round(ratio, 4) for scope, ratio in result.changed.items()}
+    entry = next((e for e in data["entries"] if e.get("checked_on") == iso), None)
+    if entry is None:
+        data["entries"].append(
+            {
+                "checked_on": iso,
+                "changed": changed,
+                "old_cache": result.old_cache,
+                "skipped": list(result.skipped),
+            }
+        )
+    else:
+        entry["changed"] = {**(entry.get("changed") or {}), **changed}
+        entry["old_cache"] = entry.get("old_cache") or result.old_cache
+        entry["skipped"] = sorted(set(entry.get("skipped") or []) | set(result.skipped))
+    cutoff = (today - timedelta(days=DIFF_KEEP_DAYS)).isoformat()
+    data["entries"] = sorted(
+        (e for e in data["entries"] if str(e.get("checked_on", "")) >= cutoff),
+        key=lambda e: e["checked_on"],
+    )
+    data["empty_streaks"] = dict(result.empty_streaks)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _protected_caches(state_path: str | Path) -> set[str]:
+    """열린 후보가 가리키는 옛 캐시 폴더 이름(지우면 판정할 수 없다). 못 읽으면 빈 집합.
+
+    `ml.changes`가 이 모듈을 import하므로 상태 파일은 JSON으로 직접 읽는다.
+    """
+    try:
+        data = json.loads(Path(state_path).read_text(encoding="utf-8"))
+        return {
+            str(c["old_cache"]) for c in data.get("candidates", []) if c.get("status") == "open"
+        }
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return set()
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="공식 시간표(B0) 받아 두기")
     parser.add_argument("--refresh", action="store_true", help="전부 다시 받아 차이를 적는다")
     parser.add_argument("--diff-out", default="ml_data/official_diff.json")
+    parser.add_argument("--state", default="ml_data/change_state.json")
     parser.add_argument("--db", default="ml_data/collector.sqlite")
     parser.add_argument("--cache", default="ml_data/timetable_cache")
     parser.add_argument("--env-file", default=".env")
@@ -309,20 +440,21 @@ def main(argv: list[str] | None = None) -> int:
         today = datetime.now(KST).date()
         lines_by_code = {code: line for (line, _), code in codes.items()}
         with httpx.Client() as http:
-            changed, failed = refresh(
-                http, key, targets, args.cache, today=today, lines_by_code=lines_by_code
+            result = refresh(
+                http, key, targets, args.cache, today=today, lines_by_code=lines_by_code,
+                empty_streaks=load_diff_log(args.diff_out)["empty_streaks"],
+                protected=_protected_caches(args.state),
+            )  # fmt: skip
+        if result.failed:
+            print(
+                f"시간표 다시 받기 실패 {result.failed}개. 캐시는 그대로 둡니다.", file=sys.stderr
             )
-        if failed:
-            print(f"시간표 다시 받기 실패 {failed}개. 캐시는 그대로 둡니다.", file=sys.stderr)
             return 1
-        out = Path(args.diff_out)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            "checked_on": today.isoformat(),
-            "changed": {scope_key(scope): round(ratio, 4) for scope, ratio in changed.items()},
-        }
-        out.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"시간표: 대상 {len(targets)}개 다시 받음, 달라진 단위 {len(changed)}개 ({out})")
+        record_refresh(args.diff_out, result, today=today)
+        print(
+            f"시간표: 대상 {len(targets)}개 다시 받음, 달라진 단위 {len(result.changed)}개,"
+            f" 빈 응답이라 지난 것을 둔 대상 {len(result.skipped)}개 ({args.diff_out})"
+        )
         return 0
     with httpx.Client() as http:
         fetched, failed = fetch_timetables(http, key, targets, TimetableCache(args.cache))

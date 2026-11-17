@@ -1,6 +1,5 @@
 """공식 시간표 다시 받기·차이·관측과의 직접 비교(시간표 변경 계획 Task 6)."""
 
-import json
 import re
 from datetime import date, timedelta
 
@@ -8,7 +7,16 @@ import httpx
 import pytest
 import respx
 
-from ml.b0 import B0, TimetableCache, diff_caches, main, refresh
+from ml.b0 import (
+    B0,
+    RefreshResult,
+    TimetableCache,
+    diff_caches,
+    load_diff_log,
+    main,
+    record_refresh,
+    refresh,
+)
 from ml.changes import (
     OFFICIAL_CHANGED_MIN,
     ChangeState,
@@ -18,6 +26,7 @@ from ml.changes import (
     render,
 )
 from ml.points import PointStore
+from ml.scopes import scope_key
 from tests.ml_helpers import STATIONS, cover, weekdays
 from tests.unit.test_ml_changes_signals import day_points
 
@@ -104,11 +113,12 @@ def test_refresh_swaps_directories_and_reports_the_diff(tmp_path):
 
     respx.get(TIMETABLE_URL).mock(side_effect=reply)
     with httpx.Client() as http:
-        changed, failed = refresh(
+        result = refresh(
             http, "GENERALKEY", TARGETS, cache_dir, today=TODAY, lines_by_code=LINES,
             sleep=lambda s: None,
         )  # fmt: skip
-    assert failed == 0 and changed[SCOPE] == 1.0
+    assert result.failed == 0 and result.changed[SCOPE] == 1.0
+    assert result.old_cache == "timetable_cache-20261123"
     names = sorted(p.name for p in tmp_path.iterdir())
     assert names == ["timetable_cache", "timetable_cache-20261123"]
     assert TimetableCache(cache_dir).rows("cd-A", 1, 1)[0]["LEFTTIME"] == _hms(H6 + 30 + 180)
@@ -139,11 +149,11 @@ def test_refresh_with_a_failure_changes_nothing(tmp_path):
                _reply_with(rows("cd-C", shift=180))]  # fmt: skip
     respx.get(TIMETABLE_URL).mock(side_effect=replies)
     with httpx.Client() as http:
-        changed, failed = refresh(
+        result = refresh(
             http, "GENERALKEY", TARGETS, cache_dir, today=TODAY, lines_by_code=LINES,
             sleep=lambda s: None,
         )  # fmt: skip
-    assert (changed, failed) == ({}, 1)
+    assert (result.changed, result.failed, result.old_cache) == ({}, 1, None)
     assert [p.name for p in tmp_path.iterdir()] == ["timetable_cache"]
     assert TimetableCache(cache_dir).rows("cd-A", 1, 1)[0]["LEFTTIME"] == _hms(H6 + 30)
 
@@ -151,14 +161,122 @@ def test_refresh_with_a_failure_changes_nothing(tmp_path):
 def test_load_official_changed_applies_minimum_and_age(tmp_path):
     path = tmp_path / "official_diff.json"
     assert load_official_changed(path, today=TODAY) == set()
-    data = {"checked_on": TODAY.isoformat(), "changed": {"1|9호선|0|6": 0.10, "1|9호선|0|7": 0.05}}
-    path.write_text(json.dumps(data), encoding="utf-8")
+    changed = {SCOPE: 0.10, (1, "9호선", 0, 7): 0.05}
+    record_refresh(path, RefreshResult(changed, 0, [], "tt-x", {}), today=TODAY)
     assert OFFICIAL_CHANGED_MIN == 0.10
     assert load_official_changed(path, today=TODAY) == {SCOPE}
     assert load_official_changed(path, today=TODAY + timedelta(days=8)) == {SCOPE}
     assert load_official_changed(path, today=TODAY + timedelta(days=9)) == set()
     path.write_text("{", encoding="utf-8")
     assert load_official_changed(path, today=TODAY) == set()
+
+
+# --- 빈 역 방어, 옛 캐시 남기기, 차이 목록 ---
+
+NO_DATA = {"RESULT": {"CODE": "INFO-200", "MESSAGE": "해당하는 데이터가 없습니다."}}
+
+
+def refresh_with(tmp_path, *, n_targets, empty=(), shift=0, **kw) -> RefreshResult:
+    """`tmp_path/tt`에 역 n_targets개의 캐시를 두고(없을 때만) 다시 받는다.
+
+    `empty`에 든 역은 "데이터 없음", 나머지는 shift초 민 시간표를 돌려준다.
+    """
+    cache_dir = tmp_path / "tt"
+    codes = [f"cd-{c}" for c in "ABCDEFGHIJ"[:n_targets]]
+    if not cache_dir.is_dir():
+        cache = TimetableCache(cache_dir)
+        for i, code in enumerate(codes):
+            cache.save(code, 1, 1, rows(code, station_index=i))
+
+    def reply(request: httpx.Request) -> httpx.Response:
+        code = request.url.path.split("/")[-4]
+        if code in empty:
+            return httpx.Response(200, json=NO_DATA)
+        return _reply_with(rows(code, shift=shift, station_index=codes.index(code)))
+
+    with respx.mock:
+        respx.get(TIMETABLE_URL).mock(side_effect=reply)
+        with httpx.Client() as http:
+            return refresh(
+                http, "GENERALKEY", [(code, 1, 1) for code in codes], cache_dir,
+                today=kw.pop("today", TODAY), lines_by_code=dict.fromkeys(codes, "9호선"),
+                sleep=lambda s: None, **kw,
+            )  # fmt: skip
+
+
+def test_station_suddenly_empty_is_kept_and_skipped(tmp_path):
+    result = refresh_with(tmp_path, empty={"cd-A"}, n_targets=10)
+    assert result.failed == 0 and result.changed == {} and result.old_cache is None
+    assert result.skipped == ["cd-A_1_1"] and result.empty_streaks == {"cd-A_1_1": 1}
+    assert len(TimetableCache(tmp_path / "tt").rows("cd-A", 1, 1)) == 10
+
+
+def test_third_empty_reply_in_a_row_is_accepted(tmp_path):
+    result = refresh_with(tmp_path, empty={"cd-A"}, n_targets=10, empty_streaks={"cd-A_1_1": 2})
+    assert result.skipped == [] and result.empty_streaks == {}
+    assert TimetableCache(tmp_path / "tt").rows("cd-A", 1, 1) == []
+    assert SCOPE in result.changed
+
+
+def test_too_many_empty_targets_fail_the_whole_refresh(tmp_path):
+    result = refresh_with(tmp_path, empty={"cd-A", "cd-B", "cd-C"}, n_targets=10)  # 30%
+    assert result.failed == 3
+    assert not list(tmp_path.glob("tt-*"))  # 아무것도 바꾸지 않았다
+    assert len(TimetableCache(tmp_path / "tt").rows("cd-A", 1, 1)) == 10
+
+
+def test_station_that_was_already_empty_is_not_a_skip(tmp_path):
+    TimetableCache(tmp_path / "tt").save("cd-A", 1, 1, [])
+    for i, code in enumerate(f"cd-{c}" for c in "BCDEFGHIJ"):
+        TimetableCache(tmp_path / "tt").save(code, 1, 1, rows(code, station_index=i + 1))
+    result = refresh_with(tmp_path, empty={"cd-A"}, n_targets=10)
+    assert result.skipped == [] and result.changed == {}
+
+
+def test_old_cache_is_kept_only_when_something_changed(tmp_path):
+    same = refresh_with(tmp_path, n_targets=10)
+    assert same.old_cache is None and not list(tmp_path.glob("tt-*"))
+    moved = refresh_with(tmp_path, shift=180, n_targets=10)
+    assert moved.old_cache == f"tt-{TODAY:%Y%m%d}" and (tmp_path / moved.old_cache).is_dir()
+
+
+def test_second_refresh_on_the_same_day_keeps_entry_and_old_cache(tmp_path):
+    log = tmp_path / "official_diff.json"
+    first = refresh_with(tmp_path, shift=180, n_targets=10)
+    record_refresh(log, first, today=TODAY)
+    second = refresh_with(tmp_path, shift=180, n_targets=10)  # 이미 새 캐시와 같다
+    record_refresh(log, second, today=TODAY)
+    (entry,) = load_diff_log(log)["entries"]
+    assert entry["old_cache"] == first.old_cache and scope_key(SCOPE) in entry["changed"]
+    assert (tmp_path / first.old_cache).is_dir()
+
+
+def test_second_change_on_the_same_day_keeps_the_first_old_cache(tmp_path):
+    refresh_with(tmp_path, shift=180, n_targets=10)
+    again = refresh_with(tmp_path, shift=360, n_targets=10)
+    assert again.old_cache == f"tt-{TODAY:%Y%m%d}"
+    old = TimetableCache(tmp_path / again.old_cache)
+    assert old.rows("cd-A", 1, 1)[0]["LEFTTIME"] == _hms(H6 + 30)  # 그날 처음의 옛 시간표
+
+
+def test_protected_old_caches_survive_pruning(tmp_path):
+    for i in range(8):
+        (tmp_path / f"tt-2026110{i + 1}").mkdir()
+    refresh_with(tmp_path, shift=180, n_targets=10, protected={"tt-20261101"}, keep=2)
+    names = sorted(p.name for p in tmp_path.glob("tt-*"))
+    assert names == ["tt-20261101", "tt-20261108", "tt-20261123"]  # 보호 1 + 최근 2
+
+
+def test_diff_log_drops_old_entries_and_reads_legacy_file_as_empty(tmp_path):
+    log = tmp_path / "official_diff.json"
+    log.write_text('{"checked_on": "2026-11-01", "changed": {}}', encoding="utf-8")  # 옛 꼴
+    assert load_diff_log(log)["entries"] == []
+    old_day = date(2026, 10, 1)
+    record_refresh(log, RefreshResult({SCOPE: 0.5}, 0, [], "tt-20261001", {}), today=old_day)
+    record_refresh(log, RefreshResult({}, 0, [], None, {"cd-A_1_1": 1}), today=TODAY)
+    data = load_diff_log(log)
+    assert [e["checked_on"] for e in data["entries"]] == [TODAY.isoformat()]
+    assert data["empty_streaks"] == {"cd-A_1_1": 1} and data["version"] == 2
 
 
 def test_b0_departures_lists_trains_leaving_the_station(tmp_path):

@@ -20,7 +20,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from app.core.clock import KST
-from ml.b0 import B0, TIMETABLE_LINES
+from ml.b0 import B0, TIMETABLE_LINES, load_diff_log
 from ml.b1 import WINDOW, Departure, Entry, build_b1_from_points
 from ml.points import PointStore
 from ml.scopes import Scope, band_of, merge_bands, parse_scope_key, scope_key
@@ -526,21 +526,20 @@ def detect_day(
 
 
 def load_official_changed(path: str | Path, *, today: date, max_age_days: int = 8) -> set[Scope]:
-    """`python -m ml.b0 --refresh`가 쓴 차이 파일에서 바뀐 단위. 없거나 오래됐으면 빈 집합."""
-    path = Path(path)
-    if not path.is_file():
-        return set()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if (today - date.fromisoformat(data["checked_on"])).days > max_age_days:
-            return set()
-        return {
-            parse_scope_key(key)
-            for key, ratio in data["changed"].items()
-            if ratio >= OFFICIAL_CHANGED_MIN
-        }
-    except (ValueError, KeyError, TypeError, AttributeError):
-        return set()
+    """`python -m ml.b0 --refresh`가 쓴 차이 목록에서 최근에 바뀐 단위. 없으면 빈 집합."""
+    found: set[Scope] = set()
+    for entry in load_diff_log(path)["entries"]:
+        try:
+            if (today - date.fromisoformat(entry["checked_on"])).days > max_age_days:
+                continue
+            found |= {
+                parse_scope_key(key)
+                for key, ratio in entry["changed"].items()
+                if ratio >= OFFICIAL_CHANGED_MIN
+            }
+        except (ValueError, KeyError, TypeError, AttributeError):
+            continue
+    return found
 
 
 def official_fit(

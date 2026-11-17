@@ -5,6 +5,7 @@ import pytest
 
 from app.core.clock import KST
 from ml import nightly
+from ml.b0 import RefreshResult, record_refresh
 from ml.changes import ChangeState
 from ml.nightly import main, run_nightly
 from ml.store import Store
@@ -234,8 +235,7 @@ def test_official_diff_file_confirms_in_one_day(tmp_path, paths):
     # 공식 시간표가 그 단위에서 바뀐 것으로 나와 있으면 의심 하루 만에 확정한다.
     db = make_db(tmp_path, [0] * 5 + [180])
     diff = tmp_path / "official_diff.json"
-    data = {"checked_on": DAYS[5].isoformat(), "changed": {"1|9호선|0|6": 0.5}}
-    diff.write_text(json.dumps(data), encoding="utf-8")
+    record_refresh(diff, RefreshResult({(1, "9호선", 0, 6): 0.5}, 0, [], None, {}), today=DAYS[5])
     assert night(db, paths, 6, official_diff_path=diff) == 0
     (record,) = ChangeState.load(paths["state_path"]).records
     assert (record.status, record.source, record.first_date) == ("confirmed", "official", DAYS[5])

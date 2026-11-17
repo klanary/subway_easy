@@ -9,11 +9,13 @@ import logging
 import statistics
 from bisect import bisect_left
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
 from ml.b0 import B0, TimetableCache
+from ml.b1 import Entry
 from ml.changes import (
     CHANGES_KEEP_DAYS,
     DAY_TYPE_NAMES,
@@ -384,3 +386,55 @@ def judge_candidates(
             expired.append((candidate.scope, candidate.note))
     lines = _scope_lines(day, "후보 보류", held) + _scope_lines(day, "후보 만료", expired)
     return records, lines
+
+
+def official_fill(
+    part: dict, state: ChangeState, b0: B0, statn_ids: Iterable[str], *, line: str
+) -> int:
+    """공식 근거로 확정돼 "다시 배우는 중"인 단위를 새 공식 시각 + 평소 지연으로 채운다.
+
+    `part`는 한 호선의 B1 결과물이다. 채운 항목 수를 돌려준다. 단위 상태는 그대로 둔다.
+    변경일 뒤 관측이 차면 B1이 그 단위를 다시 내므로, 그때는 채울 것이 없다.
+    """
+    latest: dict[Scope, ChangeRecord] = {}
+    for record in state.records:
+        if record.status == "confirmed" and (
+            record.scope not in latest or record.first_date >= latest[record.scope].first_date
+        ):
+            latest[record.scope] = record
+    statn_ids = list(statn_ids)
+    filled = 0
+    for key, info in sorted((part.get("scopes") or {}).items()):
+        scope = parse_scope_key(key)
+        day_type, scope_line, direction, band = scope
+        record = latest.get(scope)
+        if (
+            scope_line != line
+            or info.get("state") != "retraining"
+            or record is None
+            or record.source != "official"
+        ):
+            continue
+        delay = state.delays.get(f"{line}|{direction}", 0)
+        for statn_id in statn_ids:
+            entries = [
+                vars(
+                    Entry(
+                        secs=secs + delay,
+                        train_no=None,
+                        n_days=0,
+                        dest_name=None,
+                        express=0,
+                        official=True,
+                    )  # fmt: skip
+                ).copy()
+                for _, secs in b0.departures(day_type, line, direction, statn_id)
+                if band_of(secs) == band
+            ]
+            if not entries:
+                continue
+            cell = part["cells"].setdefault(f"{day_type}|{line}|{direction}|{statn_id}", [])
+            cell.extend(entries)
+            cell.sort(key=lambda e: (e["secs"], e.get("train_no") or ""))
+            filled += len(entries)
+    return filled

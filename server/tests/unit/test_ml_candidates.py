@@ -385,3 +385,59 @@ def test_candidate_lines_merge_neighbouring_bands():
         "- 2026-11-18 후보 | 9호선 상행 평일 06~07시 | 공식 시간표가 달라짐",
         "- 2026-11-18 후보 | 9호선 상행 평일 09시 | 공식 시간표가 달라짐",
     ]
+
+
+# --- 확정 단위 채우기 ---
+
+
+def retraining_part(tmp_path, *, source, delay):
+    """그 단위가 "다시 배우는 중"인 호선 결과물, 확정 기록이 든 상태, 새 공식 시간표."""
+    from ml.b0 import B0
+
+    part = {
+        "cells": {},
+        "scopes": {scope_key(SCOPE): {"state": "retraining", "since": DAY.isoformat()}},
+    }
+    record = ChangeRecord(
+        scope=SCOPE, status="confirmed", first_date=DAY, days=[DAY], missed=[], decided_date=DAY,
+        kind="official", triggers=(), signals={}, source=source,
+    )  # fmt: skip
+    state = ChangeState(records=[record], delays={"9호선|0": delay})
+    return part, state, B0(cache_with(tmp_path / "tt", shift=180), CODES)
+
+
+def test_retraining_scope_confirmed_by_official_is_filled_with_official_times_plus_delay(tmp_path):
+    from ml.official import official_fill
+
+    part, state, b0 = retraining_part(tmp_path, source="official", delay=40)
+    n = official_fill(part, state, b0, ["A", "B", "C"], line="9호선")
+    cell = part["cells"]["1|9호선|0|A"]
+    assert n == sum(len(c) for c in part["cells"].values()) == 29  # 06시대에 드는 출발
+    assert all(e["official"] and e["train_no"] is None and e["n_days"] == 0 for e in cell)
+    assert cell[0]["secs"] == H6 + 30 + 180 + 40
+    assert [e["secs"] for e in cell] == sorted(e["secs"] for e in cell)
+    assert part["scopes"][scope_key(SCOPE)]["state"] == "retraining"
+
+
+def test_fill_keeps_measured_entries_of_other_bands_in_the_same_cell(tmp_path):
+    from ml.official import official_fill
+
+    part, state, b0 = retraining_part(tmp_path, source="official", delay=0)
+    measured = {"secs": 8 * 3600, "train_no": "9099", "n_days": 5, "official": False}
+    part["cells"]["1|9호선|0|A"] = [measured]
+    official_fill(part, state, b0, ["A"], line="9호선")
+    cell = part["cells"]["1|9호선|0|A"]
+    assert cell[-1] == measured and len(cell) == 11
+
+
+def test_scope_confirmed_by_measurement_only_is_not_filled(tmp_path):
+    from ml.official import official_fill
+
+    part, state, b0 = retraining_part(tmp_path, source="measured", delay=40)
+    assert official_fill(part, state, b0, ["A"], line="9호선") == 0 and part["cells"] == {}
+
+
+def test_entry_default_is_not_official():
+    from ml.b1 import Entry
+
+    assert Entry(secs=1, train_no=None, n_days=1, dest_name=None, express=0).official is False

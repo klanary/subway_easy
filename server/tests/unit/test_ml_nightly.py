@@ -379,3 +379,39 @@ def test_judging_failure_is_reported_and_measured_detection_still_runs(
     assert night(db, paths, 6, official_diff_path=diff, **_caches(tmp_path)) == 1
     state = ChangeState.load(paths["state_path"])
     assert state.checked["9호선|1"] == DAYS[5]
+
+
+def _fill_kw(tmp_path):
+    from ml.b0 import B0, TimetableCache
+    from tests.unit.test_ml_official import CODES
+
+    kw = _caches(tmp_path)
+    return {
+        "official_diff_path": _diff(tmp_path, [(DAYS[5], [(1, "9호선", 0, 6)])]),
+        "b0": B0(TimetableCache(tmp_path / "tt"), CODES),
+        **kw,
+    }
+
+
+def test_enforce_fills_officially_confirmed_scope_until_two_days_are_observed(tmp_path, paths):
+    kw = _fill_kw(tmp_path)
+    db = make_db(tmp_path, [0] * 5 + [180])
+    assert night(db, paths, 6, enforce=True, **kw) == 0
+    cell = artifact(paths)["cells"][CELL_A]
+    assert len(cell) == 10 and all(e["official"] and e["n_days"] == 0 for e in cell)
+    assert cell[0]["secs"] == H6 + 180 + 30
+    assert artifact(paths)["scopes"]["1|9호선|0|6"]["state"] == "retraining"
+
+    later = make_db(tmp_path, [0] * 5 + [180, 180], name="later.sqlite")
+    assert night(later, paths, 7, enforce=True, **kw) == 0
+    cell = artifact(paths)["cells"][CELL_A]
+    assert not any(e["official"] for e in cell)
+    assert (a_entry(paths)["secs"], a_entry(paths)["n_days"]) == (H6 + 180 + 30, 2)
+
+
+def test_observe_mode_never_fills(tmp_path, paths):
+    db = make_db(tmp_path, [0] * 5 + [180])
+    assert night(db, paths, 6, **_fill_kw(tmp_path)) == 0
+    cells = artifact(paths)["cells"]
+    assert not any(e["official"] for cell in cells.values() for e in cell)
+    assert a_entry(paths)["secs"] == H6 + 30

@@ -64,6 +64,7 @@ class Entry:
     express: int
     first_seen: str | None = None  # 이 시각을 만든 관측의 첫 날짜(ISO)
     last_seen: str | None = None
+    official: bool = False  # 관측이 아니라 공식 시각 + 평소 지연으로 채운 항목
 
 
 PassKey = tuple[str, int, int, str]  # (호선, 방향, express 값, statn_id)

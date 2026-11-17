@@ -61,3 +61,16 @@ def test_app_has_guards_in_spec_order_with_settings_limits(services):
         "kakaoRoute",
     ]
     assert services.quotas["kakaoRoute"].daily_limit == 1000
+
+
+def test_zero_limit_means_no_limit_but_still_counts(late_clock):
+    g = QuotaGuard("t", 0, late_clock)
+    calls(g, 50_000)
+    assert g.can_call() and g.ttl_multiplier() == 1.0
+    assert g.snapshot() == {"callsToday": 50_000, "dailyLimit": None, "errorsToday": 0}
+
+
+def test_zero_limit_still_stops_when_upstream_says_exhausted(late_clock):
+    g = QuotaGuard("t", 0, late_clock)
+    g.mark_exhausted()
+    assert not g.can_call()

@@ -5,10 +5,11 @@ def test_defaults_match_spec():
     s = Settings(_env_file=None)
     assert (
         s.seoul_realtime_daily_limit,
+        s.seoul_timetable_daily_limit,
         s.kakao_route_daily_limit,
         s.rate_limit_per_minute,
         s.mock_upstream,
-    ) == (1000, 1000, 60, False)
+    ) == (0, 0, 1000, 60, False)  # 서울시 키는 한도가 없다(0 = 제한 없음, 2026-11-17)
 
 
 def test_env_overrides(monkeypatch):

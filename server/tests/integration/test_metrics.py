@@ -12,9 +12,10 @@ async def test_metrics_on_fresh_server(client):
     ]
     assert body["upstream"]["seoulRealtime"] == {
         "callsToday": 0,
-        "dailyLimit": 1000,
+        "dailyLimit": None,  # 제한 없음
         "errorsToday": 0,
     }
+    assert body["upstream"]["kakaoRoute"]["dailyLimit"] == 1000
     assert body["since"].endswith("+09:00") and body["unmatchedStations"] == 0
 
 

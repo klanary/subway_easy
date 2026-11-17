@@ -24,7 +24,7 @@ class CacheStats(ApiModel):
 
 class UpstreamStats(ApiModel):
     calls_today: int
-    daily_limit: int
+    daily_limit: int | None  # None = 제한 없음
     errors_today: int
 
 

@@ -44,7 +44,7 @@ done
 
 echo "== 4/5 systemd 등록"
 for unit in subway-collector.service subway-collector-backup.service subway-collector-backup.timer \
-  subway-ml-nightly.service subway-ml-nightly.timer; do
+  subway-ml-nightly.service subway-ml-nightly.timer \n  subway-ml-official.service subway-ml-official.timer; do
   sed -e "s|@SERVER_DIR@|$SERVER_DIR|g" -e "s|@USER@|$RUN_USER|g" \
     "$SERVER_DIR/ml/deploy/$unit" | sudo tee "$UNIT_DIR/$unit" > /dev/null
 done
@@ -52,6 +52,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --quiet subway-collector.service
 sudo systemctl enable --quiet --now subway-collector-backup.timer
 sudo systemctl enable --quiet --now subway-ml-nightly.timer
+sudo systemctl enable --quiet --now subway-ml-official.timer
 
 echo "== 5/5 키 확인과 시작"
 # 값은 보지 않고, 세 이름 중 값이 있는 줄이 하나라도 있는지만 본다.
@@ -87,4 +88,5 @@ cat <<EOF
   사용량: sqlite3 $SERVER_DIR/ml_data/collector.sqlite "SELECT * FROM key_usage ORDER BY day DESC LIMIT 6;"
   백업:  systemctl list-timers subway-collector-backup.timer   ($SERVER_DIR/ml_data/backups)
   변경:  journalctl -u subway-ml-nightly -n 20   /   cat $SERVER_DIR/ml_data/changes.md
+  공식:  journalctl -u subway-ml-official -n 20   (일반 인증키가 .env에 있어야 돈다)
 EOF

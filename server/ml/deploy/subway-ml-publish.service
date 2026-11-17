@@ -1,0 +1,11 @@
+[Unit]
+Description=지금출발 실측 결과물 내보내기(GitHub 릴리스 measured-timetable)
+After=subway-ml-nightly.service
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@SERVER_DIR@
+Nice=10
+MemoryMax=500M
+ExecStart=@SERVER_DIR@/.venv/bin/python -m ml.publish

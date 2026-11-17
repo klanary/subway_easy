@@ -120,3 +120,20 @@ def test_cli_writes_artifact(tmp_path, capsys):
     assert main(["--db", str(db), "--out", str(out)]) == 0
     assert len(json.loads(out.read_text(encoding="utf-8"))["hops"]) > 0
     assert main(["--db", str(tmp_path / "없음.sqlite"), "--out", str(out)]) == 2
+
+
+def test_b2_by_line_merges_lines(tmp_path):
+    from ml.b2 import build_b2_by_line
+
+    days = weekdays(6)
+    events = []
+    for day in days:
+        events += trip(day, 8 * 3600, line="9호선", train_no="901")
+        events += trip(day, 9 * 3600, line="5호선", train_no="501", stations=("P", "Q", "R"))
+    db = write_db(tmp_path / "c.sqlite", events)
+    merged = build_b2_by_line(db, date_from=days[0], date_to=days[-1])
+    lines = {key.split("|")[0] for key in merged["hops"]}
+    assert lines == {"9호선", "5호선"}
+    whole = build_b2(build_runs(events))
+    assert merged["hops"] == whole["hops"] and merged["hops_hour"] == whole["hops_hour"]
+    assert merged["kind"] == "b2" and merged["n_dates"] == 6

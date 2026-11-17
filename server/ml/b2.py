@@ -15,11 +15,20 @@ import json
 import statistics
 import sys
 from collections import defaultdict, deque
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from app.core.clock import KST
-from ml.dataset import APPROACH, ARRIVE, DEPART, ENTER, Run, build_runs, load_events
+from ml.dataset import (
+    APPROACH,
+    ARRIVE,
+    DEPART,
+    ENTER,
+    Run,
+    _open_ro,
+    build_runs,
+    load_events,
+)
 
 VERSION = 1
 MIN_N = 5  # 이보다 표본이 적은 칸은 쓰지 않는다
@@ -114,6 +123,53 @@ def build_b2(
         "dwell_line": _summarize(dwell_line, min_n),
         "lead": _summarize(lead, min_n),
     }
+
+
+_MERGED = ("hops", "hops_day", "hops_hour", "dwell", "dwell_line", "lead")
+
+
+def build_b2_by_line(
+    db: str | Path,
+    *,
+    date_from: date,
+    date_to: date,
+    min_n: int = MIN_N,
+    now: datetime | None = None,
+) -> dict:
+    """호선마다 따로 만들어 합친다(VM 메모리 1GB: 한 번에 한 호선만 올린다).
+
+    키에 호선이 들어 있어 겹치지 않는다.
+    호선 전체를 묶은 "*" 칸은 표본이 가장 많은 호선의 것을 남긴다.
+    """
+    con = _open_ro(db)
+    try:
+        lines = [
+            line
+            for (line,) in con.execute(
+                "SELECT DISTINCT line FROM events WHERE service_date BETWEEN ? AND ? ORDER BY 1",
+                (date_from.isoformat(), date_to.isoformat()),
+            )
+        ]
+    finally:
+        con.close()
+    merged = build_b2([], min_n=min_n, now=now)
+    dates: set[str] = set()
+    for line in lines:
+        runs = build_runs(load_events(db, date_from=date_from, date_to=date_to, line=line))
+        part = build_b2(runs, min_n=min_n, now=now)
+        dates.update(run.service_date.isoformat() for run in runs)
+        for name in _MERGED:
+            for key, value in part[name].items():
+                kept = merged[name].get(key)
+                if kept is None or value["n"] > kept["n"]:
+                    merged[name][key] = value
+    ordered = sorted(dates)
+    merged.update(
+        date_from=ordered[0] if ordered else None,
+        date_to=ordered[-1] if ordered else None,
+        n_dates=len(ordered),
+    )
+    return merged
 
 
 class SegmentModel:

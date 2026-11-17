@@ -95,3 +95,31 @@ def test_setup_script_installs_the_official_units():
     assert "subway-ml-official.service" in script and "subway-ml-official.timer" in script
     assert "enable --quiet --now subway-ml-official.timer" in script
     assert "journalctl -u subway-ml-official" in script
+
+
+def test_setup_script_units_all_exist():
+    # 유닛 목록에 "\n" 같은 글자가 섞이면 bash가 없는 유닛을 찾다 set -e로 멈춘다.
+    script = _read("setup_vm.sh")
+    loop = re.search(r"for unit in (.*?); do", script, re.S)
+    assert loop is not None
+    names = [word for word in loop.group(1).split() if word != "\\"]  # 줄 이음 기호만 뺀다
+    assert names and all((DEPLOY / name).is_file() for name in names), names
+
+
+def test_publish_timer_runs_wed_sun_after_nightly():
+    timer = _read("subway-ml-publish.timer")
+    assert "OnCalendar=Wed,Sun *-*-* 03:30:00" in timer and "Persistent=true" in timer
+
+
+def test_publish_service_names_no_key():
+    service = _read("subway-ml-publish.service")
+    assert "-m ml.publish" in service and "Type=oneshot" in service
+    assert "MemoryMax=500M" in service and "TOKEN" not in service and "KEY" not in service
+    assert "User=@USER@" in service and "WorkingDirectory=@SERVER_DIR@" in service
+
+
+def test_setup_script_installs_publish_units():
+    script = _read("setup_vm.sh")
+    assert "subway-ml-publish.service" in script and "subway-ml-publish.timer" in script
+    assert "enable --quiet --now subway-ml-publish.timer" in script
+    assert "journalctl -u subway-ml-publish" in script and "GITHUB_RELEASE_TOKEN" in script

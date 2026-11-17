@@ -172,3 +172,7 @@ sudo systemctl daemon-reload
 2. VM에서 `nano ~/subway_easy/server/.env`로 한 줄을 더한다: `DISCORD_WEBHOOK_URL=<복사한 URL>`. 저장은 Ctrl+O → Enter, 나가기는 Ctrl+X.
 3. 확인: `cd ~/subway_easy/server && .venv/bin/python -c "from ml.alerts import notifier_from_env; import os; n = notifier_from_env('.env', os.environ); print('없음' if n is None else '있음'); n and n('지금출발 알림 시험')"` → 채널에 "지금출발 알림 시험"이 오면 된다.
 4. 웹후크 URL이 새어 나갔다고 생각되면 Discord에서 그 웹후크를 지우고 새로 만들어 `.env`를 바꾼다. 타이머는 다시 시작할 필요가 없다(매번 `.env`를 새로 읽는다).
+
+## 10. 서버로 내보내기 (2026-11-18)
+
+밤 작업이 만든 실측 시간표는 수·일 03:30에 GitHub 릴리스 `measured-timetable`로 나가고, 서버가 받아 시간표 API가 없는 노선에 쓴다. 변경 의심(`suspect`)·재학습 중(`retraining`)인 단위는 서버가 내지 않는다. 운영 방법과 토큰은 `docs/ml/collector.md`의 "실측 결과물 내보내기".

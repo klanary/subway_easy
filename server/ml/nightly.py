@@ -37,7 +37,13 @@ from ml.changes import (
     render,
 )
 from ml.dataset import _open_ro, service_dates, station_ids, station_names
-from ml.official import candidate_lines, ingest_candidates, judge_candidates, prune_candidates
+from ml.official import (
+    candidate_lines,
+    ingest_candidates,
+    judge_candidates,
+    official_fill,
+    prune_candidates,
+)
 from ml.points import PointStore
 from ml.scopes import Scope
 
@@ -227,6 +233,10 @@ def run_nightly(
         for line in sorted(store.all_lines()):
             try:
                 parts[line] = _build_line(store, line, as_of, epochs, th)
+                if enforce and b0 is not None and codes is not None:
+                    # 공식 근거로 확정된 단위는 실측이 찰 때까지 새 공식 시각으로 채운다.
+                    stations = [statn for known, statn in codes if known == line]
+                    official_fill(parts[line], state, b0, stations, line=line)
             except Exception as e:
                 logger.error("B1 실패(%s): %s", line, type(e).__name__)
                 failed_lines.append(line)

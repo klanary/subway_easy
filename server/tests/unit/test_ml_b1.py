@@ -26,7 +26,7 @@ def test_median_departure_per_train_number():
     (entry,) = art["cells"][CELL_A]
     assert entry == {
         "secs": H8 + 20 + 30, "train_no": "100", "n_days": 3, "dest_name": "D행", "express": 0,
-        "first_seen": d1.isoformat(), "last_seen": d3.isoformat(),
+        "first_seen": d1.isoformat(), "last_seen": d3.isoformat(), "official": False,
     }  # fmt: skip
     assert (art["date_from"], art["date_to"]) == (d1.isoformat(), d3.isoformat())
     assert art["n_dates"] == {"1": 3}

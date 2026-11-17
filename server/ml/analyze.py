@@ -170,7 +170,7 @@ def _delay(runs: list[Run], b0: B0 | None) -> list[str]:
     if b0 is None:
         out += [
             "시간표 캐시가 없어 건너뛰었다. `python -m ml.b0`로 받은 뒤"
-            " `--timetable-cache`를 주면 채워진다(2~9호선만).",
+            " `--timetable-cache`를 주면 채워진다(1~9호선만).",
             "",
         ]
         return out

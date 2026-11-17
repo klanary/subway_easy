@@ -217,3 +217,17 @@ def test_cli_refresh_needs_db_and_key(tmp_path, monkeypatch):
     env.write_text("SEOUL_POSITION_API_KEY=POS\n", encoding="utf-8")
     args = ["--refresh", "--db", str(tmp_path / "없음.sqlite"), "--env-file", str(env)]
     assert main(args) == 2
+
+
+def test_targets_cover_lines_1_to_9_and_all_three_day_types():
+    from ml.b0 import TIMETABLE_LINES, targets_for
+
+    codes = {("1호선", "s1"): "0150", ("9호선", "s9"): "4101", ("경의중앙선", "k"): "1219"}
+    targets = targets_for(codes, set(TIMETABLE_LINES))
+    assert "1호선" in TIMETABLE_LINES and len(TIMETABLE_LINES) == 9
+    assert targets == sorted(
+        (code, day_type, inout)
+        for code in ("0150", "4101")
+        for day_type in (1, 2, 3)
+        for inout in (1, 2)
+    )

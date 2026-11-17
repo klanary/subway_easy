@@ -59,6 +59,17 @@ class AppNavGraphTest {
         assertEquals(true, routeEdit.savedStateHandle.contains("pick_result"))
     }
 
+    @Test fun secondPickAfterReturningDoesNotCloseTheRequester() {
+        // 역을 빠르게 두 번 누르면 returnPick이 두 번 불린다. 두 번째는 아무것도 하지 않아야 한다.
+        val nav = navController()
+        nav.navigate(RouteFlowGraph())
+        val routeEdit = nav.currentBackStackEntry!!
+        nav.navigate(SearchDest(Slot.DEST))
+        nav.returnPick(PickResult(Slot.DEST, StationRef("강남", "강남")))
+        nav.returnPick(PickResult(Slot.DEST, StationRef("강남", "강남")))
+        assertEquals(routeEdit, nav.currentBackStackEntry)
+    }
+
     @Test fun searchFromHomeReturnsToHome() {
         val nav = navController()
         val home = nav.currentBackStackEntry!!

@@ -13,12 +13,13 @@ import json
 import statistics
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Set
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
 from app.core.clock import KST
-from ml.dataset import Run, build_runs, load_events, station_ids, station_names
+from ml.dataset import Run, Visit, build_runs, load_events, station_ids, station_names
 from ml.scopes import Scope, band_of, scope_key
 
 VERSION = 2  # 2: first_seen·last_seen, scopes, 창·기준일 정보
@@ -32,6 +33,8 @@ WINDOW = {1: 20, 2: 8, 3: 8}  # 요일 구분별로 쓰는 최근 날짜 수
 STALE_DAYS = {1: 3, 2: 2, 3: 2}  # 이만큼 연속으로 안 보인 열차는 뺀다
 MIN_DAYS_AFTER_CHANGE = 2  # 변경이 확정된 단위의 관측 일수 하한
 EPOCH_MARGIN_SEC = 300  # 기준일을 시간대 경계 양쪽으로 번지게 하는 폭
+PASS_MAX_DWELL_SEC = 20  # 급행의 도착→출발이 이보다 짧으면 서지 않고 지나간 것
+PASS_MIN_EVIDENCE = 5  # 역이 "지나가는 역"인지 정하는 데 필요한 방문 수(도착·출발이 둘 다 있는 것)
 _MIN_DWELL_SAMPLES = 20
 _MAX_DWELL_SEC = 600
 
@@ -63,11 +66,55 @@ class Entry:
     last_seen: str | None = None
 
 
+PassKey = tuple[str, int, int, str]  # (호선, 방향, express 값, statn_id)
+
+
+def _visit_passed(visit: Visit) -> bool | None:
+    """도착·출발이 둘 다 있으면 지나갔는지(True)·섰는지(False). 하나만 있으면 None."""
+    if visit.arr is None or visit.dep is None:
+        return None
+    return 0 <= visit.dep - visit.arr < PASS_MAX_DWELL_SEC
+
+
+def passed_stations(runs: list[Run]) -> set[PassKey]:
+    """급행이 서지 않고 지나가는 것으로 본 (호선, 방향, express 값, 역).
+
+    위치 API는 급행이 서지 않는 역에서도 이벤트를 보낸다. 도착·출발이 둘 다 있는 방문이
+    `PASS_MIN_EVIDENCE`개 이상이고 그 과반이 지나간 것이면 그 역을 지나가는 역으로 본다.
+    """
+    counts: dict[PassKey, list[int]] = defaultdict(lambda: [0, 0])  # [지나감, 섬]
+    for run in runs:
+        if not run.express:
+            continue
+        for v in run.visits:
+            passed = _visit_passed(v)
+            if passed is not None:
+                counts[(run.line, run.direction, run.express, v.statn_id)][0 if passed else 1] += 1
+    return {
+        key
+        for key, (n_pass, n_stop) in counts.items()
+        if n_pass + n_stop >= PASS_MIN_EVIDENCE and n_pass > n_stop
+    }
+
+
+def is_pass(run: Run, visit: Visit, passed: Set[PassKey]) -> bool:
+    """이 방문이 서지 않고 지나간 것인가. 급행이 아니면 언제나 False."""
+    if not run.express:
+        return False
+    known = _visit_passed(visit)
+    if known is not None:
+        return known
+    return (run.line, run.direction, run.express, visit.statn_id) in passed
+
+
 def line_dwell(runs: list[Run], fallback: int) -> dict[str, int]:
-    """호선별 정차 시간 중앙값(초). 표본이 20개 미만인 호선은 `fallback`."""
+    """호선별 정차 시간 중앙값(초). 표본이 20개 미만인 호선은 `fallback`. 지나간 방문은 뺀다."""
     samples: dict[str, list[int]] = defaultdict(list)
+    passed = passed_stations(runs)
     for run in runs:
         for v in run.visits:
+            if is_pass(run, v, passed):
+                continue
             if v.arr is not None and v.dep is not None and 0 < v.dep - v.arr <= _MAX_DWELL_SEC:
                 samples[run.line].append(v.dep - v.arr)
     return {
@@ -82,16 +129,19 @@ def departure_points(
     fallback_dwell: int = FALLBACK_DWELL_SEC,
     dwell: dict[str, int] | None = None,
 ) -> list[Departure]:
-    """역마다 출발 시각 하나. 종착역은 뺀다. 출발(2)이 없으면 도착(1) + 정차 시간.
+    """역마다 출발 시각 하나. 종착역과 급행이 지나간 역은 뺀다.
+
+    출발(2)이 없으면 도착(1) + 정차 시간.
 
     `dwell`을 주면 그 호선별 정차 시간을 쓴다(평가에서 학습 날짜의 값을 시험 날짜에 쓸 때).
     """
     if dwell is None:
         dwell = line_dwell(runs, fallback_dwell)
     points: list[Departure] = []
+    passed = passed_stations(runs)
     for run in runs:
         for v in run.visits:
-            if v.statn_id == run.dest_statn_id:
+            if v.statn_id == run.dest_statn_id or is_pass(run, v, passed):
                 continue
             if v.dep is not None:
                 secs, estimated = v.dep, False

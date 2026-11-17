@@ -15,7 +15,7 @@ import pytest
 import respx
 
 from app.core.clock import KST
-from app.services.measured_store import B1_PREFIX, B2_PREFIX, MANIFEST_FILE
+from app.services.measured_store import B1_PREFIX, B2_PREFIX, MANIFEST_FILE, TRIPS_PREFIX
 from ml.publish import API, TAG, UPLOADS, build_files, main, publish, server_b1, server_b2
 from tests.ml_helpers import trip, weekdays, write_db
 
@@ -178,3 +178,80 @@ def test_token_never_logged(workdir, caplog, capsys):
         assert main([*base, "--env-file", str(env)]) == 1
     out = capsys.readouterr()
     assert TOKEN not in caplog.text and TOKEN not in out.out and TOKEN not in out.err
+
+
+TRIPS = {"kind": "trips-server", "version": 1, "built_on": "2026-11-18", "stations": [],
+         "day_types": {"1": [], "2": [], "3": []}}  # fmt: skip
+PREVIOUS = {
+    "built_at": "2026-11-16T03:30:00+09:00", "as_of": "2026-11-15",
+    "b1": {"name": f"{B1_PREFIX}20261116T033000.json.gz", "sha256": "a" * 64},
+    "b2": {"name": f"{B2_PREFIX}20261116T033000.json.gz", "sha256": "b" * 64},
+    "trips": {"name": f"{TRIPS_PREFIX}20261116T033000.json.gz", "sha256": "c" * 64,
+              "built_on": "2026-11-16"},
+}  # fmt: skip
+
+
+def test_manifest_includes_trips():
+    files = build_files(RAW_B1, RAW_B2, now=NOW, trips=TRIPS)
+    manifest = json.loads(files[MANIFEST_FILE])
+    name = manifest["trips"]["name"]
+    assert name.startswith(TRIPS_PREFIX) and manifest["trips"]["built_on"] == "2026-11-18"
+    assert manifest["trips"]["sha256"] == hashlib.sha256(files[name]).hexdigest()
+    assert list(files)[-1] == MANIFEST_FILE
+
+
+def test_reuse_keeps_previous_b1_b2_entries():
+    files = build_files(None, None, now=NOW, trips=TRIPS, previous=PREVIOUS)
+    manifest = json.loads(files[MANIFEST_FILE])
+    assert manifest["b1"] == PREVIOUS["b1"] and manifest["b2"] == PREVIOUS["b2"]
+    assert manifest["as_of"] == "2026-11-15"
+    assert [n for n in files if n != MANIFEST_FILE] == [manifest["trips"]["name"]]
+
+
+def _mock_release(old_names):
+    respx.get(f"https://github.com/{REPO}/releases/download/{TAG}/{MANIFEST_FILE}").mock(
+        return_value=httpx.Response(200, json=PREVIOUS)
+    )
+    respx.get(f"{API}/repos/{REPO}/releases/tags/{TAG}").mock(
+        return_value=httpx.Response(200, json=_release([(n, i) for i, n in enumerate(old_names)]))
+    )
+    deletes = respx.delete(url__regex=r".*/releases/assets/\d+$").mock(
+        return_value=httpx.Response(204)
+    )
+    uploads = respx.post(url__startswith=f"{UPLOADS}/").mock(
+        return_value=httpx.Response(201, json={})
+    )
+    return deletes, uploads
+
+
+@respx.mock
+def test_weekday_reuses_previous_b1_b2_and_uploads_only_trips(workdir):
+    tmp_path, base = workdir
+    env = tmp_path / ".env"
+    env.write_text(f"GITHUB_RELEASE_TOKEN={TOKEN}\n", encoding="utf-8")
+    old = [PREVIOUS["b1"]["name"], PREVIOUS["b2"]["name"], PREVIOUS["trips"]["name"], MANIFEST_FILE]
+    deletes, uploads = _mock_release(old)
+    args = [*base, "--env-file", str(env), "--day", "2026-11-17",  # 화요일
+            "--timetable-cache", str(tmp_path / "none"),
+            "--b2-cache", str(tmp_path / "b2.json")]  # fmt: skip
+    assert main(args) == 0
+    names = [c.request.url.params["name"] for c in uploads.calls]
+    assert len(names) == 2 and names[0].startswith(TRIPS_PREFIX) and names[1] == MANIFEST_FILE
+    deleted = {c.request.url.path.rsplit("/", 1)[-1] for c in deletes.calls}
+    assert deleted == {"2", "3"}  # 옛 trips와 옛 manifest만, 옛 B1·B2(0, 1)는 그대로
+
+
+@respx.mock
+def test_wednesday_rebuilds_all(workdir):
+    tmp_path, base = workdir
+    env = tmp_path / ".env"
+    env.write_text(f"GITHUB_RELEASE_TOKEN={TOKEN}\n", encoding="utf-8")
+    _, uploads = _mock_release([MANIFEST_FILE])
+    args = [*base, "--env-file", str(env), "--day", "2026-11-18",  # 수요일
+            "--timetable-cache", str(tmp_path / "none"),
+            "--b2-cache", str(tmp_path / "b2.json")]  # fmt: skip
+    assert main(args) == 0
+    names = [c.request.url.params["name"] for c in uploads.calls]
+    prefixes = [n.split("-")[0] for n in names[:-1]]
+    assert sorted(prefixes) == ["measured_timetable", "segment_times", "trips"]
+    assert (tmp_path / "b2.json").is_file()  # 평일 운행표 만들기에 다시 쓴다

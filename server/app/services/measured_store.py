@@ -26,6 +26,7 @@ MANIFEST_FILE = "manifest.json"
 # manifest가 지금 쓸 이름과 sha256을 알려 준다(최종 리뷰 #5: 올리다 실패해도 옛 파일이 남는다).
 B1_PREFIX = "measured_timetable-"
 B2_PREFIX = "segment_times-"
+TRIPS_PREFIX = "trips-"  # 열차 운행표(경로 설계 2026-11-18). 매일 바뀐다
 REFRESH_SEC = 21_600
 STALE_DAYS = 14
 TIMEOUT_SEC = 30.0

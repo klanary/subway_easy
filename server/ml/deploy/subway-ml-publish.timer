@@ -1,8 +1,8 @@
 [Unit]
-Description=지금출발 실측 결과물 내보내기(수·일 03:30 KST, 밤 작업 뒤)
+Description=지금출발 실측 결과물 내보내기(매일 03:30 KST, 밤 작업 뒤. B1·B2는 수·일만 새로)
 
 [Timer]
-OnCalendar=Wed,Sun *-*-* 03:30:00
+OnCalendar=*-*-* 03:30:00
 Persistent=true
 
 [Install]

@@ -1,0 +1,9 @@
+[Unit]
+Description=지금출발 공식 시간표 다시 받기(매일 01:30 KST, 수집 끝난 뒤·밤 작업 전)
+
+[Timer]
+OnCalendar=*-*-* 01:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

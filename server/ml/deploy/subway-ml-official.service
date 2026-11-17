@@ -1,0 +1,10 @@
+[Unit]
+Description=지금출발 공식 시간표 다시 받기(1~9호선, 지난 것과의 차이 적기)
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@SERVER_DIR@
+Nice=10
+MemoryMax=300M
+ExecStart=@SERVER_DIR@/.venv/bin/python -m ml.b0 --refresh

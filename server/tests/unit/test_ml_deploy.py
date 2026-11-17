@@ -76,3 +76,22 @@ def test_setup_script_installs_the_nightly_units():
     assert "subway-ml-nightly.service" in script and "subway-ml-nightly.timer" in script
     assert "enable --quiet --now subway-ml-nightly.timer" in script
     assert "journalctl -u subway-ml-nightly" in script and "changes.md" in script
+
+
+def test_official_timer_runs_after_collection_ends_and_before_the_backup():
+    timer = _read("subway-ml-official.timer")
+    assert "OnCalendar=*-*-* 01:30:00" in timer and "Persistent=true" in timer
+
+
+def test_official_service_refreshes_with_limits_and_names_no_key():
+    service = _read("subway-ml-official.service")
+    assert "-m ml.b0 --refresh" in service and "Type=oneshot" in service
+    assert "MemoryMax=300M" in service and "KEY" not in service
+    assert "User=@USER@" in service and "WorkingDirectory=@SERVER_DIR@" in service
+
+
+def test_setup_script_installs_the_official_units():
+    script = _read("setup_vm.sh")
+    assert "subway-ml-official.service" in script and "subway-ml-official.timer" in script
+    assert "enable --quiet --now subway-ml-official.timer" in script
+    assert "journalctl -u subway-ml-official" in script

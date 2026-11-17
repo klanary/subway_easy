@@ -176,6 +176,17 @@ scp -i <개인 키 파일> "ubuntu@<VM 주소>:subway_easy/server/ml_data/backup
 
 `setup_vm.sh`는 `subway-ml-nightly.timer`(매일 02:40)도 등록한다. 전날 하루치로 시간표 변경을 판단하고 실측 시간표를 다시 만든다. 처음에는 관찰 모드다. 자세한 내용과 기록 읽는 법은 `docs/ml/timetable-changes.md`.
 
+### 실측 결과물 내보내기 (수·일 03:30, 2026-11-18)
+
+`setup_vm.sh`는 `subway-ml-publish.timer`도 등록한다. 수·일 03:30에 `python -m ml.publish`가 최근 7일로 구간 시간(B2)을 호선마다 만들고, 밤 작업이 만든 실측 시간표(B1)와 함께 GitHub 릴리스 `measured-timetable`에 올린다(`measured_timetable.json.gz`, `segment_times.json.gz`, 마지막에 `manifest.json`). 서버는 이 릴리스를 6시간마다 확인해 받아 간다. 실패하면 Discord로 알린다.
+
+**사용자가 할 일 — 토큰 만들기**
+
+1. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
+2. Repository access: Only select repositories → `klanary/subway_easy`. Permissions: Contents → Read and write. 만료일은 넉넉히(만료되면 내보내기가 실패하고 Discord로 알림이 온다).
+3. VM에서 `nano ~/subway_easy/server/.env`로 `GITHUB_RELEASE_TOKEN=<토큰>` 한 줄을 더한다. 값은 다른 곳에 붙여 넣지 않는다.
+4. 처음 한 번 손으로 돌려 확인: `sudo systemctl start subway-ml-publish && journalctl -u subway-ml-publish -n 20`. 저장소의 Releases에 `measured-timetable`이 생기면 된다.
+
 ## 5. 상태 확인
 
 ```bash

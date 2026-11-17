@@ -101,6 +101,8 @@
 
 ## 5. 서버·앱 통합(계획만, 평가 숫자가 나온 뒤)
 
+> **2026-11-18 1단계 완료:** 시간표 API가 없는 노선은 실측 시간표(B1)로 채운다(`source: "measured"`, 앱 "실측 기준"). 결과물은 수·일 GitHub 릴리스로 내보내고 서버가 6시간마다 받는다. 설계 `docs/superpowers/specs/2026-11-17-measured-timetable-serving-design.md`, 계획 `docs/superpowers/plans/2026-11-18-measured-timetable-serving.md`. 1~9호선의 예측(B0보다 나은지)은 아래 그대로 평가 뒤.
+
 - `TimetableService` 옆에 `PredictionService`. 순서: 실시간 → 공식 시간표 → 예측 → 없음. 시간표가 없는 노선은 예측이 대신한다.
 - 응답 `source`에 `"predicted"`. 앱은 "예측"으로 표시(시간표 기준과 구분).
 - 관측 수가 하한 미만이거나 평가에서 그 칸이 B0보다 나쁘면 예측하지 않는다.

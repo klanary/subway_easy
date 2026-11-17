@@ -117,3 +117,19 @@ def test_main_needs_db_and_key(tmp_path, monkeypatch):
     base = ["--cache", str(tmp_path / "tt"), "--env-file", str(env)]
     assert main(["--db", str(tmp_path / "없음.sqlite"), *base]) == 2
     assert main(["--db", str(db), *base]) == 2  # 일반 키 없음
+
+
+HOOK = "https://discord.com/api/webhooks/1/tok"
+
+
+@respx.mock
+def test_main_failure_sends_discord_alert(tmp_path, monkeypatch):
+    monkeypatch.delenv("SEOUL_OPENAPI_KEY", raising=False)
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+    route = respx.post(HOOK).mock(return_value=httpx.Response(204))
+    env = tmp_path / ".env"
+    env.write_text(f"DISCORD_WEBHOOK_URL={HOOK}\n", encoding="utf-8")
+    db = write_db(tmp_path / "c.sqlite", trip(MON, 8 * 3600))
+    assert main(["--db", str(db), "--cache", str(tmp_path / "tt"), "--env-file", str(env)]) == 2
+    assert route.call_count == 1
+    assert "subway-ml-official" in route.calls[0].request.read().decode()

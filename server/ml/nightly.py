@@ -21,6 +21,7 @@ from pathlib import Path
 
 from app.core.clock import KST
 from app.services.station_index import StationIndex
+from ml.alerts import Notify, notifier_from_env, report_exit
 from ml.b0 import B0, TimetableCache, load_diff_log, station_codes
 from ml.b1 import STALE_DAYS, WINDOW, build_b1_from_points
 from ml.changes import (
@@ -307,8 +308,19 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
         help="있을 때만 공식 시간표와 견준다",
     )
     parser.add_argument("--stations-db", default="data/stations.sqlite")
+    parser.add_argument("--env-file", default=".env", help="DISCORD_WEBHOOK_URL을 읽을 파일")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+    notify = notifier_from_env(args.env_file, os.environ)
+    try:
+        code = _run(args, now, notify)
+    except Exception:
+        logger.exception("밤 작업이 예기치 않게 멈췄습니다")
+        code = 1
+    return report_exit(code, notify, "밤 작업", "subway-ml-nightly")
+
+
+def _run(args: argparse.Namespace, now: datetime | None, notify: Notify | None) -> int:
     today = (
         date.fromisoformat(args.day)
         if args.day
@@ -323,6 +335,7 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
         log_path=args.log, today=today, enforce=args.enforce,
         official_diff_path=args.official_diff, b0=b0, reextract=args.reextract,
         timetable_cache=args.timetable_cache if codes is not None else None, codes=codes,
+        notify=notify,
     )  # fmt: skip
 
 

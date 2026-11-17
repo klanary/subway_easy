@@ -362,8 +362,8 @@ while i < len(ref) and j < len(obs):
 
 **Produces:** `webhook_notifier(kind: str, url: str, http: httpx.Client, *, chat_id: str | None = None) -> Callable[[str], None]` — `kind="discord"`는 `POST url {"content": text}`, `kind="telegram"`은 `POST url {"chat_id": chat_id, "text": text}`. 실패해도 예외를 올리지 않고 종류 이름만 로그에 남긴다. URL은 로그에 찍지 않는다. `nightly.main`은 `.env`의 `ML_ALERT_KIND`, `ML_ALERT_WEBHOOK_URL`, `ML_ALERT_CHAT_ID`가 있을 때만 붙인다.
 
-- [ ] 테스트(respx): 두 모양의 본문 / 500·연결 오류에도 `nightly`가 0으로 끝남 / caplog에 URL 문자열 없음 / 환경 변수가 없으면 호출 0회.
-- [ ] 구현 → 통과 → `timetable-changes.md`에 사용자가 할 일(토큰 만들기, VM `.env`에 넣기) → 커밋.
+- [x] 테스트(respx): 두 모양의 본문 / 500·연결 오류에도 `nightly`가 0으로 끝남 / caplog에 URL 문자열 없음 / 환경 변수가 없으면 호출 0회.
+- [x] 구현 → 통과 → `timetable-changes.md`에 사용자가 할 일(토큰 만들기, VM `.env`에 넣기) → 커밋. (2026-11-17, Discord만. 변수 이름은 `DISCORD_WEBHOOK_URL`, `ml.b0` 실패도 알림. 학습 노트 89)
 
 ---
 

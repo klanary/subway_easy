@@ -50,6 +50,7 @@ from ml.scopes import Scope
 logger = logging.getLogger("ml.nightly")
 
 CATCH_UP_DAYS = 14  # raw 보관 기간과 같다. 그보다 오래 꺼져 있었으면 수집 횟수를 모른다
+_DISPUTED = ("early", "hold:mixed", "hold:base_fit")  # 관측이 새 공식 시간표를 받쳐 주지 않은 판정
 KEEP_POINTS_DAYS = 70  # 창이 가장 긴 토·휴일 8주를 덮는다(하루 약 27MB)
 
 
@@ -207,7 +208,16 @@ def run_nightly(
                     except Exception as e:
                         logger.error("후보 판정 실패(%s): %s", day.isoformat(), type(e).__name__)
                         failed = True
-                changed += detect_day(store, state, day, th=th, official_changed=official_changed)
+                # 후보 판정이 그 날 "관측은 아직 옛 시간표"·"엇갈림"·"공식 시간표가 안 맞음"으로
+                # 본 단위는, 실측 의심이 걸려도 공식 근거로 하루 만에 확정하지 않는다.
+                disputed = {
+                    c.scope
+                    for c in state.candidates
+                    if any(tried == day and result in _DISPUTED for tried, result in c.tries)
+                }
+                changed += detect_day(
+                    store, state, day, th=th, official_changed=official_changed - disputed
+                )
             except Exception as e:  # 그 뒤 날짜를 건너뛰면 순서가 어긋나므로 판단을 멈춘다
                 logger.error("판단 실패(%s): %s", day.isoformat(), type(e).__name__)
                 failed = True

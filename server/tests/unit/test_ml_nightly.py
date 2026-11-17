@@ -415,3 +415,20 @@ def test_observe_mode_never_fills(tmp_path, paths):
     cells = artifact(paths)["cells"]
     assert not any(e["official"] for cell in cells.values() for e in cell)
     assert a_entry(paths)["secs"] == H6 + 30
+
+
+def test_delayed_day_is_not_confirmed_when_observations_still_match_the_old_table(tmp_path, paths):
+    # 공식 시간표는 30초 당겨진 것으로 먼저 바뀌었고, 그 날 열차는 옛 시간표대로인데 2분 30초
+    # 늦었다(관측은 새 시각보다 옛 시각에 30초 더 가깝다).
+    # 실측 감지는 의심하지만, 후보 판정이 "아직 옛 시간표"라고 본 날은 공식 근거로 확정하지 않는다.
+    from tests.unit.test_ml_official import CODES, cache_with
+
+    cache_with(tmp_path / "tt-old")
+    cache_with(tmp_path / "tt", shift=-30)
+    db = make_db(tmp_path, [0] * 5 + [150])
+    diff = _diff(tmp_path, [(DAYS[5], [(1, "9호선", 0, 6)])])
+    kw = {"official_diff_path": diff, "timetable_cache": tmp_path / "tt", "codes": CODES}
+    assert night(db, paths, 6, **kw) == 0
+    state = ChangeState.load(paths["state_path"])
+    assert [(r.status, r.source) for r in state.records] == [("suspect", "measured")]
+    assert state.candidates[0].tries[-1] == (DAYS[5], "early")

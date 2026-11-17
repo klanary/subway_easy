@@ -61,14 +61,20 @@ def test_station_codes_cover_only_timetable_lines(tmp_path):
     index = StationIndex.load("data/stations.sqlite")
     banghwa = index.resolve("방화", "5호선")
     seoul = index.resolve("서울역", "1호선")
+    yongmun = index.resolve("용문", "경의중앙선")
     events = trip(MON, 8 * 3600, line="5호선", stations=("1005000510",), statuses=(1,))
     events = [o.__class__(**{**vars(o), "station_id": banghwa.id}) for o in events]
     more = trip(MON, 8 * 3600, line="1호선", stations=("1001000133",), statuses=(1,))
     events += [o.__class__(**{**vars(o), "station_id": seoul.id}) for o in more]
+    other = trip(MON, 8 * 3600, line="경의중앙선", stations=("1063075335",), statuses=(1,))
+    events += [o.__class__(**{**vars(o), "station_id": yongmun.id}) for o in other]
     db = write_db(tmp_path / "c.sqlite", events)
     codes = station_codes(db, index)
-    assert codes == {("5호선", "1005000510"): index.station_code(banghwa.id, "5호선")}
-    assert "1호선" not in TIMETABLE_LINES and len(TIMETABLE_LINES) == 8
+    assert codes == {
+        ("5호선", "1005000510"): index.station_code(banghwa.id, "5호선"),
+        ("1호선", "1001000133"): index.station_code(seoul.id, "1호선"),
+    }
+    assert "경의중앙선" not in TIMETABLE_LINES and len(TIMETABLE_LINES) == 9
 
 
 @respx.mock

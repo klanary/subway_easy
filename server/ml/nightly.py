@@ -179,7 +179,7 @@ def run_nightly(
                 logger.error("판단 실패(%s): %s", day.isoformat(), type(e).__name__)
                 failed = True
                 break
-        # 확정된 변경을 공식 시간표가 따라왔는지(2~9호선, 시간표 캐시가 있을 때만).
+        # 확정된 변경을 공식 시간표가 따라왔는지(1~9호선, 시간표 캐시가 있을 때만).
         if b0 is not None and not failed:
             try:
                 changed += official_fit(b0, store, state, as_of, th=th)

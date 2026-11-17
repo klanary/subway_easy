@@ -546,7 +546,7 @@ def load_official_changed(path: str | Path, *, today: date, max_age_days: int = 
 def official_fit(
     b0: B0, store: PointStore, state: ChangeState, day: date, *, th: Thresholds = DEFAULT
 ) -> list[ChangeRecord]:
-    """확정된 변경을 공식 시간표가 따라왔는지 그 날 관측과 직접 견줘 본다(2~9호선).
+    """확정된 변경을 공식 시간표가 따라왔는지 그 날 관측과 직접 견줘 본다(1~9호선).
 
     공식 시간표를 기준표로(번호 없이 시각만) 놓고 관측과 짝지어, 짝 없는 비율이 기준을 넘으면
     공식 시간표가 아직 옛것(`stale`), 아니면 맞음(`fits`). 판정이 바뀐 기록만 돌려준다.

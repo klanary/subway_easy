@@ -1,8 +1,8 @@
-"""B0 공식 시간표(설계 §4의 기준선). 서버 `TimetableService`와 같은 출처(2~9호선만).
+"""B0 공식 시간표(설계 §4의 기준선). 서버 `TimetableService`와 같은 출처(1~9호선).
 
 사용법 (server/에서):
-    python -m ml.b0 --lines 2호선,5호선     # 기본: --db ml_data/collector.sqlite, 2~9호선 전부
-    python -m ml.b0 --refresh               # 전부 다시 받아 지난번과의 차이를 적는다(주 1회)
+    python -m ml.b0 --lines 2호선,5호선     # 기본: --db ml_data/collector.sqlite, 1~9호선 전부
+    python -m ml.b0 --refresh               # 전부 다시 받아 지난번과의 차이를 적는다(매일)
 
 - 평가·분석이 쓰도록 역·요일·방향별 시간표를 파일로 받아 둔다(한 번 받은 것은 다시 받지 않는다).
 - 이 도구만 일반 인증키(SEOUL_OPENAPI_KEY)를 쓴다. 수집기와는 별개인 오프라인 도구다.
@@ -29,12 +29,14 @@ from app.clients.http import mask_url
 from app.clients.seoul_timetable import CODE_NO_DATA, CODE_OK, MAX_ROWS, SERVICE, response_code
 from app.core.clock import KST
 from app.services.station_index import StationIndex
-from ml.dataset import _open_ro, station_ids
+from ml.dataset import station_ids
 from ml.scopes import Scope, band_of, scope_key
 
 logger = logging.getLogger("ml.b0")
 
-TIMETABLE_LINES: tuple[str, ...] = tuple(f"{n}호선" for n in range(2, 10))
+# 시간표 API가 주는 노선. 2026-11-17에 1호선도 행이 오는 것을 확인했다(코레일 구간 포함).
+TIMETABLE_LINES: tuple[str, ...] = tuple(f"{n}호선" for n in range(1, 10))
+DAY_TYPES: tuple[int, ...] = (1, 2, 3)  # 평일·토요일·휴일. 본 적 없는 요일 구분도 미리 받는다
 NEAREST_MAX_GAP_SEC = 600  # 열차 번호가 안 맞을 때, 이 안의 가장 가까운 시각만 같은 열차로 본다
 _KEY_ENV = "SEOUL_OPENAPI_KEY"
 
@@ -142,7 +144,7 @@ class B0:
 
 
 def station_codes(db_path: str | Path, index: StationIndex) -> dict[tuple[str, str], str]:
-    """(호선, statnId) → 시간표 역 코드. 시간표 API가 있는 2~9호선만."""
+    """(호선, statnId) → 시간표 역 코드. 시간표 API가 있는 1~9호선만."""
     codes: dict[tuple[str, str], str] = {}
     for (line, statn_id), station_id in station_ids(db_path).items():
         if line not in TIMETABLE_LINES or station_id is None:
@@ -151,6 +153,19 @@ def station_codes(db_path: str | Path, index: StationIndex) -> dict[tuple[str, s
         if code is not None:
             codes[(line, statn_id)] = code
     return codes
+
+
+def targets_for(codes: dict[tuple[str, str], str], lines: set[str]) -> list[Target]:
+    """받을 대상: 그 호선들의 역 코드 × 요일 구분 셋 × 방향 둘."""
+    return sorted(
+        {
+            (code, day_type, inout)
+            for (line, _), code in codes.items()
+            if line in lines
+            for day_type in DAY_TYPES
+            for inout in (1, 2)
+        }
+    )
 
 
 def fetch_timetables(
@@ -276,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache", default="ml_data/timetable_cache")
     parser.add_argument("--env-file", default=".env")
     parser.add_argument("--stations-db", default="data/stations.sqlite")
-    parser.add_argument("--lines", default="", help="쉼표로 나눈 호선(기본: 2~9호선)")
+    parser.add_argument("--lines", default="", help="쉼표로 나눈 호선(기본: 1~9호선)")
     args = parser.parse_args(argv)
     if not Path(args.db).is_file():
         print(f"수집 DB가 없습니다: {args.db}", file=sys.stderr)
@@ -289,20 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     lines = {x for x in args.lines.split(",") if x} or set(TIMETABLE_LINES)
     codes = station_codes(args.db, StationIndex.load(args.stations_db))
-    con = _open_ro(args.db)
-    try:
-        day_types = [d for (d,) in con.execute("SELECT DISTINCT day_type FROM events")]
-    finally:
-        con.close()
-    targets = sorted(
-        {
-            (code, day_type, inout)
-            for (line, _), code in codes.items()
-            if line in lines
-            for day_type in day_types
-            for inout in (1, 2)
-        }
-    )
+    targets = targets_for(codes, lines)
     if args.refresh:
         today = datetime.now(KST).date()
         lines_by_code = {code: line for (line, _), code in codes.items()}

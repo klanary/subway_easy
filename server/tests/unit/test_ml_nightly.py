@@ -1,7 +1,9 @@
 import json
 from datetime import datetime, timedelta
 
+import httpx
 import pytest
+import respx
 
 from app.core.clock import KST
 from ml import nightly
@@ -432,3 +434,49 @@ def test_delayed_day_is_not_confirmed_when_observations_still_match_the_old_tabl
     state = ChangeState.load(paths["state_path"])
     assert [(r.status, r.source) for r in state.records] == [("suspect", "measured")]
     assert state.candidates[0].tries[-1] == (DAYS[5], "early")
+
+
+HOOK = "https://discord.com/api/webhooks/1/tok"
+
+
+def _main_args(db, paths, env):
+    return [
+        "--db", str(db), "--points", str(paths["points_path"]), "--state", str(paths["state_path"]),
+        "--out", str(paths["out_path"]), "--log", str(paths["log_path"]),
+        "--day", (DAYS[4] + timedelta(days=1)).isoformat(), "--env-file", str(env),
+    ]  # fmt: skip
+
+
+@respx.mock
+def test_main_failure_sends_discord_alert(tmp_path, paths, monkeypatch):
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+    route = respx.post(HOOK).mock(return_value=httpx.Response(204))
+    env = tmp_path / ".env"
+    env.write_text(f"DISCORD_WEBHOOK_URL={HOOK}\n", encoding="utf-8")
+    assert main(_main_args(tmp_path / "없음.sqlite", paths, env)) == 2
+    assert route.call_count == 1
+    assert "subway-ml-nightly" in route.calls[0].request.read().decode()
+
+
+@respx.mock
+def test_main_success_sends_nothing_and_alert_error_keeps_exit_code(tmp_path, paths, monkeypatch):
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+    route = respx.post(HOOK).mock(return_value=httpx.Response(500))
+    env = tmp_path / ".env"
+    env.write_text(f"DISCORD_WEBHOOK_URL={HOOK}\n", encoding="utf-8")
+    db = make_db(tmp_path, [0] * 5)
+    assert main(_main_args(db, paths, env)) == 0
+    assert route.call_count == 0
+    assert main(_main_args(tmp_path / "없음.sqlite", paths, env)) == 2  # 알림이 500이어도 그대로
+
+
+def test_main_crash_is_reported_as_failure(tmp_path, paths, monkeypatch):
+    sent: list[str] = []
+    monkeypatch.setattr(nightly, "notifier_from_env", lambda *_: sent.append)
+
+    def boom(**_):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(nightly, "run_nightly", boom)
+    assert main(_main_args(tmp_path / "c.sqlite", paths, tmp_path / ".env")) == 1
+    assert len(sent) == 1

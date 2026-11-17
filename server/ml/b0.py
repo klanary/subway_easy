@@ -30,6 +30,7 @@ from app.clients.http import mask_url
 from app.clients.seoul_timetable import CODE_NO_DATA, CODE_OK, MAX_ROWS, SERVICE, response_code
 from app.core.clock import KST
 from app.services.station_index import StationIndex
+from ml.alerts import notifier_from_env, report_exit
 from ml.dataset import station_ids
 from ml.scopes import Scope, band_of, scope_key
 
@@ -424,6 +425,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stations-db", default="data/stations.sqlite")
     parser.add_argument("--lines", default="", help="쉼표로 나눈 호선(기본: 1~9호선)")
     args = parser.parse_args(argv)
+    notify = notifier_from_env(args.env_file, os.environ)
+    try:
+        code = _run(args)
+    except Exception:
+        logger.exception("공식 시간표 받기가 예기치 않게 멈췄습니다")
+        code = 1
+    return report_exit(code, notify, "공식 시간표 받기", "subway-ml-official")
+
+
+def _run(args: argparse.Namespace) -> int:
     if not Path(args.db).is_file():
         print(f"수집 DB가 없습니다: {args.db}", file=sys.stderr)
         return 2

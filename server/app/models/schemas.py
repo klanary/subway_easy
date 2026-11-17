@@ -79,6 +79,8 @@ class TimetableTrain(ApiModel):
     destination: str | None
     is_express: bool
     train_no: str | None
+    # 공식 시간표(서울시) 또는 실측(VM 위치 수집, 설계 2026-11-17)
+    source: Literal["official", "measured"] = "official"
 
 
 class TimetableResponse(ApiModel):

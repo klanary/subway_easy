@@ -23,7 +23,7 @@ async def test_timetable_endpoint(client, respx_mock):
     body = r.json()
     assert r.status_code == 200 and len(body["trains"]) == 4
     assert body["stationId"] == "영등포구청" and body["line"] == "5호선"
-    assert set(body["trains"][0]) == {"departsAt", "destination", "isExpress", "trainNo"}
+    assert set(body["trains"][0]) == {"departsAt", "destination", "isExpress", "trainNo", "source"}
     assert body["trains"][0]["departsAt"] >= "2026-11-13T08:00:00"
     sent = str(route.calls.last.request.url)
     assert "/SearchSTNTimeTableByIDService/" in sent and sent.endswith("/2524/1/1/")

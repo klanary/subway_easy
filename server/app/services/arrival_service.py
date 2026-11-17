@@ -17,6 +17,7 @@ from app.services.remaining_time import (
     is_departed,
     is_express,
     is_last,
+    is_stale,
     parse_train_line_nm,
 )
 from app.services.station_index import Station, StationIndex
@@ -110,6 +111,8 @@ class ArrivalService:
             message = str(item.get("arvlMsg2") or "")
             if is_departed(message):
                 continue  # 이미 이 역을 떠난 열차(스펙 6.7 규칙 5)
+            if is_stale(item, now):
+                continue  # 너무 오래전에 만든 정보: 이미 지나간 열차일 수 있다
             trains.append(
                 Train(
                     destination=readable(destination) or readable(item.get("bstatnNm")),

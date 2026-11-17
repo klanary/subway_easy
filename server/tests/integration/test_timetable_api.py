@@ -1,5 +1,7 @@
 """GET /v1/stations/{id}/timetable (재설계 스펙 6). 서울시 응답은 실제 샘플이다."""
 
+import httpx
+
 from app.clients.endpoints import SEOUL_OPENAPI_BASE
 from tests.helpers import fixture_response
 
@@ -79,3 +81,35 @@ async def test_timetable_normalizes_line_and_logs_cache(client, respx_mock, capl
     assert r.json()["line"] == "5호선"
     r = await client.get(URL.format("영등포구청"), params=params)
     assert any(getattr(rec, "cache", None) == "hit" for rec in caplog.records)
+
+
+async def test_late_night_fills_from_next_day(client, respx_mock):
+    # 금요일 23:58: 그날 시간표에는 24:07·24:20·24:34 세 대뿐이다. 넷째는 토요일 첫차다.
+    route = mock_timetable(respx_mock)
+    params = {"line": "5호선", "direction": "상행", "from": "2026-11-13T23:58:00+09:00"}
+    trains = (await client.get(URL.format("영등포구청"), params=params)).json()["trains"]
+    assert [t["departsAt"][:16] for t in trains] == [
+        "2026-11-14T00:07",
+        "2026-11-14T00:20",
+        "2026-11-14T00:34",
+        "2026-11-14T05:35",
+    ]
+    assert any(str(c.request.url).endswith("/2524/2/1/") for c in route.calls)  # 토요일 시간표
+
+
+async def test_enough_trains_today_does_not_fetch_next_day(client, respx_mock):
+    route = mock_timetable(respx_mock)
+    await client.get(
+        URL.format("영등포구청"), params={"line": "5호선", "direction": "상행", "from": FRIDAY_8}
+    )
+    assert route.call_count == 1
+
+
+async def test_early_morning_survives_failed_previous_day(client, respx_mock):
+    # 토요일 02:00에는 금요일(자정 넘은 열차)과 토요일 시간표를 함께 본다.
+    # 금요일만 실패해도 토요일 열차는 준다.
+    respx_mock.get(url__regex=r"/2524/1/1/$").mock(return_value=httpx.Response(500))
+    respx_mock.get(url__regex=r"/2524/2/1/$").mock(return_value=fixture_response(SAMPLE))
+    params = {"line": "5호선", "direction": "상행", "from": "2026-11-14T02:00:00+09:00", "count": 1}
+    r = await client.get(URL.format("영등포구청"), params=params)
+    assert r.status_code == 200 and r.json()["trains"][0]["departsAt"][:16] == "2026-11-14T05:35"

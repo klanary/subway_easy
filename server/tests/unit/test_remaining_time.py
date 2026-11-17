@@ -8,6 +8,7 @@ from app.services.remaining_time import (
     is_departed,
     is_express,
     is_last,
+    is_stale,
     parse_train_line_nm,
 )
 from tests.helpers import FIXTURES_DIR, load_fixture
@@ -53,6 +54,18 @@ def test_recptn_with_fraction():
 
 def test_negative_clamped_to_zero():
     assert compute_remaining_sec(item(barvl="10"), NOW) == 0
+
+
+def test_future_recptn_is_treated_as_now():
+    # 생성 시각이 지금보다 160초 뒤로 와도(실측 사례) 남은 시간을 부풀리지 않는다.
+    assert compute_remaining_sec(item(barvl="120", recptn="2026-11-03 08:03:10"), NOW) == 120
+
+
+def test_stale_item_is_detected():
+    # 18분 전에 만든 정보(실측 사례)는 이미 지나간 열차일 수 있다. 10분이 넘으면 버린다.
+    assert is_stale(item(barvl="120", recptn="2026-11-03 07:42:30"), NOW)
+    assert not is_stale(item(barvl="120", recptn="2026-11-03 07:51:00"), NOW)
+    assert not is_stale({"arvlMsg2": "3분 후"}, NOW)  # 생성 시각을 모르면 버리지 않는다
 
 
 def test_departed_message():

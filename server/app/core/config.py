@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     seoul_timetable_daily_limit: NonNegativeInt = 0
     kakao_route_daily_limit: NonNegativeInt = 1000
 
+    # /v1/metrics를 볼 때 X-Metrics-Token 헤더로 보내는 값. 비어 있으면 지표 주소를 닫는다(404).
+    metrics_token: str = ""
+
     rate_limit_per_minute: int = 60
     mock_upstream: bool = False
     stations_db_path: str = "data/stations.sqlite"

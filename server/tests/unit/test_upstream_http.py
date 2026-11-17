@@ -47,11 +47,20 @@ async def test_two_5xx_raise_upstream_error(respx_mock, guard):
         await send(guard)
 
 
-async def test_429_marks_exhausted_without_retry(respx_mock, guard):
+async def test_429_pauses_briefly_without_retry(respx_mock, guard, clock):
+    # 429는 "잠깐 너무 빠름"일 수 있다. 하루를 통째로 멈추지 않고 잠시만 쉰다.
     route = mock(respx_mock, httpx.Response(429))
-    with pytest.raises(QuotaExceeded):
+    with pytest.raises(QuotaExceeded) as first:
         await send(guard)
+    assert first.value.reason == "PAUSED" and "내일" not in first.value.message
     assert route.call_count == 1 and not guard.can_call()
+    with pytest.raises(QuotaExceeded) as again:  # 쉬는 동안의 요청도 같은 안내
+        await send(guard)
+    assert again.value.reason == "PAUSED" and route.call_count == 1
+    clock.advance(59)
+    assert not guard.can_call()
+    clock.advance(2)
+    assert guard.can_call()
 
 
 async def test_exhausted_guard_sends_nothing(respx_mock, guard):

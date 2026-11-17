@@ -3,7 +3,7 @@
 import asyncio
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.cache.ttl_cache import TtlCache
 from app.clients.seoul_timetable import SeoulTimetableClient
@@ -11,7 +11,7 @@ from app.core.errors import InvalidRequest, NotFound, UpstreamError, UpstreamFai
 from app.models.schemas import TimetableTrain
 from app.services.normalize import normalize_line
 from app.services.station_index import StationIndex
-from app.services.timetable import departures, service_days
+from app.services.timetable import departures, service_days, week_tag
 
 TIMETABLE_TTL_SEC = 86_400
 FAILURE_MEMORY_SEC = 60  # 실패한 조회는 이 동안 다시 부르지 않는다(한도와 응답 시간을 아낀다)
@@ -72,10 +72,34 @@ class TimetableService:
         if code is None or not StationIndex.realtime_supported(line):
             return [], "none"
         days = service_days(after)
-        tables = await asyncio.gather(*(self._rows(code, week, tag) for _, week in days))
+        results = await asyncio.gather(
+            *(self._rows(code, week, tag) for _, week in days), return_exceptions=True
+        )
         found: list[TimetableTrain] = []
-        for (day, _), (rows, _) in zip(days, tables, strict=True):
+        statuses: list[str] = []
+        failures: list[UpstreamFailure] = []
+        for (day, _), result in zip(days, results, strict=True):
+            if isinstance(result, UpstreamFailure):
+                # 새벽에는 전날·오늘 시간표를 함께 본다. 하나가 실패해도 나머지로 답한다.
+                failures.append(result)
+                continue
+            if isinstance(result, BaseException):
+                raise result
+            rows, status = result
+            statuses.append(status)
             found.extend(departures(rows, code, day, after, count))
+        if not statuses:
+            raise failures[0]
+        if len(found) < count:
+            # 밤늦게는 그날 막차 뒤에 다음 날 첫차가 온다(+1시간, 시각 선택, 루틴 미리보기).
+            next_day = days[-1][0] + timedelta(days=1)
+            try:
+                rows, status = await self._rows(code, week_tag(next_day), tag)
+            except UpstreamFailure:
+                pass
+            else:
+                statuses.append(status)
+                found.extend(departures(rows, code, next_day, after, count))
         found.sort(key=lambda t: t.departs_at)
-        status = "hit" if all(s == "hit" for _, s in tables) else "miss"
+        status = "hit" if all(s == "hit" for s in statuses) else "miss"
         return found[:count], status

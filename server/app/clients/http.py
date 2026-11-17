@@ -40,7 +40,7 @@ async def call_upstream(
     failure: UpstreamFailure = UpstreamError(reason="NETWORK")
     for attempt in (1, 2):
         if not guard.can_call():
-            raise QuotaExceeded()
+            raise QuotaExceeded(reason="PAUSED" if guard.paused else None)
         guard.record_call()
         started = time.perf_counter()
         status: int | None = None
@@ -58,8 +58,9 @@ async def call_upstream(
             if 200 <= status < 300:
                 return response
             if status == 429:
-                guard.mark_exhausted()
-                raise QuotaExceeded()
+                # 하루 한도는 서울시는 ERROR-337, 카카오는 다시 429로 알 수 있다. 잠깐만 쉰다.
+                guard.pause()
+                raise QuotaExceeded(reason="PAUSED")
             guard.record_error()
             if status < 500:
                 return response

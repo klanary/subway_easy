@@ -147,3 +147,36 @@ async def test_empty_base_url_disables(clock):
         assert disabled.current() is None and disabled.refreshing is None
         assert await disabled.refresh() is False
     await asyncio.sleep(0)
+
+
+@respx.mock
+async def test_app_startup_starts_download_and_shutdown_cancels(test_settings, clock):
+    # 잠든 서버가 깨어날 때(/health) 바로 받기 시작한다(최종 리뷰 #3).
+    from app.main import create_app
+
+    respx.get(f"{BASE}/{MANIFEST_FILE}").mock(side_effect=lambda request: asyncio.sleep(10))
+    app = create_app(test_settings.model_copy(update={"measured_base_url": BASE}), clock=clock)
+    store = app.state.services.measured
+    async with app.router.lifespan_context(app):
+        assert store.refreshing is not None and not store.refreshing.done()
+    assert store.refreshing.done()
+
+
+@respx.mock
+async def test_decode_and_build_run_off_the_event_loop(store, monkeypatch):
+    # 큰 결과물의 압축 풀기·색인 만들기가 요청 처리를 멈추지 않게 다른 스레드에서 한다(리뷰 #4).
+    import threading
+
+    from app.services import measured_store
+
+    seen: list[int] = []
+    original = measured_store.MeasuredData.from_artifacts
+
+    def spy(b1, b2):
+        seen.append(threading.get_ident())
+        return original(b1, b2)
+
+    monkeypatch.setattr(measured_store.MeasuredData, "from_artifacts", staticmethod(spy))
+    serve(respx, *release())
+    assert await store.refresh() is True
+    assert seen and seen[0] != threading.get_ident()

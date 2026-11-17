@@ -33,7 +33,8 @@ fun stepTitle(step: StepDto): String {
 fun transferLine(step: StepDto): String? {
     val trains = step.transferTrains?.takeIf { it.isNotEmpty() } ?: return null
     fun train(t: io.github.klanary.jigeumchulbal.data.remote.TransferTrainDto) =
-        listOfNotNull(t.departsAt.substring(11, 16), t.destination?.let { "${it}행" }).joinToString(" ")
+        listOfNotNull(t.departsAt.substring(11, 16), t.destination?.let { "${it}행" }).joinToString(" ") +
+            if (t.source == "measured") "(실측)" else ""
     return listOfNotNull(
         step.boardAfter?.let { "${step.stops?.firstOrNull() ?: ""} 도착 ${it.substring(11, 16)}".trim() },
         "환승 열차 ${train(trains[0])}",

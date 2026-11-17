@@ -68,6 +68,8 @@ data class TimetableDto(
     val line: String,
     val direction: String,
     val trains: List<TimetableTrainDto>,
+    /** "official"(서울시 시간표), "measured"(VM 실측, 시간표 API가 없는 노선), "none". */
+    val source: String = "official",
 )
 
 @Serializable

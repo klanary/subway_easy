@@ -107,7 +107,7 @@ fun StationSheet(
 
 @Composable
 private fun SheetTrains(ui: StationSheetUi) {
-    if (ui.fromTimetable) Text(Copy.BY_TIMETABLE, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+    if (ui.basis.isNotEmpty()) Text(ui.basis.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
     ui.groups.forEach { group ->
         Column {
             val head = listOfNotNull(group.line, group.direction, group.towards?.let { "$it 방면" }).joinToString(" ")

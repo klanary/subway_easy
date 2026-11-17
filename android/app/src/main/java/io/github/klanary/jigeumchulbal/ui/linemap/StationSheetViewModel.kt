@@ -32,7 +32,8 @@ data class StationSheetUi(
     val groups: List<DirectionTrains>,
     /** 실시간도 시간표도 없는 비서울 노선(재설계 스펙 D4). */
     val unsupportedLines: List<String>,
-    val fromTimetable: Boolean,
+    /** 실시간이 아닌 열차의 근거 문구("시간표 기준", "실측 기준"). 실시간뿐이면 비어 있다. */
+    val basis: List<String>,
     val time: SheetTime = SheetTime.NOW,
     /** 시간표 조회에서 열차가 하나도 없던 서울 노선. 서울시 시간표는 1~9호선만 있다(2026-11-17 확인). */
     val noTimetableLines: List<String> = emptyList(),
@@ -113,7 +114,7 @@ class StationSheetViewModel(
         }
         val unsupported = dto.groups.filter { it.source == "none" }.map { it.line } + lines.filter { it in NON_SEOUL_LINES }
         val groups = dto.groups.filter { it.source != "none" && it.trains.isNotEmpty() }.map { it.toDirectionTrains() }
-        return sheet(groups, unsupported.distinct(), fromTimetable = dto.groups.any { it.source == "timetable" })
+        return sheet(groups, unsupported.distinct(), basis = basisOf(dto.groups.map { it.source }))
     }
 
     private suspend fun loadTimetable(from: Instant): UiState<StationSheetUi> = coroutineScope {
@@ -121,23 +122,31 @@ class StationSheetViewModel(
         val results = seoul.flatMap { line -> directionsOf(line).map { line to it } }.map { (line, direction) ->
             async { stations.timetable(stationId, line, direction, from, TIMETABLE_COUNT) }
         }.awaitAll()
-        val groups = results.mapNotNull { (it as? ApiResult.Ok)?.value?.toDirectionTrains() }
+        val tables = results.mapNotNull { (it as? ApiResult.Ok)?.value }
+        val groups = tables.mapNotNull { it.toDirectionTrains() }
         val failure = results.filterIsInstance<ApiResult.Err>().firstOrNull()
         if (groups.isEmpty() && failure != null) return@coroutineScope failure.toUiState()
         val withTrains = groups.map { it.line }.toSet()
-        sheet(groups, lines.filter { it in NON_SEOUL_LINES }, fromTimetable = true, noTimetable = seoul.filter { it !in withTrains })
+        val sources = tables.filter { it.trains.isNotEmpty() }.map { if (it.source == "measured") "measured" else "timetable" }
+        sheet(groups, lines.filter { it in NON_SEOUL_LINES }, basis = basisOf(sources), noTimetable = seoul.filter { it !in withTrains })
     }
 
     private fun sheet(
         groups: List<DirectionTrains>,
         unsupported: List<String>,
-        fromTimetable: Boolean,
+        basis: List<String>,
         noTimetable: List<String> = emptyList(),
     ): UiState<StationSheetUi> {
         if (groups.isEmpty() && unsupported.isEmpty() && noTimetable.isEmpty()) return UiState.Error(Copy.NO_TRAIN_INFO)
-        return UiState.Content(StationSheetUi(stationId, lines, groups, unsupported, fromTimetable, time, noTimetable))
+        return UiState.Content(StationSheetUi(stationId, lines, groups, unsupported, basis, time, noTimetable))
     }
 
+
+    /** 출처 목록 → 근거 문구. 시간표가 먼저, 실측이 뒤. */
+    private fun basisOf(sources: List<String>): List<String> = listOfNotNull(
+        Copy.BY_TIMETABLE.takeIf { "timetable" in sources },
+        Copy.BY_MEASURED.takeIf { "measured" in sources },
+    )
 
     private fun ArrivalGroupDto.toDirectionTrains() = DirectionTrains(
         line = line,

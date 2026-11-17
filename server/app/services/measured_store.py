@@ -22,8 +22,10 @@ from app.services.measured import MeasuredData
 logger = logging.getLogger("app.measured")
 
 MANIFEST_FILE = "manifest.json"
-B1_FILE = "measured_timetable.json.gz"
-B2_FILE = "segment_times.json.gz"
+# 데이터 파일은 빌드마다 이름이 다르다(예: measured_timetable-20261118T033000.json.gz).
+# manifest가 지금 쓸 이름과 sha256을 알려 준다(최종 리뷰 #5: 올리다 실패해도 옛 파일이 남는다).
+B1_PREFIX = "measured_timetable-"
+B2_PREFIX = "segment_times-"
 REFRESH_SEC = 21_600
 STALE_DAYS = 14
 TIMEOUT_SEC = 30.0
@@ -74,9 +76,8 @@ class MeasuredStore:
             built_at = manifest["built_at"]
             if built_at == self._built_at:
                 return True
-            sums = manifest["files"]
-            b1 = await self._get_json(B1_FILE, sums[B1_FILE])
-            b2 = await self._get_json(B2_FILE, sums[B2_FILE])
+            b1 = await self._get_json(manifest["b1"]["name"], manifest["b1"]["sha256"])
+            b2 = await self._get_json(manifest["b2"]["name"], manifest["b2"]["sha256"])
             data = MeasuredData.from_artifacts(b1, b2)
         except Exception as e:  # 받기·검증 실패는 지난 것을 두고 넘어간다
             logger.warning("실측 결과물 받기 실패: %s", type(e).__name__)

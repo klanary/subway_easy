@@ -25,7 +25,9 @@ import httpx
 from dotenv import dotenv_values
 
 from app.core.clock import KST
-from app.services.measured_store import B1_FILE, B2_FILE, MANIFEST_FILE
+from app.services.measured import B1_KIND, B1_VERSION, B2_KIND, B2_VERSION
+from app.services.measured_store import B1_PREFIX, B2_PREFIX, MANIFEST_FILE
+from app.services.timetable import OFFICIAL_LINES
 from ml.alerts import run_with_alert
 from ml.b2 import build_b2_by_line
 
@@ -39,21 +41,94 @@ TOKEN_ENV = "GITHUB_RELEASE_TOKEN"
 PUBLISH_B2_DAYS = 7
 
 
-def build_files(b1_path: Path, b2: dict, *, now: datetime) -> dict[str, bytes]:
-    """올릴 파일들. 순서가 곧 올리는 순서이고 manifest가 마지막이다."""
-    raw_b1 = Path(b1_path).read_bytes()
-    as_of = json.loads(raw_b1)["as_of"]
-    files = {
-        B1_FILE: gzip.compress(raw_b1, mtime=0),
-        B2_FILE: gzip.compress(
-            json.dumps(b2, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), mtime=0
-        ),
+_SERVER_STATES = ("suspect", "retraining")  # 서버가 칸을 거르는 데 쓰는 단위 상태
+_HOP_TABLES = ("hops", "hops_day", "hops_hour")
+
+
+def _line_of(key: str) -> str:
+    return key.split("|")[1]
+
+
+def server_b1(b1: dict) -> dict:
+    """서버용 B1: 시간표 API가 없는 노선만, 칸은 [초, 열차 번호, 행선지 번호, 급행] 목록.
+
+    1~9호선은 서버가 공식 시간표를 쓰므로 뺀다. 행선지 이름은 `dests`에 한 번만 둔다.
+    Render 무료 서버(512MB)에서 전체 B1을 그대로 올리면 메모리를 넘는다(최종 리뷰 #1).
+    """
+    dests: list[str] = []
+    index: dict[str, int] = {}
+
+    def dest_of(name: str | None) -> int:
+        if not name:
+            return -1
+        if name not in index:
+            index[name] = len(dests)
+            dests.append(name)
+        return index[name]
+
+    cells = {
+        key: [
+            [
+                int(e["secs"]),
+                e.get("train_no"),
+                dest_of(e.get("dest_name")),
+                1 if e.get("express") else 0,
+            ]
+            for e in entries
+        ]
+        for key, entries in (b1.get("cells") or {}).items()
+        if _line_of(key) not in OFFICIAL_LINES
     }
+    return {
+        "kind": B1_KIND,
+        "version": B1_VERSION,
+        "as_of": b1["as_of"],
+        "built_at": b1.get("built_at"),
+        "modes": {
+            line: m for line, m in (b1.get("modes") or {}).items() if line not in OFFICIAL_LINES
+        },
+        "scopes": {
+            key: scope.get("state")
+            for key, scope in (b1.get("scopes") or {}).items()
+            if _line_of(key) not in OFFICIAL_LINES and scope.get("state") in _SERVER_STATES
+        },
+        "stations": {
+            key: value
+            for key, value in (b1.get("stations") or {}).items()
+            if key.split("|")[0] not in OFFICIAL_LINES
+        },
+        "dests": dests,
+        "cells": cells,
+    }
+
+
+def server_b2(b2: dict) -> dict:
+    """서버용 B2: 구간 시간 표 세 개의 중앙값만(정차·도착 전 시간 등은 서버가 쓰지 않는다)."""
+    out: dict = {"kind": B2_KIND, "version": B2_VERSION, "built_at": b2.get("built_at")}
+    for table in _HOP_TABLES:
+        out[table] = {key: stats["median"] for key, stats in (b2.get(table) or {}).items()}
+    return out
+
+
+def _pack(data: dict) -> bytes:
+    body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return gzip.compress(body, mtime=0)
+
+
+def build_files(b1: dict, b2: dict, *, now: datetime) -> dict[str, bytes]:
+    """올릴 파일들. 데이터 두 개는 빌드마다 다른 이름이고, manifest가 마지막이다."""
+    stamp = now.astimezone(KST).strftime("%Y%m%dT%H%M%S")
+    names = {"b1": f"{B1_PREFIX}{stamp}.json.gz", "b2": f"{B2_PREFIX}{stamp}.json.gz"}
+    bodies = {"b1": _pack(server_b1(b1)), "b2": _pack(server_b2(b2))}
     manifest = {
         "built_at": now.astimezone(KST).isoformat(timespec="seconds"),
-        "as_of": as_of,
-        "files": {name: hashlib.sha256(body).hexdigest() for name, body in files.items()},
+        "as_of": b1["as_of"],
+        **{
+            part: {"name": names[part], "sha256": hashlib.sha256(bodies[part]).hexdigest()}
+            for part in ("b1", "b2")
+        },
     }
+    files = {names[part]: bodies[part] for part in ("b1", "b2")}
     files[MANIFEST_FILE] = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
     return files
 
@@ -66,7 +141,10 @@ def _check(response: httpx.Response, what: str) -> httpx.Response:
 
 
 def publish(http: httpx.Client, token: str, repo: str, files: dict[str, bytes]) -> None:
-    """릴리스(없으면 만든다)의 같은 이름 자산을 지우고 `files` 순서대로 올린다."""
+    """새 데이터 파일을 올리고 → manifest를 바꾸고 → 옛 데이터 파일을 지운다.
+
+    올리다 실패하면 옛 manifest와 옛 데이터가 그대로 남아 서버는 지난 것을 계속 받는다.
+    """
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
@@ -87,25 +165,34 @@ def publish(http: httpx.Client, token: str, repo: str, files: dict[str, bytes]) 
         )
     release = _check(found, "릴리스 찾기").json()
     existing = {asset["name"]: asset["id"] for asset in release.get("assets") or []}
-    for name, body in files.items():
-        if name in existing:
-            _check(
-                http.delete(
-                    f"{API}/repos/{repo}/releases/assets/{existing[name]}", headers=headers
-                ),
-                f"{name} 지우기",
-            )
+
+    def upload(name: str) -> None:
         content_type = "application/json" if name.endswith(".json") else "application/gzip"
         _check(
             http.post(
                 f"{UPLOADS}/repos/{repo}/releases/{release['id']}/assets",
                 params={"name": name},
                 headers={**headers, "Content-Type": content_type},
-                content=body,
+                content=files[name],
             ),
             f"{name} 올리기",
         )
-        logger.info("올림: %s (%d바이트)", name, len(body))
+        logger.info("올림: %s (%d바이트)", name, len(files[name]))
+
+    def delete(name: str) -> None:
+        url = f"{API}/repos/{repo}/releases/assets/{existing[name]}"
+        _check(http.delete(url, headers=headers), f"{name} 지우기")
+
+    for name in files:
+        if name != MANIFEST_FILE:
+            upload(name)
+    if MANIFEST_FILE in files:
+        if MANIFEST_FILE in existing:
+            delete(MANIFEST_FILE)
+        upload(MANIFEST_FILE)
+    for name in existing:
+        if name.startswith((B1_PREFIX, B2_PREFIX)) and name not in files:
+            delete(name)
 
 
 def _run(args: argparse.Namespace, now: datetime) -> int:
@@ -121,7 +208,7 @@ def _run(args: argparse.Namespace, now: datetime) -> int:
     b2 = build_b2_by_line(
         db, date_from=today - timedelta(days=args.days), date_to=today - timedelta(days=1), now=now
     )
-    files = build_files(b1, b2, now=now)
+    files = build_files(json.loads(b1.read_text(encoding="utf-8")), b2, now=now)
     with httpx.Client(timeout=60) as http:
         publish(http, token, args.repo, files)
     print(f"내보냄: {', '.join(files)} → {args.repo} 릴리스 {TAG} (B2 구간 {len(b2['hops'])}개)")

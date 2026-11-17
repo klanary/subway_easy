@@ -34,7 +34,7 @@ data class StationSheetUi(
     val unsupportedLines: List<String>,
     val fromTimetable: Boolean,
     val time: SheetTime = SheetTime.NOW,
-    /** 시간표 조회에서 열차가 하나도 없던 서울 노선. 서울시 시간표는 2~9호선만 있다(2026-11-12 확인). */
+    /** 시간표 조회에서 열차가 하나도 없던 서울 노선. 서울시 시간표는 1~9호선만 있다(2026-11-17 확인). */
     val noTimetableLines: List<String> = emptyList(),
 )
 

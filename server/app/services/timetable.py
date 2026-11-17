@@ -13,6 +13,8 @@ SERVICE_DAY_START_HOUR = 5
 EXPRESS_FLAGS = frozenset({"D"})  # 시간표 EXPRESS_YN: G 일반, D 급행(2026-11-12 9호선 확인)
 
 _KR_HOLIDAYS = holidays.country_holidays("KR")
+# 서울시 시간표 API가 데이터를 주는 노선(2026-11-17 확인). 그 밖은 실측 시간표로 채운다.
+OFFICIAL_LINES = frozenset(f"{n}호선" for n in range(1, 10))
 
 
 def week_tag(day: date) -> int:

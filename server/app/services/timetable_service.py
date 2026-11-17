@@ -9,9 +9,10 @@ from app.cache.ttl_cache import TtlCache
 from app.clients.seoul_timetable import SeoulTimetableClient
 from app.core.errors import InvalidRequest, NotFound, UpstreamError, UpstreamFailure
 from app.models.schemas import TimetableTrain
+from app.services.measured_store import MeasuredStore
 from app.services.normalize import normalize_line
 from app.services.station_index import StationIndex
-from app.services.timetable import departures, service_days, week_tag
+from app.services.timetable import OFFICIAL_LINES, departures, service_days, week_tag
 
 TIMETABLE_TTL_SEC = 86_400
 FAILURE_MEMORY_SEC = 60  # 실패한 조회는 이 동안 다시 부르지 않는다(한도와 응답 시간을 아낀다)
@@ -32,11 +33,13 @@ class TimetableService:
         index: StationIndex,
         cache: TtlCache[list[dict]],
         clock: Callable[[], float] = time.time,
+        measured: MeasuredStore | None = None,
     ):
         self._client = client
         self._index = index
         self._cache = cache
         self._clock = clock
+        self._measured = measured
         self._failed_until: dict[str, float] = {}
 
     async def _rows(self, code: str, week: int, tag: int) -> tuple[list[dict], str]:
@@ -68,9 +71,21 @@ class TimetableService:
             raise NotFound()
         tag = inout_tag(direction)
         line = normalize_line(line)
-        code = self._index.station_code(station.id, line)
-        if code is None or not StationIndex.realtime_supported(line):
+        if not StationIndex.realtime_supported(line):
             return [], "none"
+        code = self._index.station_code(station.id, line)
+        found, status = (
+            ([], "none") if code is None else await self._official(code, tag, after, count)
+        )
+        if not found and line not in OFFICIAL_LINES:
+            data = self._measured.current() if self._measured is not None else None
+            if data is not None:
+                return data.departures(station.id, line, direction, after, count), "measured"
+        return found, status
+
+    async def _official(
+        self, code: str, tag: int, after: datetime, count: int
+    ) -> tuple[list[TimetableTrain], str]:
         days = service_days(after)
         results = await asyncio.gather(
             *(self._rows(code, week, tag) for _, week in days), return_exceptions=True

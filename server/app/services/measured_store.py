@@ -81,9 +81,13 @@ class MeasuredStore:
         except Exception as e:  # 받기·검증 실패는 지난 것을 두고 넘어간다
             logger.warning("실측 결과물 받기 실패: %s", type(e).__name__)
             return False
-        self._data, self._built_at = data, built_at
+        self.replace(data, built_at)
         logger.info("실측 결과물 바꿈: built_at=%s as_of=%s", built_at, data.as_of)
         return True
+
+    def replace(self, data: MeasuredData, built_at: str | None = None) -> None:
+        """결과물을 바꾼다(받기가 쓰고, 테스트가 픽스처를 넣을 때도 쓴다)."""
+        self._data, self._built_at = data, built_at or data.built_at
 
     async def _get(self, name: str) -> httpx.Response:
         response = await self._http.get(

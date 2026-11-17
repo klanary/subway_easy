@@ -64,7 +64,8 @@ class ArrivalGroup(ApiModel):
     towards: str | None
     trains: list[Train]
     # 열차 정보의 출처(재설계 스펙 5.1): 실시간, 시간표(실시간이 없는 방향), 없음(비서울 노선)
-    source: Literal["realtime", "timetable", "none"] = "realtime"
+    # measured: 시간표 API가 없는 노선을 VM 실측 시간표로 채운 것(설계 2026-11-17)
+    source: Literal["realtime", "timetable", "measured", "none"] = "realtime"
 
 
 class ArrivalsResponse(ApiModel):
@@ -88,6 +89,8 @@ class TimetableResponse(ApiModel):
     line: str
     direction: str
     trains: list[TimetableTrain]
+    # 열차들의 출처. 열차가 없으면 none
+    source: Literal["official", "measured", "none"] = "none"
 
 
 class NearestStation(ApiModel):
@@ -105,7 +108,7 @@ class TransferTrain(ApiModel):
 
     departs_at: datetime
     destination: str | None
-    source: Literal["realtime", "timetable"]
+    source: Literal["realtime", "timetable", "measured"]
 
 
 class Step(ApiModel):

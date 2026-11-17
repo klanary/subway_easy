@@ -68,6 +68,7 @@ def build_services(
             ttl_multiplier=timetable_guard.ttl_multiplier,
         ),
         clock,
+        measured,
     )
     seoul_guard = quotas["seoulRealtime"]
     arrivals = ArrivalService(

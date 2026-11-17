@@ -200,7 +200,7 @@ class ArrivalService:
                         direction=d,
                         towards=None,
                         trains=[timetable_train(t, now) for t in found],
-                        source="timetable",
+                        source="measured" if found[0].source == "measured" else "timetable",
                     )
                 )
         return extra

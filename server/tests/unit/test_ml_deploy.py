@@ -106,9 +106,10 @@ def test_setup_script_units_all_exist():
     assert names and all((DEPLOY / name).is_file() for name in names), names
 
 
-def test_publish_timer_runs_wed_sun_after_nightly():
+def test_publish_timer_runs_daily():
+    # 운행표는 매일, B1·B2는 수·일만 새로 만든다(경로 설계 2026-11-18 §5.1).
     timer = _read("subway-ml-publish.timer")
-    assert "OnCalendar=Wed,Sun *-*-* 03:30:00" in timer and "Persistent=true" in timer
+    assert "OnCalendar=*-*-* 03:30:00" in timer and "Persistent=true" in timer
 
 
 def test_publish_service_names_no_key():

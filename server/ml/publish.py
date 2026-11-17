@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -26,10 +27,11 @@ from dotenv import dotenv_values
 
 from app.core.clock import KST
 from app.services.measured import B1_KIND, B1_VERSION, B2_KIND, B2_VERSION
-from app.services.measured_store import B1_PREFIX, B2_PREFIX, MANIFEST_FILE
+from app.services.measured_store import B1_PREFIX, B2_PREFIX, MANIFEST_FILE, TRIPS_PREFIX
 from app.services.timetable import OFFICIAL_LINES
 from ml.alerts import run_with_alert
 from ml.b2 import build_b2_by_line
+from ml.trips import build_trips
 
 logger = logging.getLogger("ml.publish")
 
@@ -39,6 +41,8 @@ TAG = "measured-timetable"
 REPO = "klanary/subway_easy"
 TOKEN_ENV = "GITHUB_RELEASE_TOKEN"
 PUBLISH_B2_DAYS = 7
+REBUILD_WEEKDAYS = (2, 6)  # 수·일에 B1·B2를 새로 만든다(운행표는 매일)
+DATA_PREFIXES = (B1_PREFIX, B2_PREFIX, TRIPS_PREFIX)
 
 
 _SERVER_STATES = ("suspect", "retraining")  # 서버가 칸을 거르는 데 쓰는 단위 상태
@@ -115,22 +119,55 @@ def _pack(data: dict) -> bytes:
     return gzip.compress(body, mtime=0)
 
 
-def build_files(b1: dict, b2: dict, *, now: datetime) -> dict[str, bytes]:
-    """올릴 파일들. 데이터 두 개는 빌드마다 다른 이름이고, manifest가 마지막이다."""
+def build_files(
+    b1: dict | None,
+    b2: dict | None,
+    *,
+    now: datetime,
+    trips: dict | None = None,
+    previous: dict | None = None,
+) -> dict[str, bytes]:
+    """올릴 파일들. 데이터는 빌드마다 다른 이름이고, manifest가 마지막이다.
+
+    `b1`이 None이면(수·일이 아닌 날) B1·B2를 새로 만들지 않고
+    `previous` manifest의 항목을 그대로 쓴다.
+    """
     stamp = now.astimezone(KST).strftime("%Y%m%dT%H%M%S")
-    names = {"b1": f"{B1_PREFIX}{stamp}.json.gz", "b2": f"{B2_PREFIX}{stamp}.json.gz"}
-    bodies = {"b1": _pack(server_b1(b1)), "b2": _pack(server_b2(b2))}
-    manifest = {
-        "built_at": now.astimezone(KST).isoformat(timespec="seconds"),
-        "as_of": b1["as_of"],
-        **{
-            part: {"name": names[part], "sha256": hashlib.sha256(bodies[part]).hexdigest()}
-            for part in ("b1", "b2")
-        },
-    }
-    files = {names[part]: bodies[part] for part in ("b1", "b2")}
+    manifest: dict = {"built_at": now.astimezone(KST).isoformat(timespec="seconds")}
+    files: dict[str, bytes] = {}
+
+    def add(part: str, name: str, body: bytes, **extra) -> None:
+        files[name] = body
+        manifest[part] = {"name": name, "sha256": hashlib.sha256(body).hexdigest(), **extra}
+
+    if b1 is not None and b2 is not None:
+        manifest["as_of"] = b1["as_of"]
+        add("b1", f"{B1_PREFIX}{stamp}.json.gz", _pack(server_b1(b1)))
+        add("b2", f"{B2_PREFIX}{stamp}.json.gz", _pack(server_b2(b2)))
+    elif previous is not None:
+        manifest["as_of"] = previous["as_of"]
+        manifest["b1"], manifest["b2"] = previous["b1"], previous["b2"]
+    else:
+        raise ValueError("B1·B2를 새로 만들지 않으려면 지난 manifest가 필요합니다")
+    if trips is not None:
+        add("trips", f"{TRIPS_PREFIX}{stamp}.json.gz", _pack(trips), built_on=trips["built_on"])
     files[MANIFEST_FILE] = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
     return files
+
+
+def fetch_manifest(http: httpx.Client, repo: str) -> dict | None:
+    """릴리스의 지금 manifest(공개 주소). 없거나 읽지 못하면 None."""
+    try:
+        response = http.get(
+            f"https://github.com/{repo}/releases/download/{TAG}/{MANIFEST_FILE}",
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            return None
+        manifest = response.json()
+        return manifest if "b1" in manifest and "b2" in manifest else None
+    except (httpx.HTTPError, ValueError):
+        return None
 
 
 def _check(response: httpx.Response, what: str) -> httpx.Response:
@@ -140,7 +177,13 @@ def _check(response: httpx.Response, what: str) -> httpx.Response:
     return response
 
 
-def publish(http: httpx.Client, token: str, repo: str, files: dict[str, bytes]) -> None:
+def publish(
+    http: httpx.Client,
+    token: str,
+    repo: str,
+    files: dict[str, bytes],
+    keep: Iterable[str] = (),
+) -> None:
     """새 데이터 파일을 올리고 → manifest를 바꾸고 → 옛 데이터 파일을 지운다.
 
     올리다 실패하면 옛 manifest와 옛 데이터가 그대로 남아 서버는 지난 것을 계속 받는다.
@@ -190,8 +233,9 @@ def publish(http: httpx.Client, token: str, repo: str, files: dict[str, bytes]) 
         if MANIFEST_FILE in existing:
             delete(MANIFEST_FILE)
         upload(MANIFEST_FILE)
+    kept = set(keep)
     for name in existing:
-        if name.startswith((B1_PREFIX, B2_PREFIX)) and name not in files:
+        if name.startswith(DATA_PREFIXES) and name not in files and name not in kept:
             delete(name)
 
 
@@ -200,18 +244,49 @@ def _run(args: argparse.Namespace, now: datetime) -> int:
     if not token:
         print(f"{args.env_file}에 {TOKEN_ENV}가 없어 내보내지 않습니다.", file=sys.stderr)
         return 2
-    db, b1 = Path(args.db), Path(args.b1)
-    if not db.is_file() or not b1.is_file():
-        print(f"수집 DB나 B1 결과물이 없습니다: {db}, {b1}", file=sys.stderr)
+    db, b1_path = Path(args.db), Path(args.b1)
+    if not db.is_file() or not b1_path.is_file():
+        print(f"수집 DB나 B1 결과물이 없습니다: {db}, {b1_path}", file=sys.stderr)
         return 2
     today = date.fromisoformat(args.day) if args.day else now.astimezone(KST).date()
-    b2 = build_b2_by_line(
-        db, date_from=today - timedelta(days=args.days), date_to=today - timedelta(days=1), now=now
-    )
-    files = build_files(json.loads(b1.read_text(encoding="utf-8")), b2, now=now)
+    b1 = json.loads(b1_path.read_text(encoding="utf-8"))
+    b2_cache = Path(args.b2_cache)
     with httpx.Client(timeout=60) as http:
-        publish(http, token, args.repo, files)
-    print(f"내보냄: {', '.join(files)} → {args.repo} 릴리스 {TAG} (B2 구간 {len(b2['hops'])}개)")
+        previous = fetch_manifest(http, args.repo)
+        rebuild = today.weekday() in REBUILD_WEEKDAYS or previous is None
+        if rebuild or not b2_cache.is_file():
+            b2 = build_b2_by_line(
+                db,
+                date_from=today - timedelta(days=args.days),
+                date_to=today - timedelta(days=1),
+                now=now,
+            )
+            b2_cache.parent.mkdir(parents=True, exist_ok=True)
+            b2_cache.write_text(json.dumps(b2, ensure_ascii=False), encoding="utf-8")
+        else:
+            b2 = json.loads(b2_cache.read_text(encoding="utf-8"))
+        cache_dir = Path(args.timetable_cache)
+        trips = build_trips(
+            cache_dir if cache_dir.is_dir() else None,
+            Path(args.stations_db),
+            b1,
+            b2,
+            built_on=today,
+        )
+        files = build_files(
+            b1 if rebuild else None,
+            b2 if rebuild else None,
+            now=now,
+            trips=trips,
+            previous=previous,
+        )
+        keep = () if rebuild else (previous["b1"]["name"], previous["b2"]["name"])
+        publish(http, token, args.repo, files, keep=keep)
+    print(
+        f"내보냄: {', '.join(files)} → {args.repo} 릴리스 {TAG}"
+        f" (B1·B2 {'새로' if rebuild else '그대로'}, 운행 패턴 "
+        f"{sum(len(v) for v in trips['day_types'].values())}개)"
+    )
     return 0
 
 
@@ -223,6 +298,11 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
     parser.add_argument("--repo", default=REPO)
     parser.add_argument("--days", type=int, default=PUBLISH_B2_DAYS, help="B2에 쓰는 최근 날짜 수")
     parser.add_argument("--day", default="", help="오늘 날짜 대신 쓸 날짜(YYYY-MM-DD)")
+    parser.add_argument("--timetable-cache", default="ml_data/timetable_cache")
+    parser.add_argument("--stations-db", default="data/stations.sqlite")
+    parser.add_argument(
+        "--b2-cache", default="ml_data/artifacts/segment_times.json", help="평일 운행표용 B2"
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     when = now or datetime.now(KST)

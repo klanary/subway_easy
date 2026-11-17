@@ -176,9 +176,9 @@ scp -i <개인 키 파일> "ubuntu@<VM 주소>:subway_easy/server/ml_data/backup
 
 `setup_vm.sh`는 `subway-ml-nightly.timer`(매일 02:40)도 등록한다. 전날 하루치로 시간표 변경을 판단하고 실측 시간표를 다시 만든다. 처음에는 관찰 모드다. 자세한 내용과 기록 읽는 법은 `docs/ml/timetable-changes.md`.
 
-### 실측 결과물 내보내기 (수·일 03:30, 2026-11-18)
+### 실측 결과물 내보내기 (매일 03:30, 2026-11-18)
 
-`setup_vm.sh`는 `subway-ml-publish.timer`도 등록한다. 수·일 03:30에 `python -m ml.publish`가 최근 7일로 구간 시간(B2)을 호선마다 만들고, 밤 작업이 만든 실측 시간표(B1)와 함께 GitHub 릴리스 `measured-timetable`에 올린다. 서버용으로 줄인 사본(시간표 API가 없는 노선만, 필요한 칸만)을 빌드마다 다른 이름(`measured_timetable-<시각>.json.gz`, `segment_times-<시각>.json.gz`)으로 먼저 올리고, `manifest.json`을 바꾼 뒤 옛 파일을 지운다. 올리다 실패해도 옛 파일과 옛 manifest가 그대로 남는다. 서버는 이 릴리스를 6시간마다 확인해 받아 간다. 실패하면 Discord로 알린다.
+`setup_vm.sh`는 `subway-ml-publish.timer`도 등록한다. 매일 03:30에 `python -m ml.publish`가 열차 운행표(`trips-<시각>.json.gz`, 경로 검색용: 공식 시간표 캐시 + 실측)를 만들어 올린다. 수·일에는 여기에 더해 최근 7일로 구간 시간(B2)을 호선마다 만들고, 밤 작업이 만든 실측 시간표(B1)와 함께 GitHub 릴리스 `measured-timetable`에 올린다. 서버용으로 줄인 사본(시간표 API가 없는 노선만, 필요한 칸만)을 빌드마다 다른 이름(`measured_timetable-<시각>.json.gz`, `segment_times-<시각>.json.gz`)으로 먼저 올리고, `manifest.json`을 바꾼 뒤 옛 파일을 지운다. 올리다 실패해도 옛 파일과 옛 manifest가 그대로 남는다. 서버는 이 릴리스를 6시간마다 확인해 받아 간다. 실패하면 Discord로 알린다.
 
 **사용자가 할 일 — 토큰 만들기**
 

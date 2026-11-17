@@ -251,6 +251,7 @@ class _Tables:
         self._b0: dict[str, B0 | None] = {}
         self._official: dict[tuple[str, int, str, int], dict[str, list[int]]] = {}
         self._obs: dict[tuple[str, int], dict[int, dict[str, list[int]]]] = {}
+        self.delays: dict[tuple[str, int, str, int], int | None] = {}  # 한 밤에 한 번만 구한다
 
     def has(self, cache_name: str) -> bool:
         return (self._cache_dir.parent / cache_name).is_dir()
@@ -289,6 +290,11 @@ def _delay(tables: _Tables, state: ChangeState, candidate: Candidate, th: Thresh
     day_type, line, direction, _ = candidate.scope
     new_name = tables._cache_dir.name
     for which in (direction, 1 - direction):
+        memo = (candidate.old_cache, day_type, line, which)
+        if memo in tables.delays:
+            if tables.delays[memo] is not None:
+                return tables.delays[memo]
+            continue
         old = tables.official(candidate.old_cache, day_type, line, which)
         new = tables.official(new_name, day_type, line, which)
         parts = {
@@ -301,9 +307,9 @@ def _delay(tables: _Tables, state: ChangeState, candidate: Candidate, th: Thresh
             th.delay_reach_sec,
             others={station: sorted(part[1] + part[2]) for station, part in parts.items()},
         )
+        tables.delays[memo] = found
         if found is not None:
-            if which == direction:
-                state.delays[f"{line}|{direction}"] = found
+            state.delays[f"{line}|{which}"] = found
             return found
     return state.delays.get(f"{line}|{direction}", 0)
 

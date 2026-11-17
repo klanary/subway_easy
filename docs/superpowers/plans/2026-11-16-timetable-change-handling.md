@@ -459,6 +459,8 @@ Task 1~8을 구현했다(전체 테스트 476개 통과). Task 9(기준값 맞�
 
 함께 넣을 것: 밤 작업 실패 알림(종료 코드 1·2일 때), `diff_caches`의 "갑자기 빈 역" 방어.
 
+**2026-11-17 뒤이음:** 이 제안은 설계 `docs/superpowers/specs/2026-11-17-official-timetable-confirmation-design.md`와 계획 `docs/superpowers/plans/2026-11-17-official-timetable-confirmation.md`로 옮겨 구현했다(실패 알림은 빼고, 1호선과 "지나가는 급행 빼기"를 더했다). VM에는 아직 반영하지 않았다.
+
 ## 다른 PC에서 이어서 하기
 
 - 저장소: `https://github.com/klanary/subway_easy.git`, 브랜치 **`develop`**(계획·코드·문서가 모두 여기 있다. `main`에는 없다).
@@ -467,5 +469,5 @@ Task 1~8을 구현했다(전체 테스트 476개 통과). Task 9(기준값 맞�
   - `server/.venv` — `cd server && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"`(Python 3.12 이상).
   - VM 접속 키 `~/.ssh/subway_vm` — 처음 만든 PC에만 있다. 옮기거나, 새 키를 만들어 VM의 `~/.ssh/authorized_keys`에 공개 키를 더한다.
   - `server/ml_data/` — 로컬 수집 자료·시간표 캐시(2·5호선 휴일). VM의 것이 본자료다.
-- 테스트: `cd server && .venv/Scripts/python -m pytest -q`(476개 통과, 1개 건너뜀).
+- 테스트: `cd server && .venv/Scripts/python -m pytest -q`(2026-11-17 뒤이음 뒤 536개 통과, 1개 건너뜀).
 - 읽을 순서: `docs/ml/2026-11-13-train-eta-model-plan.md`(설계) → `docs/ml/collector.md`(수집기·VM) → `docs/ml/timetable-changes.md`(변경 감지 운영) → 이 문서.

@@ -10,6 +10,7 @@
 - 결과를 SQLite 한 파일(`server/ml_data/collector.sqlite`)에 쌓는다. 표는 `raw_snapshots`(응답 원문, zlib 압축), `events`(정리한 이벤트), `station_map`(역 잇기), `key_usage`(키별 호출 수) 네 개다.
 - 키는 `SEOUL_POSITION_API_KEY` → `SEOUL_SPARE_KEY_1` → `SEOUL_SPARE_KEY_2` 순서로만 쓴다. `ERROR-337`(일일 한도)이 오면 그 키는 그날 쉬고 다음 키로 넘어간다. 세 키가 모두 막히면 자정까지 쉰다.
 - 서버가 쓰는 `SEOUL_REALTIME_API_KEY`와 `SEOUL_OPENAPI_KEY`는 읽지 않는다. 키 값은 로그와 DB에 남지 않는다(이름 `position`·`spare1`·`spare2`만 남는다).
+- 수집기와 별개로, 같은 VM에서 매일 01:30에 공식 시간표를 받는 타이머(`subway-ml-official`)가 돈다(`docs/ml/timetable-changes.md` §6). 이 타이머만 일반 인증키 `SEOUL_OPENAPI_KEY`를 쓴다. VM `.env`에 그 키를 직접 더해야 돌고, 없으면 종료 코드 2로 끝날 뿐 수집기와 밤 작업에는 영향이 없다. **2026-11-17 현재 VM에는 아직 반영하지 않았다.**
 - 시간 계산은 코드 안에서 KST로 한다. VM의 시간대가 달라도 수집 시간은 맞지만, 아래 백업 타이머는 VM 시간대를 따르므로 KST로 맞춘다.
 
 ## 2. VM 준비 (사용자가 할 일)

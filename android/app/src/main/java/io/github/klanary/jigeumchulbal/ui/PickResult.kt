@@ -25,6 +25,8 @@ private const val PICK_RESULT_KEY = "pick_result"
  * Navigation 라이브러리 내부 전용(@RestrictTo)이라 lint 오류(RestrictedApi)가 난다.
  */
 fun NavController.returnPick(result: PickResult) {
+    // 이미 돌아갔으면(역을 빠르게 두 번 눌러 두 번 불림) 결과를 받을 화면까지 닫지 않는다.
+    if (currentDestination?.hasRoute<SearchDest>() != true) return
     if (!popBackStack()) return
     while (currentDestination?.hasRoute<SearchDest>() == true) {
         if (!popBackStack()) return

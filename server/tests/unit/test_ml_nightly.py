@@ -302,3 +302,80 @@ def test_reextract_replaces_points_for_days_in_the_window(tmp_path, paths):
     assert night(db, paths, 3, reextract=True) == 0
     assert _n_points(paths, DAYS[1]) == full
     assert ChangeState.load(paths["state_path"]).checked == checked
+
+
+# --- 공식 시간표 후보 ---
+
+
+def _caches(tmp_path):
+    from tests.unit.test_ml_official import CODES, cache_with
+
+    cache_with(tmp_path / "tt-old")
+    cache_with(tmp_path / "tt", shift=180)
+    return {"timetable_cache": tmp_path / "tt", "codes": CODES}
+
+
+def _diff(tmp_path, entries):
+    diff = tmp_path / "official_diff.json"
+    for day, scopes in entries:
+        record_refresh(
+            diff, RefreshResult(dict.fromkeys(scopes, 1.0), 0, [], "tt-old", {}), today=day
+        )
+    return diff
+
+
+def test_official_candidate_confirms_in_one_night_and_is_logged(tmp_path, paths):
+    db = make_db(tmp_path, [0] * 5 + [180])
+    diff = _diff(tmp_path, [(DAYS[5], [(1, "9호선", 0, 6)])])
+    assert night(db, paths, 6, official_diff_path=diff, **_caches(tmp_path)) == 0
+    state = ChangeState.load(paths["state_path"])
+    (record,) = state.records
+    assert (record.status, record.source, record.first_date) == ("confirmed", "official", DAYS[5])
+    assert [c.status for c in state.candidates] == ["confirmed"]
+    log = paths["log_path"].read_text(encoding="utf-8")
+    assert "후보 | 9호선 상행 평일 06시 | 공식 시간표가 달라짐" in log
+    assert "확정 | 9호선 상행 평일 06시 | official" in log
+    assert a_entry(paths)["secs"] == H6 + 30  # 관찰 모드: 결과물의 시각은 그대로
+
+
+def test_catch_up_ingests_every_missed_diff_entry_in_date_order(tmp_path, paths):
+    db = make_db(tmp_path, [0] * 3 + [180] * 3)
+    diff = _diff(tmp_path, [(DAYS[3], [(1, "9호선", 0, 6)]), (DAYS[5], [(1, "9호선", 0, 7)])])
+    assert night(db, paths, 6, official_diff_path=diff, **_caches(tmp_path)) == 0
+    first, second = ChangeState.load(paths["state_path"]).candidates
+    assert (first.scope[3], first.status) == (6, "confirmed")
+    assert [day for day, _ in first.tries] == [DAYS[2], DAYS[3]]  # 옛 시각인 날 → 새 시각인 날
+    assert (second.scope[3], second.status) == (7, "open")
+    assert [day for day, _ in second.tries] == [DAYS[5]]  # 받은 날의 전날은 일요일이다
+
+
+def test_without_timetable_cache_candidates_are_ingested_but_not_judged(tmp_path, paths):
+    db = make_db(tmp_path, [0] * 5 + [180])
+    diff = _diff(tmp_path, [(DAYS[5], [(1, "9호선", 0, 6)])])
+    assert night(db, paths, 6, official_diff_path=diff) == 0
+    (candidate,) = ChangeState.load(paths["state_path"]).candidates
+    assert (candidate.status, candidate.tries) == ("open", [])
+
+
+def test_rerun_with_candidates_writes_nothing_new(tmp_path, paths):
+    db = make_db(tmp_path, [0] * 5 + [180])
+    diff = _diff(tmp_path, [(DAYS[5], [(1, "9호선", 0, 6)])])
+    kw = {"official_diff_path": diff, **_caches(tmp_path)}
+    assert night(db, paths, 6, **kw) == 0
+    before = (paths["state_path"].read_text("utf-8"), paths["log_path"].read_text("utf-8"))
+    assert night(db, paths, 6, **kw) == 0
+    assert (paths["state_path"].read_text("utf-8"), paths["log_path"].read_text("utf-8")) == before
+
+
+def test_judging_failure_is_reported_and_measured_detection_still_runs(
+    tmp_path, paths, monkeypatch
+):
+    def boom(*args, **kw):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(nightly, "judge_candidates", boom)
+    db = make_db(tmp_path, [0] * 5 + [180])
+    diff = _diff(tmp_path, [(DAYS[5], [(1, "9호선", 0, 6)])])
+    assert night(db, paths, 6, official_diff_path=diff, **_caches(tmp_path)) == 1
+    state = ChangeState.load(paths["state_path"])
+    assert state.checked["9호선|1"] == DAYS[5]

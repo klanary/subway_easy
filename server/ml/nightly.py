@@ -21,7 +21,7 @@ from pathlib import Path
 
 from app.core.clock import KST
 from app.services.station_index import StationIndex
-from ml.b0 import B0, TimetableCache, station_codes
+from ml.b0 import B0, TimetableCache, load_diff_log, station_codes
 from ml.b1 import STALE_DAYS, WINDOW, build_b1_from_points
 from ml.changes import (
     DEFAULT,
@@ -37,6 +37,7 @@ from ml.changes import (
     render,
 )
 from ml.dataset import _open_ro, service_dates, station_ids, station_names
+from ml.official import candidate_lines, ingest_candidates, judge_candidates, prune_candidates
 from ml.points import PointStore
 from ml.scopes import Scope
 
@@ -140,6 +141,8 @@ def run_nightly(
     enforce: bool = False,
     official_diff_path: str | Path | None = None,
     b0: B0 | None = None,
+    timetable_cache: str | Path | None = None,
+    codes: dict[tuple[str, str], str] | None = None,
     notify: Callable[[str], None] | None = None,
     reextract: bool = False,
     catch_up_days: int = CATCH_UP_DAYS,
@@ -167,6 +170,18 @@ def run_nightly(
             if official_diff_path is not None
             else set()
         )
+        # 공식 시간표가 달라진 단위를 후보로 들인다(밤 작업이 빠진 날의 것도 함께).
+        candidate_log: list[str] = []
+        if official_diff_path is not None:
+            try:
+                entries = load_diff_log(official_diff_path)["entries"]
+                candidate_log += candidate_lines(ingest_candidates(state, entries))
+            except Exception as e:
+                logger.error("후보 들이기 실패: %s", type(e).__name__)
+                failed = True
+        can_judge = (
+            timetable_cache is not None and codes is not None and Path(timetable_cache).is_dir()
+        )
         days = service_dates(db, date_from=today - timedelta(days=catch_up_days), date_to=as_of)
         for day in days:
             try:
@@ -174,6 +189,18 @@ def run_nightly(
                 missing = [line for line in _event_lines(db, day) if line not in have]
                 if missing:
                     store.extract_day(db, day, lines=missing)
+                # 후보 판정이 먼저다. 확정되면 그 단위의 기준일이 그 날이 되어, 아래 실측
+                # 감지의 기준표에서 그 단위가 빠진다.
+                if can_judge:
+                    try:
+                        confirmed, lines = judge_candidates(
+                            state, store, timetable_cache, codes, day, th=th
+                        )
+                        changed += confirmed
+                        candidate_log += lines
+                    except Exception as e:
+                        logger.error("후보 판정 실패(%s): %s", day.isoformat(), type(e).__name__)
+                        failed = True
                 changed += detect_day(store, state, day, th=th, official_changed=official_changed)
             except Exception as e:  # 그 뒤 날짜를 건너뛰면 순서가 어긋나므로 판단을 멈춘다
                 logger.error("판단 실패(%s): %s", day.isoformat(), type(e).__name__)
@@ -214,9 +241,10 @@ def run_nightly(
         _write_json(out_path, artifact)
 
         # 3) 상태와 기록. 같은 기록이 하루에 두 번 바뀌었으면(따라잡기) 마지막 모습만 적는다.
+        prune_candidates(state, today)
         state.save(state_path)
         latest = list({id(r): r for r in changed}.values())
-        append_log(log_path, as_of, render(latest))
+        append_log(log_path, as_of, candidate_log + render(latest))
         if notify is not None:
             for text in render([r for r in latest if r.status == "confirmed"]):
                 try:
@@ -266,7 +294,7 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
         if args.day
         else (now or datetime.now(KST)).astimezone(KST).date()
     )
-    b0 = None
+    b0, codes = None, None
     if Path(args.timetable_cache).is_dir() and Path(args.db).is_file():
         codes = station_codes(args.db, StationIndex.load(args.stations_db))
         b0 = B0(TimetableCache(args.timetable_cache), codes)
@@ -274,6 +302,7 @@ def main(argv: list[str] | None = None, *, now: datetime | None = None) -> int:
         db=args.db, points_path=args.points, state_path=args.state, out_path=args.out,
         log_path=args.log, today=today, enforce=args.enforce,
         official_diff_path=args.official_diff, b0=b0, reextract=args.reextract,
+        timetable_cache=args.timetable_cache if codes is not None else None, codes=codes,
     )  # fmt: skip
 
 

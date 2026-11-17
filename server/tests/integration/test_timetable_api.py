@@ -137,3 +137,14 @@ async def test_first_request_does_not_wait_for_download(client, respx_mock):
     params = {"line": "신분당선", "direction": "상행", "from": "2026-11-18T07:00:00+09:00"}
     body = (await client.get(URL.format("강남"), params=params)).json()
     assert body == {**body, "trains": [], "source": "none"}
+
+
+async def test_seoul_failure_does_not_block_measured(client, respx_mock, measured_loaded):
+    # 시간표 API가 없는 노선은 서울시를 부르지 않고 바로 실측으로 간다(최종 리뷰 #2).
+    route = respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE).mock(
+        return_value=httpx.Response(500)
+    )
+    params = {"line": "신분당선", "direction": "상행", "from": "2026-11-18T07:00:00+09:00"}
+    r = await client.get(URL.format("강남"), params=params)
+    assert r.status_code == 200 and r.json()["source"] == "measured"
+    assert route.call_count == 0

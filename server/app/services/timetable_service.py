@@ -73,15 +73,17 @@ class TimetableService:
         line = normalize_line(line)
         if not StationIndex.realtime_supported(line):
             return [], "none"
-        code = self._index.station_code(station.id, line)
-        found, status = (
-            ([], "none") if code is None else await self._official(code, tag, after, count)
-        )
-        if not found and line not in OFFICIAL_LINES:
+        if line not in OFFICIAL_LINES:
+            # 서울시 시간표 API는 1~9호선만 준다. 그 밖은 서울시를 부르지 않고 바로 실측으로 간다
+            # (서울시 장애·한도가 실측까지 막지 않게, 최종 리뷰 #2).
             data = self._measured.current() if self._measured is not None else None
-            if data is not None:
-                return data.departures(station.id, line, direction, after, count), "measured"
-        return found, status
+            if data is None:
+                return [], "none"
+            return data.departures(station.id, line, direction, after, count), "measured"
+        code = self._index.station_code(station.id, line)
+        if code is None:
+            return [], "none"
+        return await self._official(code, tag, after, count)
 
     async def _official(
         self, code: str, tag: int, after: datetime, count: int

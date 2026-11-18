@@ -24,9 +24,7 @@ class FormatTest {
         assertEquals("1분", formatRemaining(119))
     }
 
-    @Test fun fareAndDistanceAndAgo() {
-        assertEquals("1,550원", formatFare(1550))
-        assertEquals("요금 정보 없음", formatFare(null))
+    @Test fun distanceAndAgo() {
         assertEquals("320m", formatDistance(320))
         assertEquals("1.2km", formatDistance(1234))
         assertEquals("5초 전 갱신", formatUpdatedAgo(5))

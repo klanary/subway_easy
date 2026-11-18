@@ -38,7 +38,8 @@ subway_easy/
 
 - 서버: https://jigeumchulbal-server.onrender.com (Render 무료 요금제, `render.yaml` 블루프린트, `develop` 브랜치, 2026-11-12)
 - 공개 저장소 주소로 연결해 자동 배포는 꺼져 있다. 새 커밋은 Render 대시보드의 [Manual Deploy]로 올린다.
-- 키 3개(`SEOUL_REALTIME_API_KEY`, `SEOUL_OPENAPI_KEY`, `KAKAO_REST_API_KEY`)는 대시보드 환경 변수에만 있다.
+- 키 2개(`SEOUL_REALTIME_API_KEY`, `SEOUL_OPENAPI_KEY`)는 대시보드 환경 변수에만 있다. 카카오 키는 경로를 직접 계산하면서(2026-11-18) 쓰지 않는다.
+- 경로: VM이 매일 03:30에 올리는 열차 운행표(릴리스 `measured-timetable`의 `trips-…`)로 서버가 RAPTOR 검색을 한다. 운행표를 받기 전에는 경로 요청이 503("경로 정보를 준비 중이에요")이다.
 - 실측 시간표: 서버는 `MEASURED_BASE_URL`(기본: 이 저장소 릴리스 `measured-timetable`)에서 VM 결과물을 6시간마다 받는다. 비우면 실측을 쓰지 않는다(2026-11-18).
 - 지표(`/v1/metrics`)는 대시보드 환경 변수 `METRICS_TOKEN`을 정해 두고, 같은 값을 `X-Metrics-Token` 헤더로 보내야 보인다. 정하지 않으면 404다(2026-11-17).
 - 2026-11-12 배포 직후 확인: `/health`, 역 검색, 영등포구청 실시간 도착, 마포→공덕 경로, 영등포구청 5호선 시간표 모두 정상.
@@ -47,5 +48,5 @@ subway_easy/
 ## 데이터 출처
 
 - 서울 열린데이터광장: 서울시 지하철 실시간 도착정보, 서울시 역사마스터 정보, 서울시 지하철역 정보, 서울시 지하철역 시간표
-- 카카오 길찾기(대중교통 경로) API
+- VM 위치 수집(서울시 실시간 열차 위치정보)으로 만든 실측 시간표·구간 시간
 - 노선도: 위키미디어 공용 [Seoul_subway_linemap_ko.svg](https://commons.wikimedia.org/wiki/File:Seoul_subway_linemap_ko.svg) (퍼블릭 도메인, IRTC1015, 2025-06-29 판). `server/scripts/build_linemap.py`가 역 위치표를 만든다.

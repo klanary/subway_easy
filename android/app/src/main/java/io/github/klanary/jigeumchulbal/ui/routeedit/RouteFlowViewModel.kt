@@ -56,7 +56,13 @@ data class RouteFlowState(
     val choices: List<SegmentChoice> = emptyList(),
     /** "더 늦은 열차 불러오기" 중. */
     val loadingMore: Boolean = false,
+    /** 더 늦은 열차를 불러와도 새 열차가 없던 구간(최종 리뷰 #4). [다음]을 끈다. */
+    val exhausted: Set<Int> = emptySet(),
 ) {
+    /** 사용자가 열차를 직접 바꿨는지(고정 또는 급행 필터). 아니면 알림은 예전처럼 실시간 첫 열차로(설계 §5.4). */
+    val hasPicks: Boolean
+        get() = choices.any { it.pinned != null || it.filter != ExpressFilter.ALL }
+
     /** 출발·도착이 있고, 출발·경유·도착이 모두 다른 역이어야 한다(서버는 같으면 400). */
     val canSearch: Boolean
         get() {
@@ -160,7 +166,7 @@ class RouteFlowViewModel(
         val origin = current.origin ?: return
         val dest = current.dest ?: return
         searchJob?.cancel()
-        _state.update { it.copy(results = UiState.Loading, selectedRouteId = null, choices = emptyList()) }
+        _state.update { it.copy(results = UiState.Loading, selectedRouteId = null, choices = emptyList(), exhausted = emptySet()) }
         searchJob = viewModelScope.launch {
             val result = routes.routes(origin, dest, current.via, current.departAt)
             val at = clock()
@@ -189,7 +195,7 @@ class RouteFlowViewModel(
     }
 
     fun select(routeId: String) {
-        _state.update { it.copy(selectedRouteId = routeId, choices = emptyList(), loadingMore = false) }
+        _state.update { it.copy(selectedRouteId = routeId, choices = emptyList(), loadingMore = false, exhausted = emptySet()) }
     }
 
     /** 구간 [segment]의 열차를 [delta](−1 이전, +1 다음)만큼 옮기고 고정한다. */
@@ -213,20 +219,30 @@ class RouteFlowViewModel(
         val origin = current.origin ?: return
         val dest = current.dest ?: return
         if (current.loadingMore) return
-        val last = subwaySteps(route).getOrNull(segment)?.candidates?.lastOrNull()?.departsAt
-            ?: subwaySteps(route).getOrNull(segment)?.departsAt ?: return
-        val at = OffsetDateTime.parse(last).toInstant().plusSeconds(60)
+        val step = subwaySteps(route).getOrNull(segment) ?: return
+        val last = step.candidates?.lastOrNull()?.departsAt ?: step.departsAt ?: return
+        // 경로는 출발역에서 찾으므로, 이 구간을 타기까지 걸리는 시간만큼 앞당겨 묻는다(최종 리뷰 #3).
+        val offset = if (step.departsAt != null && route.departAt != null) {
+            java.time.Duration.between(OffsetDateTime.parse(route.departAt).toInstant(), OffsetDateTime.parse(step.departsAt).toInstant())
+                .coerceAtLeast(java.time.Duration.ZERO)
+        } else {
+            java.time.Duration.ZERO
+        }
+        val at = OffsetDateTime.parse(last).toInstant().plusSeconds(60).minus(offset)
         _state.update { it.copy(loadingMore = true) }
         viewModelScope.launch {
-            val later = (routes.routes(origin, dest, current.via, at) as? ApiResult.Ok)?.value?.routes
-                ?.firstOrNull { it.segmentKey() == route.segmentKey() }
+            val result = routes.routes(origin, dest, current.via, at)
+            val later = (result as? ApiResult.Ok)?.value?.routes?.firstOrNull { it.segmentKey() == route.segmentKey() }
             _state.update { s ->
                 val content = s.results as? UiState.Content
-                if (later == null || content == null) return@update s.copy(loadingMore = false)
-                val merged = content.data.copy(
-                    routes = content.data.routes.map { if (it.id == route.id) it.mergeCandidates(later) else it },
-                )
-                s.copy(results = content.copy(data = merged), loadingMore = false)
+                if (content == null || result !is ApiResult.Ok) return@update s.copy(loadingMore = false) // 실패: 다시 누를 수 있다
+                val before = subwaySteps(route).getOrNull(segment)?.candidates?.size ?: 0
+                val mergedRoute = later?.let { route.mergeCandidates(it) }
+                val after = mergedRoute?.let { subwaySteps(it).getOrNull(segment)?.candidates?.size } ?: before
+                // 같은 경로가 없거나 새 열차가 없으면 이 구간은 더 불러올 수 없다(최종 리뷰 #4)
+                val exhausted = if (after > before) s.exhausted else s.exhausted + segment
+                val routesNow = content.data.routes.map { if (it.id == route.id && mergedRoute != null) mergedRoute else it }
+                s.copy(results = content.copy(data = content.data.copy(routes = routesNow)), loadingMore = false, exhausted = exhausted)
             }
         }
     }

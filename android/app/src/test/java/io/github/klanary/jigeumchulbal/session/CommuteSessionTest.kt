@@ -226,4 +226,18 @@ class CommuteSessionTest {
         assertFalse("chosen" in text)
         assertNull((json.decodeFromString<SessionState>(text) as SessionState.Waiting).chosen)
     }
+
+    // ── 최종 리뷰 #1, #2 ──
+    @Test fun chosenLaterThanMaxWaitExtendsDeadline() {
+        val departs = 90 * 60_000L // 최대 대기(30분)보다 늦은 열차
+        val s = waitingFor(ChosenTrain("2201", departsAt = departs))
+        assertTrue((s.state as SessionState.Waiting).deadlineAt > departs + CommuteSession.MISS_GRACE_MS)
+    }
+
+    @Test fun staleChosenAtStartIsDropped() {
+        // 08:05 열차 경로를 08:07에 시작: 이미 떠난 열차는 고르지 않은 것으로 보고 예전처럼 다음 열차로 안내한다.
+        now = 1_000_000
+        val s = waitingFor(ChosenTrain("2201", departsAt = 880_000))
+        assertNull((s.state as SessionState.Waiting).chosen)
+    }
 }

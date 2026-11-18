@@ -98,7 +98,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
                 // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
-                if (route.hasTransit()) SessionButtons(route, startSession)
+                if (route.hasTransit()) SessionButtons(route, state.hasPicks, startSession)
                 Row(Modifier.padding(horizontal = 8.dp)) {
                     TextButton(onClick = viewModel::toggleFavorite) {
                         Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
@@ -118,7 +118,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
             stepItems(route, viaName = state.via?.name) { k ->
                 state.picks.getOrNull(k)?.let {
                     val filter = state.choices.getOrNull(k)?.filter ?: ExpressFilter.ALL
-                    TrainPickRow(it, k, filter, state.loadingMore, viewModel)
+                    TrainPickRow(it.copy(needsMore = it.needsMore && k !in state.exhausted), k, filter, state.loadingMore, k in state.exhausted, viewModel)
                 }
             }
         }
@@ -130,7 +130,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
  * 스위치가 꺼져 있으면 [하차 알림 시작]은 누를 수 없고, [지금 출발 알림]은 [탑승했어요]에서 끝난다(재설계 스펙 D2, 4.5).
  */
 @Composable
-private fun SessionButtons(route: RouteDto, startSession: ((AppSettings) -> SessionEvent) -> Unit) {
+private fun SessionButtons(route: RouteDto, hasPicks: Boolean, startSession: ((AppSettings) -> SessionEvent) -> Unit) {
     val waitStart = remember(route) { waitStartFromRoute(route) }
     var vibration by rememberSaveable { mutableStateOf(false) }
     Column(
@@ -149,7 +149,8 @@ private fun SessionButtons(route: RouteDto, startSession: ((AppSettings) -> Sess
                         startSession { settings ->
                             SessionEvent.StartWaiting(
                                 start.target, start.mode, route.withoutPaths(), start.travelSec, settings, alightAlerts = vibration,
-                                chosen = start.chosen,
+                                // 직접 고른 열차가 있을 때만 그 열차에 맞춘다(설계 §5.4 "고르지 않고 시작하면 지금과 같다")
+                                chosen = start.chosen.takeIf { hasPicks },
                             )
                         }
                     }
@@ -211,7 +212,14 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: 
  * 고정했으면 📌 고정됨 [고정 풀기], 어긋나면 ⚠ 경고, 맞는 열차가 없으면 더 늦은 열차 불러오기.
  */
 @Composable
-private fun TrainPickRow(pick: PickedSegment, k: Int, current: ExpressFilter, loadingMore: Boolean, viewModel: RouteFlowViewModel) {
+private fun TrainPickRow(
+    pick: PickedSegment,
+    k: Int,
+    current: ExpressFilter,
+    loadingMore: Boolean,
+    exhausted: Boolean,
+    viewModel: RouteFlowViewModel,
+) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(enabled = pick.canPrev, onClick = { viewModel.moveTrain(k, -1) }) { Text(Copy.PREV_TRAIN) }
@@ -242,6 +250,10 @@ private fun TrainPickRow(pick: PickedSegment, k: Int, current: ExpressFilter, lo
         }
         pick.warning?.let {
             Text("⚠ $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        // 더 불러와도 새 열차가 없었다: 마지막 열차(최종 리뷰 #4)
+        if (exhausted && pick.train != null && !pick.canNext) {
+            Text(Copy.NO_LATER_TRAIN, style = MaterialTheme.typography.bodySmall)
         }
         if (pick.train == null && pick.needsMore) {
             TextButton(enabled = !loadingMore, onClick = { viewModel.loadLater(k) }) { Text(Copy.LOAD_LATER) }

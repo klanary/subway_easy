@@ -290,5 +290,31 @@ class RouteFlowViewModelTest {
         advanceUntilIdle()
         assertEquals(pickRoute, vm.state.value.selectedRoute)
         assertFalse(vm.state.value.loadingMore)
+        assertEquals(setOf(0), vm.state.value.exhausted) // 더 불러올 수 없음을 표시(최종 리뷰 #4)
+    }
+
+    // ── 최종 리뷰 #2, #3, #4 ──
+    @Test fun hasPicksOnlyAfterUserChoice() = runTest {
+        val vm = searchedWith(pickRoute)
+        assertFalse(vm.state.value.hasPicks)
+        vm.moveTrain(1, 1)
+        assertTrue(vm.state.value.hasPicks)
+    }
+
+    @Test fun loadLaterForLaterSegmentShiftsBackByOffset() = runTest {
+        // 2구간은 경로 출발(08:05)보다 5분 뒤에 탄다 → 마지막 후보 08:30 + 1분 − 5분 = 08:26에 출발하는 경로를 받는다.
+        val vm = searchedWith(pickRoute)
+        vm.loadLater(1)
+        advanceUntilIdle()
+        assertEquals(Instant.parse("2026-11-17T23:26:00Z"), routes.calls.last().departAt)
+    }
+
+    @Test fun loadLaterWithNothingNewMarksSegmentExhausted() = runTest {
+        val vm = searchedWith(pickRoute) // 같은 응답이 다시 온다: 새 후보 없음
+        vm.loadLater(0)
+        advanceUntilIdle()
+        assertEquals(setOf(0), vm.state.value.exhausted)
+        vm.select(pickRoute.id)
+        assertTrue(vm.state.value.exhausted.isEmpty())
     }
 }

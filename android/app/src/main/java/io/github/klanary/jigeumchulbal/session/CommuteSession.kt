@@ -170,6 +170,13 @@ class CommuteSession(
     private fun onIdle(event: SessionEvent): List<SessionEffect> = when (event) {
         is SessionEvent.StartWaiting -> {
             val now = clock()
+            // 이미 떠난 고른 열차(오래된 검색 결과로 시작)는 고르지 않은 것으로 본다: 예전처럼 다음 열차로 안내(최종 리뷰 #2).
+            val chosen = event.chosen?.takeIf { it.departsAt + MISS_GRACE_MS >= now }
+            // 최대 대기보다 늦은 열차를 골랐으면 그 열차를 놓쳤다고 판단할 때까지 기다린다(최종 리뷰 #1).
+            val deadline = maxOf(
+                now + event.settings.maxWaitMin * MINUTE_MS,
+                chosen?.let { it.departsAt + 2 * MISS_GRACE_MS } ?: 0L,
+            )
             state = SessionState.Waiting(
                 target = event.target,
                 mode = event.mode,
@@ -179,9 +186,9 @@ class CommuteSession(
                 leadSec = event.settings.stationLeadSec,
                 alightLeadSec = event.settings.alightLeadSec,
                 startedAt = now,
-                deadlineAt = now + event.settings.maxWaitMin * MINUTE_MS,
+                deadlineAt = deadline,
                 alightAlerts = event.alightAlerts,
-                chosen = event.chosen,
+                chosen = chosen,
             )
             listOf(SessionEffect.StartSessionService, SessionEffect.UpdateOngoing)
         }

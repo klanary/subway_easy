@@ -16,5 +16,5 @@ services:
         sync: false
       - key: SEOUL_OPENAPI_KEY
         sync: false
-      - key: KAKAO_REST_API_KEY
+      - key: METRICS_TOKEN
         sync: false

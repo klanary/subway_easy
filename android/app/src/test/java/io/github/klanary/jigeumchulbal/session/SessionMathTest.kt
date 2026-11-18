@@ -83,6 +83,17 @@ class SessionMathTest {
         assertEquals(listOf(PointKind.VIA, PointKind.FINAL), alightPoints(r, 0, StartFrom.FIRST_TRANSIT, 120).map { it.kind })
     }
 
+    @Test fun alightUsesTrainArrivalTimesIncludingTransferWait() {
+        // 운행표 경로(2026-11-18): 08:00→08:10 탄 뒤 환승역에서 10분 기다려 08:20→08:30.
+        // 단계 소요만 더하면 둘째 하차가 08:20으로 10분 일찍 울린다(최종 리뷰 #4).
+        fun ride(dep: String, arr: String) = step(StepMode.SUBWAY, 600, line = "5호선").copy(
+            departsAt = "2026-11-18T$dep:00+09:00", arrivesAt = "2026-11-18T$arr:00+09:00",
+        )
+        val r = route(listOf(ride("08:00", "08:10"), ride("08:20", "08:30")))
+        val points = alightPoints(r, boardedAt = 0, from = StartFrom.FIRST_SUBWAY, leadSec = 120)
+        assertEquals(listOf(600_000L, 1_800_000L), points.map { it.alightAt })
+    }
+
     @Test fun stopLabels() {
         fun pt(name: String, bus: Boolean) = AlightPoint(name, bus, PointKind.FINAL, 0, 0, 1)
         assertEquals("홍대입구역", stopLabel(pt("홍대입구", false)))

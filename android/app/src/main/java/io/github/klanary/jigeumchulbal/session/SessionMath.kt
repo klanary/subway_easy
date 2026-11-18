@@ -62,11 +62,15 @@ fun alightPoints(route: RouteDto, boardedAt: Long, from: StartFrom, leadSec: Int
 
     var elapsedMs = 0L
     val points = mutableListOf<AlightPoint>()
+    // 운행표 경로(2026-11-18)는 구간마다 실제 열차 시각이 있다. 첫 열차 출발부터 그 구간 도착까지로 재야
+    // 환승역에서 기다리는 시간이 들어간다(최종 리뷰 #4). 시각이 없는 옛 경로는 단계 소요를 더한다.
+    val firstDepart = steps[start].step.departsAt?.let(::epochMs)
     steps.drop(start).forEach { indexed ->
         val step = indexed.step
         elapsedMs += step.durationSec * SECOND_MS
         if (!step.isTransit()) return@forEach
-        val alightAt = boardedAt + elapsedMs
+        val arrives = step.arrivesAt?.let(::epochMs)
+        val alightAt = if (firstDepart != null && arrives != null) boardedAt + (arrives - firstDepart) else boardedAt + elapsedMs
         val kind = when {
             indexed === lastTransit -> PointKind.FINAL
             indexed === viaStep -> PointKind.VIA
@@ -91,6 +95,9 @@ fun alightPoints(route: RouteDto, boardedAt: Long, from: StartFrom, leadSec: Int
     }
     return points
 }
+
+private fun epochMs(iso: String): Long? =
+    runCatching { java.time.OffsetDateTime.parse(iso).toInstant().toEpochMilli() }.getOrNull()
 
 private fun StepDto.isTransit() = mode == StepMode.SUBWAY || mode == StepMode.BUS
 

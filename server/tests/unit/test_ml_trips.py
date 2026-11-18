@@ -156,3 +156,72 @@ def test_overtaking_trips_go_to_separate_patterns(tmp_path):
     data = build_trips(cache, STATIONS_DB, None, None, built_on=date(2026, 11, 18))
     patterns = [p for p in data["day_types"]["1"] if p["line"] == "5호선"]
     assert len(patterns) == 2  # B가 A를 앞지르므로 같은 패턴에 둘 수 없다
+
+
+def test_measured_trip_reaches_its_terminal(tmp_path):
+    # B1에는 종착역 출발이 없다(종착역은 반대 방향에만 나온다). 행선지까지 B2 구간으로 이어 붙인다
+    # (최종 리뷰 #1: 인천공항2터미널·춘천 같은 종착역으로 가는 경로가 없던 문제).
+    b1 = {
+        "version": 2, "kind": "b1", "as_of": "2026-11-17", "modes": {"경의중앙선": "train_no"},
+        "stations": {
+            "경의중앙선|K1": {"station_id": "공덕", "name": "공덕"},
+            "경의중앙선|K2": {"station_id": "서강대", "name": "서강대"},
+            "경의중앙선|K3": {"station_id": "홍대입구", "name": "홍대입구"},
+        },
+        "cells": {
+            "1|경의중앙선|1|K1": [entry(28800, "K7", dest="홍대입구")],
+            "1|경의중앙선|1|K2": [entry(29160, "K7", dest="홍대입구")],
+        },
+    }  # fmt: skip
+    b2 = {"version": 1, "kind": "b2",
+          "hops": {"경의중앙선|1|K2|K3|0": {"median": 150, "n": 9}}, "dwell": {}}  # fmt: skip
+    data = build_trips(None, STATIONS_DB, b1, b2, built_on=date(2026, 11, 18))
+    ((names, trip),) = find(data, "경의중앙선", "K7")
+    assert names == ["공덕", "서강대", "홍대입구"]
+    assert trip[5][-2:] == [
+        29130 + 150,
+        29130 + 150,
+    ]  # 서강대 도착(출발-30) + 구간 → 종착 도착=출발
+
+
+def test_terminal_hop_falls_back_to_reverse_direction(tmp_path):
+    # 종착역에 들어오는 구간은 관측이 거의 없다(종착 도착이 잘 안 찍힘).
+    # 반대 방향 같은 구간 시간을 쓴다.
+    b1 = {
+        "version": 2, "kind": "b1", "as_of": "2026-11-17", "modes": {"경의중앙선": "train_no"},
+        "stations": {
+            "경의중앙선|K1": {"station_id": "공덕", "name": "공덕"},
+            "경의중앙선|K2": {"station_id": "서강대", "name": "서강대"},
+            "경의중앙선|K3": {"station_id": "홍대입구", "name": "홍대입구"},
+        },
+        "cells": {
+            "1|경의중앙선|1|K1": [entry(28800, "K7", dest="홍대입구")],
+            "1|경의중앙선|1|K2": [entry(29160, "K7", dest="홍대입구")],
+        },
+    }  # fmt: skip
+    b2 = {"version": 1, "kind": "b2",
+          "hops": {"경의중앙선|0|K3|K2|0": {"median": 140, "n": 9}}, "dwell": {}}  # fmt: skip
+    data = build_trips(None, STATIONS_DB, b1, b2, built_on=date(2026, 11, 18))
+    ((names, trip),) = find(data, "경의중앙선", "K7")
+    assert names == ["공덕", "서강대", "홍대입구"] and trip[5][-1] == 29130 + 140
+
+
+def test_terminal_without_any_hop_uses_distance(tmp_path):
+    # 공항철도처럼 종착역이 든 구간이 양방향 모두 관측되지 않으면 직선거리 ÷ 평균 속도로 어림한다.
+    b1 = {
+        "version": 2, "kind": "b1", "as_of": "2026-11-17", "modes": {"경의중앙선": "train_no"},
+        "stations": {
+            "경의중앙선|K1": {"station_id": "공덕", "name": "공덕"},
+            "경의중앙선|K2": {"station_id": "서강대", "name": "서강대"},
+            "경의중앙선|K3": {"station_id": "홍대입구", "name": "홍대입구"},
+        },
+        "cells": {
+            "1|경의중앙선|1|K1": [entry(28800, "K7", dest="홍대입구")],
+            "1|경의중앙선|1|K2": [entry(29160, "K7", dest="홍대입구")],
+        },
+    }  # fmt: skip
+    data = build_trips(None, STATIONS_DB, b1, {"version": 1, "kind": "b2", "hops": {}, "dwell": {}},
+                       built_on=date(2026, 11, 18))  # fmt: skip
+    ((names, trip),) = find(data, "경의중앙선", "K7")
+    assert names == ["공덕", "서강대", "홍대입구"]
+    assert 29130 + 60 <= trip[5][-1] <= 29130 + 600

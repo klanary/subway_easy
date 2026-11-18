@@ -155,6 +155,34 @@ def build_files(
     return files
 
 
+def load_b1_for_publish(path: Path) -> dict:
+    """B1을 읽자마자 1~9호선 칸·역·단위를 덜어 낸다(VM 메모리 1GB, 최종 리뷰 #5).
+
+    서버용 사본(`server_b1`)도 운행표(`build_trips`)도 1~9호선 실측은 쓰지 않는다.
+    """
+    b1 = json.loads(Path(path).read_text(encoding="utf-8"))
+    b1["cells"] = {
+        k: v for k, v in (b1.get("cells") or {}).items() if _line_of(k) not in OFFICIAL_LINES
+    }
+    b1["stations"] = {
+        k: v for k, v in (b1.get("stations") or {}).items() if k.split("|")[0] not in OFFICIAL_LINES
+    }
+    b1["scopes"] = {
+        k: v for k, v in (b1.get("scopes") or {}).items() if _line_of(k) not in OFFICIAL_LINES
+    }
+    return b1
+
+
+def official_trip_count(trips: dict) -> int:
+    """운행표 안의 1~9호선 운행 수. 0이면 시간표 캐시를 읽지 못한 것이다."""
+    return sum(
+        len(p["trips"])
+        for patterns in trips["day_types"].values()
+        for p in patterns
+        if p["line"] in OFFICIAL_LINES
+    )
+
+
 def fetch_manifest(http: httpx.Client, repo: str) -> dict | None:
     """릴리스의 지금 manifest(공개 주소). 없거나 읽지 못하면 None."""
     try:
@@ -249,7 +277,6 @@ def _run(args: argparse.Namespace, now: datetime) -> int:
         print(f"수집 DB나 B1 결과물이 없습니다: {db}, {b1_path}", file=sys.stderr)
         return 2
     today = date.fromisoformat(args.day) if args.day else now.astimezone(KST).date()
-    b1 = json.loads(b1_path.read_text(encoding="utf-8"))
     b2_cache = Path(args.b2_cache)
     with httpx.Client(timeout=60) as http:
         previous = fetch_manifest(http, args.repo)
@@ -265,6 +292,8 @@ def _run(args: argparse.Namespace, now: datetime) -> int:
             b2_cache.write_text(json.dumps(b2, ensure_ascii=False), encoding="utf-8")
         else:
             b2 = json.loads(b2_cache.read_text(encoding="utf-8"))
+        # B2를 다 만든 뒤에 B1을 읽는다(둘이 함께 메모리에 오래 있지 않게).
+        b1 = load_b1_for_publish(b1_path)
         cache_dir = Path(args.timetable_cache)
         trips = build_trips(
             cache_dir if cache_dir.is_dir() else None,
@@ -273,6 +302,11 @@ def _run(args: argparse.Namespace, now: datetime) -> int:
             b2,
             built_on=today,
         )
+        if official_trip_count(trips) == 0:
+            # 캐시 경로가 틀리거나 비었다.
+            # 1~9호선 없는 운행표를 올리면 아침에 경로가 사라진다(리뷰 #6).
+            print(f"운행표에 1~9호선 운행이 없어 올리지 않습니다: {cache_dir}", file=sys.stderr)
+            return 1
         files = build_files(
             b1 if rebuild else None,
             b2 if rebuild else None,

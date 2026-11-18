@@ -144,3 +144,30 @@ def test_backtrack_uses_previous_round_record_of_boarding_stop():
         for before, after in zip(journey.rides, journey.rides[1:], strict=False):
             assert before.alight_station == after.board_station
             assert before.arrives_at <= after.departs_at
+
+
+def test_first_ride_boards_latest_train_that_makes_connection():
+    # 08:00과 08:10 열차 모두 B에서 08:20 열차를 탈 수 있다 → 늦게 떠나는 08:10을 안내한다.
+    a_b = pattern("1호선", ["A", "B"], [
+        trip("11", [(hm(8, 0), hm(8, 0)), (hm(8, 5), hm(8, 5))]),
+        trip("13", [(hm(8, 10), hm(8, 10)), (hm(8, 15), hm(8, 15))]),
+    ])  # fmt: skip
+    b_c = pattern(
+        "2호선", ["B", "C"], [trip("21", [(hm(8, 20), hm(8, 20)), (hm(8, 30), hm(8, 30))])]
+    )
+    (journey,) = search(data(a_b, b_c), "A", "C", at("2026-11-18T07:55"))
+    assert journey.rides[0].train_no == "13" and hhmm(journey.departs_at) == "11-18 08:10"
+    assert hhmm(journey.arrives_at) == "11-18 08:30"
+
+
+def test_ride_lists_chosen_and_next_departure():
+    two = pattern("1호선", ["A", "B"], [
+        trip("11", [(hm(8, 0), hm(8, 0)), (hm(8, 5), hm(8, 5))]),
+        trip("13", [(hm(8, 10), hm(8, 10)), (hm(8, 15), hm(8, 15))]),
+    ])  # fmt: skip
+    (journey,) = search(data(two), "A", "B", at("2026-11-18T07:55"))
+    departures = journey.rides[0].departures
+    assert [(d.train_no, hhmm(d.departs_at)) for d in departures] == [
+        ("11", "11-18 08:00"),
+        ("13", "11-18 08:10"),
+    ]

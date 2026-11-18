@@ -1,11 +1,10 @@
 """역에서 역까지 지하철 경로(경로 설계 2026-11-18).
 
 VM이 만든 열차 운행표로 RAPTOR 검색을 해 구간마다 실제로 탈 열차를 정한다. 카카오도 서울시도
-부르지 않는다(지금 출발이면 첫 탑승역의 실시간 다음 열차만 표시용으로 붙인다).
+부르지 않는다. 첫 탑승역의 "다음 열차"도 운행표의 고른 열차와 그다음 열차다(최종 리뷰 #2).
 요금은 보이지 않는다(`fare`는 늘 null). 도보 단계도 없다.
 """
 
-import asyncio
 import hashlib
 import json
 import logging
@@ -13,9 +12,8 @@ from collections.abc import Callable
 from datetime import datetime
 
 from app.core.clock import kst_from_epoch
-from app.core.errors import AppError, InvalidRequest, NoRoute, NotFound, RoutesNotReady
+from app.core.errors import InvalidRequest, NoRoute, NotFound, RoutesNotReady
 from app.models.schemas import FirstBoarding, Leg, Route, RoutesResponse, Step, Train
-from app.services.arrival_service import ArrivalService
 from app.services.geo import haversine_m
 from app.services.measured_store import MeasuredStore
 from app.services.raptor import Journey, Ride, pareto, search
@@ -24,7 +22,6 @@ from app.services.station_index import Station, StationIndex
 logger = logging.getLogger("app.routes")
 
 VIA_TOP = 3  # 경유 구간마다 조합에 쓰는 경로 수(3 × 3)
-TRAINS_PER_BOARDING = 2
 
 
 class RouteService:
@@ -33,12 +30,10 @@ class RouteService:
         index: StationIndex,
         measured: MeasuredStore,
         clock: Callable[[], float],
-        arrivals: ArrivalService | None = None,
     ):
         self._index = index
         self._measured = measured
         self._clock = clock
-        self._arrivals = arrivals
 
     def _station(self, station_id: str) -> Station:
         station = self._index.get(station_id)
@@ -72,14 +67,7 @@ class RouteService:
             journeys = self._via(trips, start.id, via.id, end.id, depart)
         if not journeys:
             raise NoRoute("NO_SUBWAY")
-        routes = [self._route(j, split) for j, split in journeys]
-        if depart_at is None and self._arrivals is not None:
-            await asyncio.gather(
-                *(
-                    self._attach_next_trains(r, j)
-                    for r, (j, _) in zip(routes, journeys, strict=True)
-                )
-            )
+        routes = [self._route(j, split, now) for j, split in journeys]
         return RoutesResponse(updated_at=now, stale=False, routes=routes), "none"
 
     def _via(
@@ -124,7 +112,7 @@ class RouteService:
             estimated=ride.estimated,
         )
 
-    def _route(self, journey: Journey, split: int | None) -> Route:
+    def _route(self, journey: Journey, split: int | None, now: datetime) -> Route:
         steps = [self._step(r) for r in journey.rides]
         legs = (
             [Leg(steps=steps)]
@@ -150,28 +138,19 @@ class RouteService:
                 towards=self._name(first.stops[1]) if len(first.stops) > 1 else None,
                 sec_to_boarding=0,
                 all_walk_before_boarding=True,
+                next_trains=[
+                    Train(
+                        destination=d.dest,
+                        remaining_sec=max(0, int((d.departs_at - now).total_seconds())),
+                        message=f"{d.departs_at:%H:%M} 출발",
+                        is_last=False,
+                        is_express=d.express,
+                        train_no=d.train_no,
+                    )
+                    for d in first.departures
+                ]
+                or None,
             ),
             depart_at=journey.departs_at,
             arrive_at=journey.arrives_at,
         )
-
-    async def _attach_next_trains(self, route: Route, journey: Journey) -> None:
-        """지금 출발이면 첫 탑승역의 실시간 다음 열차(그 방향 2대)를 붙인다. 실패하면 없이 간다."""
-        ride = journey.rides[0]
-        boarding = route.first_boarding
-        if boarding is None or self._arrivals is None:
-            return
-        try:
-            arrivals, _ = await self._arrivals.get_arrivals(ride.board_station, line=ride.line)
-        except AppError as e:
-            logger.warning("첫 탑승 열차 조회 실패 %s: %s", ride.board_station, e.code)
-            return
-        towards = ride.stops[1] if len(ride.stops) > 1 else None
-        for group in arrivals.groups:
-            same_way = (
-                group.towards and towards and self._index.same_station(group.towards, towards)
-            )
-            if same_way or group.direction == ride.direction:
-                trains: list[Train] = group.trains[:TRAINS_PER_BOARDING]
-                boarding.next_trains = trains or None
-                return

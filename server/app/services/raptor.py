@@ -20,6 +20,19 @@ _INF = 10**9
 
 
 @dataclass(frozen=True)
+class Departure:
+    """같은 패턴에서 탈 역을 떠나는 열차: 고른 열차와 그다음 열차.
+
+    앱의 "다음 열차"와 루틴 미리 보기가 쓴다.
+    """
+
+    departs_at: datetime
+    train_no: str | None
+    dest: str | None
+    express: bool
+
+
+@dataclass(frozen=True)
 class Ride:
     line: str
     direction: str
@@ -33,6 +46,7 @@ class Ride:
     departs_at: datetime
     arrives_at: datetime
     stops: list[str]
+    departures: tuple[Departure, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -118,10 +132,33 @@ def _backtrack(
     return rides
 
 
+FOLLOWING = 2  # 고른 열차를 포함해 보여 줄 출발 수
+
+
+def _latest_boarding(
+    day: DayTrips, legs: list[tuple[int, int, int, int]]
+) -> list[tuple[int, int, int, int]]:
+    """도착은 그대로 두고, 앞 구간들을 다음 구간에 대어 가는 가장 늦은 열차로 다시 고른다.
+
+    RAPTOR는 탈 수 있는 가장 이른 열차를 고르므로, 그대로 두면 필요보다 일찍 나가 환승역에서
+    기다리라고 안내한다(최종 리뷰). 한 패턴의 운행은 앞지르지 않으므로 뒤 운행일수록 늦게 닿는다.
+    """
+    legs = list(legs)
+    for i in range(len(legs) - 2, -1, -1):
+        p, trip, board, alight = legs[i]
+        np_, ntrip, nboard, _ = legs[i + 1]
+        catch = day.patterns[np_].dep(ntrip, nboard)
+        pattern = day.patterns[p]
+        while trip + 1 < pattern.n_trips and pattern.arr(trip + 1, alight) <= catch:
+            trip += 1
+        legs[i] = (p, trip, board, alight)
+    return legs
+
+
 def _to_journey(day: DayTrips, service_day: date, legs: list[tuple[int, int, int, int]]) -> Journey:
     start = datetime.combine(service_day, time(0), tzinfo=KST)
     rides = []
-    for p, trip, board, alight in legs:
+    for p, trip, board, alight in _latest_boarding(day, legs):
         pattern = day.patterns[p]
         meta = pattern.trip_meta(trip)
         rides.append(
@@ -138,6 +175,15 @@ def _to_journey(day: DayTrips, service_day: date, legs: list[tuple[int, int, int
                 departs_at=start + timedelta(seconds=pattern.dep(trip, board)),
                 arrives_at=start + timedelta(seconds=pattern.arr(trip, alight)),
                 stops=[day.station_id(s) for s in pattern.stops[board : alight + 1]],
+                departures=tuple(
+                    Departure(
+                        departs_at=start + timedelta(seconds=pattern.dep(t, board)),
+                        train_no=pattern.trip_meta(t).train_no,
+                        dest=pattern.trip_meta(t).dest,
+                        express=pattern.trip_meta(t).express,
+                    )
+                    for t in range(trip, min(trip + FOLLOWING, pattern.n_trips))
+                ),
             )
         )
     return Journey(rides)

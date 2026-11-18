@@ -52,8 +52,3 @@ def quota_exceeded_response() -> httpx.Response:
     _, body = load_fixture("seoul_realtime_nodata.json")
     return httpx.Response(200, json={**body, "code": SEOUL_QUOTA_EXCEEDED_CODE})
 
-
-def kakao_error_response(code: str) -> httpx.Response:
-    """카카오 경로 실패 응답: HTTP 200에 본문 status만 바뀐다(실제 EQUAL_POINTS 샘플을 본뜸)."""
-    _, body = load_fixture("kakao_route_error_equal_points.json")
-    return httpx.Response(200, json={**body, "status": code})

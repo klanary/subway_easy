@@ -125,6 +125,14 @@ class Step(ApiModel):
     # 환승해서 타는 지하철 단계만: 타고 온 열차가 이 역에 도착하는 예상 시각과 그 뒤 출발 열차 2대
     board_after: datetime | None = None
     transfer_trains: list[TransferTrain] | None = None
+    # 운행표로 고른 열차(경로 설계 2026-11-18): 탈 역 출발, 내릴 역 도착, 번호·급행·행선지·출처
+    departs_at: datetime | None = None
+    arrives_at: datetime | None = None
+    train_no: str | None = None
+    is_express: bool = False
+    destination: str | None = None
+    source: Literal["official", "measured"] | None = None
+    estimated: bool = False  # 구간 시간으로 어림한 시각(번호로 못 묶는 노선)
 
 
 class Leg(ApiModel):

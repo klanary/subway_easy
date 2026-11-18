@@ -8,7 +8,6 @@ from fastapi import Request
 
 from app.cache.quota_guard import QuotaGuard
 from app.cache.ttl_cache import TtlCache
-from app.clients.kakao_route import KakaoRouteClient
 from app.clients.seoul_subway import SeoulSubwayClient
 from app.clients.seoul_timetable import SeoulTimetableClient
 from app.core.clock import now_kst
@@ -17,7 +16,7 @@ from app.core.metrics import Metrics
 from app.core.rate_limit import SlidingWindowRateLimiter
 from app.services.arrival_service import ARRIVALS_TTL_SEC, ArrivalService
 from app.services.measured_store import MeasuredStore
-from app.services.route_service import ROUTE_TTL_SEC, RouteService
+from app.services.route_service import RouteService
 from app.services.station_index import StationIndex
 from app.services.timetable_service import TIMETABLE_TTL_SEC, TimetableService
 
@@ -41,7 +40,6 @@ def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, Qu
     limits = {
         "seoulRealtime": settings.seoul_realtime_daily_limit,
         "seoulTimetable": settings.seoul_timetable_daily_limit,
-        "kakaoRoute": settings.kakao_route_daily_limit,
     }
     return {name: QuotaGuard(name, limit, clock) for name, limit in limits.items()}
 
@@ -84,18 +82,7 @@ def build_services(
         clock,
         timetable,
     )
-    route_guard = quotas["kakaoRoute"]
-    routes = RouteService(
-        KakaoRouteClient(http, route_guard, settings),
-        stations,
-        TtlCache(
-            ROUTE_TTL_SEC, clock=clock, metrics=metrics, ttl_multiplier=route_guard.ttl_multiplier
-        ),
-        metrics,
-        clock,
-        arrivals,
-        timetable,
-    )
+    routes = RouteService(stations, measured, clock, arrivals)
     return AppServices(
         settings=settings,
         clock=clock,

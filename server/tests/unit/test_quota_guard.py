@@ -58,9 +58,7 @@ def test_app_has_guards_in_spec_order_with_settings_limits(services):
     assert list(services.quotas) == [
         "seoulRealtime",
         "seoulTimetable",
-        "kakaoRoute",
     ]
-    assert services.quotas["kakaoRoute"].daily_limit == 1000
 
 
 def test_zero_limit_means_no_limit_but_still_counts(late_clock):

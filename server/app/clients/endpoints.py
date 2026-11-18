@@ -7,7 +7,3 @@ SEOUL_REALTIME_BASE = "http://swopenapi.seoul.go.kr/api/subway"
 # 서울 열린데이터광장 일반 OpenAPI(시간표). 형식: {BASE}/{키}/json/{서비스}/{시작}/{끝}/...
 SEOUL_OPENAPI_BASE = "http://openapi.seoul.go.kr:8088"
 
-
-# 대중교통 경로 조회. 카카오맵 REST API 문서에서 확인(2026-11-11, api-verification.md §3).
-# GET, 헤더 Authorization: KakaoAK {REST 키}, 파라미터 start_x/start_y/end_x/end_y.
-KAKAO_ROUTE_URL = "https://dapi.kakao.com/v2/routing/publictraffic"

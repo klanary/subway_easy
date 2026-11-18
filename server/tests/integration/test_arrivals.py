@@ -284,23 +284,3 @@ async def test_arrivals_fill_uses_measured_group_source(client, seoul, respx_moc
     body = (await client.get("/v1/stations/강남/arrivals", params={"line": "신분당선"})).json()
     sources = {g["direction"]: g["source"] for g in body["groups"]}
     assert sources == {"상행": "measured", "하행": "measured"}
-
-
-async def test_transfer_trains_carry_measured_source(services, seoul, respx_mock, measured_loaded):
-    from datetime import datetime
-
-    from app.core.clock import KST
-    from app.models.schemas import Step
-
-    seoul("seoul_realtime_nodata.json")
-    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE).mock(
-        return_value=fixture_response("seoul_timetable_nodata.json")
-    )
-    step = Step(
-        mode="SUBWAY", duration_sec=180, distance_m=3000, guidance="", path=[],
-        line_name="신분당선", stops=["강남", "양재"], board_station_id="강남",
-        alight_station_id="양재",
-    )  # fmt: skip
-    now = datetime(2026, 11, 3, 8, 0, tzinfo=KST)
-    found = await services.routes._transfer_trains(step, now, now)
-    assert found and all(t.source == "measured" for t in found)

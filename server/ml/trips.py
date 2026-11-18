@@ -23,7 +23,7 @@ from app.services.measured import direction_code, direction_name
 from app.services.timetable import OFFICIAL_LINES
 
 KIND, VERSION = "trips-server", 1
-TRIP_GAP_SEC = 10_800  # 같은 열차 번호가 이만큼 끊기면 다른 운행
+TRIP_GAP_SEC = 1_800  # 정차 사이가 이만큼 비면 같은 번호라도 다른 운행(역 사이는 길어야 몇 분)
 DEFAULT_DWELL_SEC = 30
 AVG_SPEED_MPS = 12.5  # 종착역 어림용 평균 속도(시속 45km, 정차 포함)
 MIN_HOP_SEC = 60
@@ -241,20 +241,30 @@ def _measured(
         if (line, code, statn) in has_incoming:
             continue  # 첫 역의 출발만 운행의 시작으로 쓴다
         for secs, _, dest, express in items:
+            if express:
+                continue  # 급행은 서는 역을 모르므로 일반 구간으로 잇지 않는다
+            end = statn_by_name.get((line, dest))
             stops: list[_Stop] = []
             arr = secs - dwell_of(line, statn)
             current, seen = statn, set()
             while current is not None and current not in seen and our_id(line, current):
                 seen.add(current)
-                step = next_of.get((line, code, current))
+                step = next_of.get((line, code, current)) if current != end else None
                 dep = arr + dwell_of(line, current) if step is not None else arr
                 if not stops:
                     dep = secs
                 stops.append(_Stop(our_id(line, current), arr, dep))
                 if step is None:
                     break
+                previous = current
                 current, took = step
-                arr = stops[-1].arr + int(round(took))
+                back = reverse.get((line, 1 - code, current, previous)) if len(stops) == 1 else None
+                if back is not None:
+                    # 첫 역 도착→다음 역 도착에는 첫 역에서 오래 서 있던 시간이 섞인다.
+                    # 반대 방향(다음 역 정차 포함)으로 달리는 시간을 구해 첫 역 출발에 더한다.
+                    arr = secs + int(round(back)) - dwell_of(line, current)
+                else:
+                    arr = stops[-1].arr + int(round(took))
             if len(stops) >= 2:
                 trips.append(_Trip(line, direction, day_type, None, express, dest, 1, 1, stops))
     return [t for t in trips if len(t.stops) >= 2]

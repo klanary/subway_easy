@@ -115,7 +115,7 @@ def test_express_trip_has_only_its_stops(trips):
 def test_same_train_no_twice_a_day_splits(trips):
     runs = find(trips, "2호선", "2001")
     assert sorted(trip[5][0] for _, trip in runs) == [25200, 61200]
-    assert TRIP_GAP_SEC == 10800
+    assert TRIP_GAP_SEC == 1800
 
 
 def test_after_midnight_seconds_kept(trips):
@@ -225,3 +225,54 @@ def test_terminal_without_any_hop_uses_distance(tmp_path):
     ((names, trip),) = find(data, "경의중앙선", "K7")
     assert names == ["공덕", "서강대", "홍대입구"]
     assert 29130 + 60 <= trip[5][-1] <= 29130 + 600
+
+
+def test_same_train_no_an_hour_later_is_another_trip(tmp_path):
+    # 정차 사이가 30분 넘게 비면 같은 번호라도 다른 운행이다(역 사이는 길어야 몇 분).
+    cache = write_cache(
+        tmp_path,
+        {
+            "2529_1_1": [row("A", "08:00:00", "08:00:30"), row("A", "09:00:00", "09:00:30")],
+            "2528_1_1": [row("A", "08:02:00", "08:02:30"), row("A", "09:02:00", "09:02:30")],
+        },
+    )
+    data = build_trips(cache, STATIONS_DB, None, None, built_on=date(2026, 11, 18))
+    assert len(find(data, "5호선", "A")) == 2
+
+
+SLOTS_B1 = {
+    "version": 2, "kind": "b1", "as_of": "2026-11-17", "modes": {"신분당선": "slots"},
+    "stations": {
+        "신분당선|S1": {"station_id": "강남", "name": "강남"},
+        "신분당선|S2": {"station_id": "양재", "name": "양재"},
+        "신분당선|S3": {"station_id": "양재시민의숲", "name": "양재시민의숲"},
+    },
+}  # fmt: skip
+
+
+def slots_b2(**extra):
+    hops = {"신분당선|1|S1|S2|0": {"median": 400, "n": 9},  # 출발역 오래 서 있던 것이 섞임
+            "신분당선|1|S2|S3|0": {"median": 150, "n": 9}, **extra}  # fmt: skip
+    return {"version": 1, "kind": "b2", "hops": hops, "dwell": {"신분당선|S2": {"median": 20}}}
+
+
+def test_slots_skips_express_departures():
+    b1 = {**SLOTS_B1, "cells": {"1|신분당선|1|S1": [entry(25200, dest="양재시민의숲", express=1)]}}
+    data = build_trips(None, STATIONS_DB, b1, slots_b2(), built_on=date(2026, 11, 18))
+    assert find(data, "신분당선") == []
+
+
+def test_slots_stops_at_train_destination():
+    b1 = {**SLOTS_B1, "cells": {"1|신분당선|1|S1": [entry(25200, dest="양재")]}}
+    data = build_trips(None, STATIONS_DB, b1, slots_b2(), built_on=date(2026, 11, 18))
+    ((names, _),) = find(data, "신분당선")
+    assert names == ["강남", "양재"]
+
+
+def test_slots_first_hop_uses_reverse_to_avoid_origin_dwell():
+    # 반대 방향 양재→강남 130초(양재 정차 20초 포함) → 강남 출발 뒤 110초에 양재 도착.
+    b1 = {**SLOTS_B1, "cells": {"1|신분당선|1|S1": [entry(25200, dest="양재시민의숲")]}}
+    b2 = slots_b2(**{"신분당선|0|S2|S1|0": {"median": 130, "n": 9}})
+    data = build_trips(None, STATIONS_DB, b1, b2, built_on=date(2026, 11, 18))
+    ((_, trip),) = find(data, "신분당선")
+    assert trip[5][2] == 25200 + 110

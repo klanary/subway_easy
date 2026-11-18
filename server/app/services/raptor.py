@@ -153,7 +153,8 @@ def _run_day(
     return [_to_journey(day, service_day, legs) for _, legs in _raptor(day, o, d, t0, max_rounds)]
 
 
-def _pareto(journeys: list[Journey]) -> list[Journey]:
+def pareto(journeys: list[Journey]) -> list[Journey]:
+    """환승 횟수별 가장 이른 도착 중, 환승을 늘려도 더 빨라지지 않는 것은 뺀다. 최대 5개."""
     by_transfers: dict[int, Journey] = {}
     for j in journeys:
         kept = by_transfers.get(j.transfers)
@@ -182,4 +183,4 @@ def search(
         found += _run_day(trips, day, origin, dest, t0, max_rounds)
     if not found:
         found = _run_day(trips, days[-1] + timedelta(days=1), origin, dest, 0, max_rounds)
-    return _pareto(found)
+    return pareto(found)

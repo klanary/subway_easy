@@ -17,6 +17,7 @@ _MESSAGES: dict[tuple[str, str | None], str] = {
     ("NO_ROUTE", "NO_SUBWAY"): "지하철로 갈 수 있는 경로가 없어요.",
     ("RATE_LIMITED", None): "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.",
     ("UPSTREAM_ERROR", None): "정보를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.",
+    ("ROUTES_NOT_READY", None): "경로 정보를 준비 중이에요. 잠시 후 다시 시도해 주세요.",
     ("QUOTA_EXCEEDED", None): "오늘 조회할 수 있는 횟수를 모두 썼어요. 내일 다시 시도해 주세요.",
     ("QUOTA_EXCEEDED", "PAUSED"): "요청이 몰려 잠시 쉬고 있어요. 1분 뒤 다시 시도해 주세요.",
     ("UPSTREAM_TIMEOUT", None): "응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.",
@@ -51,6 +52,12 @@ class NoRoute(AppError):
 
 class RateLimited(AppError):
     status, code = 429, "RATE_LIMITED"
+
+
+class RoutesNotReady(AppError):
+    """서버가 아직 운행표를 받지 못했다(배포 직후). 잠시 뒤 다시 받는다."""
+
+    status, code = 503, "ROUTES_NOT_READY"
 
 
 class UpstreamFailure(AppError):

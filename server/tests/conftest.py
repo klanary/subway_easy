@@ -4,7 +4,7 @@ from datetime import datetime
 import httpx
 import pytest
 
-from app.clients.endpoints import KAKAO_ROUTE_URL, SEOUL_OPENAPI_BASE, SEOUL_REALTIME_BASE
+from app.clients.endpoints import SEOUL_OPENAPI_BASE, SEOUL_REALTIME_BASE
 from app.core.clock import KST
 from app.core.config import Settings
 from app.main import create_app
@@ -34,7 +34,6 @@ def test_settings() -> Settings:
         _env_file=None,
         seoul_realtime_api_key="TESTSEOULKEY",
         seoul_openapi_key="TESTOPENAPIKEY",
-        kakao_rest_api_key="TESTKAKAOKEY",
         metrics_token="TESTMETRICSTOKEN",
         measured_base_url="",
         upstream_retry_delay_sec=0,
@@ -132,15 +131,6 @@ def seoul(respx_mock):
 
     return use
 
-
-@pytest.fixture
-def kakao_route(respx_mock):
-    """kakao_route("샘플.json"): 카카오 경로 요청에 그 샘플로 답하게 하고 route를 돌려준다."""
-
-    def use(name: str):
-        return respx_mock.get(KAKAO_ROUTE_URL).mock(return_value=fixture_response(name))
-
-    return use
 
 
 @pytest.fixture

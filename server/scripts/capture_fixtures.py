@@ -17,11 +17,12 @@ from urllib.parse import quote
 
 import httpx
 
-from app.clients.endpoints import KAKAO_ROUTE_URL, SEOUL_REALTIME_BASE
+from app.clients.endpoints import SEOUL_REALTIME_BASE
 from app.core.config import Settings
 
-Api = Literal["seoul_realtime", "kakao_route"]
-APIS: tuple[Api, ...] = ("seoul_realtime", "kakao_route")
+# 카카오 경로 샘플은 경로 직접 계산(2026-11-18)으로 쓰지 않아 뺐다.
+Api = Literal["seoul_realtime"]
+APIS: tuple[Api, ...] = ("seoul_realtime",)
 
 # (위도, 경도)
 LANDMARKS: dict[str, tuple[float, float]] = {
@@ -46,25 +47,12 @@ class CaptureItem:
         return [v for v in self.params.values() if isinstance(v, tuple)]
 
 
-def _route(slug: str, start: str, end: str) -> CaptureItem:
-    return CaptureItem(
-        "kakao_route",
-        slug,
-        {"start": LANDMARKS[start], "end": LANDMARKS[end], "start_name": start, "end_name": end},
-    )
-
-
 CAPTURE_PLAN: list[CaptureItem] = [
     CaptureItem("seoul_realtime", "hongdae", {"station": "홍대입구"}),
     CaptureItem("seoul_realtime", "cityhall", {"station": "시청"}),
     # 이름 예외 역. P1 Task 5의 예외 표(§2)에서 고른 역으로 바꿀 수 있다.
     CaptureItem("seoul_realtime", "exception", {"station": "응암순환(상선)"}),
     CaptureItem("seoul_realtime", "nodata", {"station": "없는역이름"}),
-    _route("subway_only", "홍대입구역", "강남역"),
-    _route("transfer", "홍대입구역", "경복궁역"),
-    _route("bus_subway", "서울대학교 정문", "홍대입구역"),
-    _route("error_equal_points", "홍대입구역", "홍대입구역"),
-    _route("error_far", "홍대입구역", "제주공항"),
 ]
 
 
@@ -80,37 +68,15 @@ def redact(text: str, secrets: list[str]) -> str:
 
 
 def _request(client: httpx.Client, item: CaptureItem, settings: Settings) -> httpx.Response:
-    p = item.params
-    kakao_headers = {"Authorization": f"KakaoAK {settings.kakao_rest_api_key}"}
-    if item.api == "seoul_realtime":
-        url = (
-            f"{SEOUL_REALTIME_BASE}/{settings.seoul_realtime_api_key}"
-            f"/json/realtimeStationArrival/0/50/{quote(p['station'])}"
-        )
-        return client.get(url)
-    (start_lat, start_lng), (end_lat, end_lng) = p["start"], p["end"]
-    return client.get(
-        KAKAO_ROUTE_URL,
-        params={
-            "start_x": start_lng,
-            "start_y": start_lat,
-            "end_x": end_lng,
-            "end_y": end_lat,
-            "s_name": p["start_name"],
-            "e_name": p["end_name"],
-        },
-        headers=kakao_headers,
+    url = (
+        f"{SEOUL_REALTIME_BASE}/{settings.seoul_realtime_api_key}"
+        f"/json/realtimeStationArrival/0/50/{quote(item.params['station'])}"
     )
+    return client.get(url)
 
 
 def _skip_reason(item: CaptureItem, settings: Settings) -> str | None:
-    if item.api == "seoul_realtime":
-        return None if settings.seoul_realtime_api_key else "SEOUL_REALTIME_API_KEY가 비어 있어요"
-    if not settings.kakao_rest_api_key:
-        return "KAKAO_REST_API_KEY가 비어 있어요"
-    if item.api == "kakao_route" and not KAKAO_ROUTE_URL:
-        return "KAKAO_ROUTE_URL을 먼저 채우세요"
-    return None
+    return None if settings.seoul_realtime_api_key else "SEOUL_REALTIME_API_KEY가 비어 있어요"
 
 
 def capture(item: CaptureItem, client: httpx.Client, settings: Settings, out_dir: Path) -> Path:
@@ -120,7 +86,7 @@ def capture(item: CaptureItem, client: httpx.Client, settings: Settings, out_dir
     except ValueError:
         body = response.text
     text = json.dumps({"status": response.status_code, "body": body}, ensure_ascii=False, indent=2)
-    text = redact(text, [settings.seoul_realtime_api_key, settings.kakao_rest_api_key])
+    text = redact(text, [settings.seoul_realtime_api_key])
     path = fixture_path(item, out_dir)
     path.write_text(text + "\n", encoding="utf-8")
     return path
@@ -132,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     settings = Settings()
-    secrets = [settings.seoul_realtime_api_key, settings.kakao_rest_api_key]
+    secrets = [settings.seoul_realtime_api_key]
     out_dir = Path(settings.fixtures_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 

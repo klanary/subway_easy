@@ -11,13 +11,11 @@ class Settings(BaseSettings):
 
     seoul_realtime_api_key: str = ""
     seoul_openapi_key: str = ""  # 일반 인증키(시간표)
-    kakao_rest_api_key: str = ""
 
     # 0 = 제한 없음. 서울시 키는 2026-11-15부터 한도가 없다(호출 수는 그래도 센다).
     # 음수는 오타로 보고 받지 않는다(서버가 뜨지 않음).
     seoul_realtime_daily_limit: NonNegativeInt = 0
     seoul_timetable_daily_limit: NonNegativeInt = 0
-    kakao_route_daily_limit: NonNegativeInt = 1000
 
     # VM 실측 결과물(GitHub 릴리스)을 받는 주소. 비우면 실측을 쓰지 않는다(설계 2026-11-17).
     measured_base_url: str = (

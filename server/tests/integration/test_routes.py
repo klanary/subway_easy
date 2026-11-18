@@ -1,245 +1,132 @@
-"""GET /v1/routes(재설계 스펙 5.3).
+"""GET /v1/routes — 운행표 RAPTOR로 직접 찾은 지하철 경로(경로 설계 2026-11-18).
 
-역 id로 묻고, 지하철 경로만 빠른 순으로, 첫 탑승 다음 열차를 붙인다.
-
-카카오 샘플은 2026-11-12 본인 키로 받은 실제 응답(홍대입구 → 강남 등)이다.
+테스트 시계는 2026-11-03(화) 08:00. 운행표는 실제 역 id로 만든 작은 것이다.
 """
 
-from datetime import datetime, timedelta
-
-import httpx
 import pytest
 
-from app.clients.endpoints import KAKAO_ROUTE_URL, SEOUL_OPENAPI_BASE, SEOUL_REALTIME_BASE
-from app.core.clock import KST
-from tests.helpers import fixture_response, kakao_error_response, load_fixture
+from app.clients.endpoints import SEOUL_OPENAPI_BASE, SEOUL_REALTIME_BASE
+from app.services.trips import TripsData
+from tests.helpers import fixture_response
 
-ROUTES = "/v1/routes"
-TRIP = {"from": "홍대입구", "to": "강남"}
-ROUTE_KEYS = {"id", "type", "totalSec", "distanceM", "transfers", "fare", "legs", "firstBoarding"}
+URL = "/v1/routes"
+STATIONS = ["마포", "여의나루", "여의도", "샛강", "노량진"]
+
+
+def hm(h: int, m: int) -> int:
+    return h * 3600 + m * 60
+
+
+def at8(*minutes: int) -> list[int]:
+    """8시 m분에 서고 바로 떠나는 정차들의 [도착, 출발, ...]."""
+    return [x for m in minutes for x in (hm(8, m), hm(8, m))]
+
+
+def trips_artifact() -> dict:
+    five = {"line": "5호선", "direction": "하행", "stops": [0, 1, 2], "trips": [
+        ["5301", 0, "마천", 0, 0, at8(5, 7, 9)],
+        ["5303", 0, "마천", 0, 0, at8(15, 17, 19)],
+    ]}  # fmt: skip
+    nine = {"line": "9호선", "direction": "하행", "stops": [2, 3, 4], "trips": [
+        ["9101", 0, "중앙보훈병원", 0, 0, at8(10, 12, 14)],
+        ["9103", 0, "중앙보훈병원", 0, 0, at8(20, 22, 24)],
+    ]}  # fmt: skip
+    return {"kind": "trips-server", "version": 1, "built_on": "2026-11-03", "stations": STATIONS,
+            "day_types": {"1": [five, nine], "2": [], "3": []}}  # fmt: skip
+
+
+@pytest.fixture
+def trips_loaded(services):
+    services.measured.replace_trips(TripsData.from_artifact(trips_artifact()))
 
 
 @pytest.fixture(autouse=True)
-def upstream_defaults(respx_mock, clock):
-    """홍대입구 실시간은 실제 샘플, 시간표는 데이터 없음. 시계는 홍대입구 샘플을 받은 직후."""
-    first = load_fixture("seoul_realtime_hongdae.json")[1]["realtimeArrivalList"][0]["recptnDt"]
-    generated = datetime.strptime(first, "%Y-%m-%d %H:%M:%S").replace(tzinfo=KST)
-    clock.set(generated.timestamp() + 10)
-    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE, name="seoul_realtime").mock(
-        return_value=fixture_response("seoul_realtime_hongdae.json")
+def upstream_defaults(respx_mock):
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
+        return_value=fixture_response("seoul_realtime_nodata.json")
     )
-    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
+    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE).mock(
         return_value=fixture_response("seoul_timetable_nodata.json")
     )
 
 
-def only_bus(body: dict) -> None:
-    body["routes"] = [
-        r for r in body["routes"] if all(s["properties"]["type"] != "SUBWAY" for s in r["steps"])
-    ]
+def steps(route: dict) -> list[dict]:
+    return [s for leg in route["legs"] for s in leg["steps"]]
 
 
-async def test_routes_by_station_ids(client, kakao_route):
-    kakao_route("kakao_route_subway_only.json")
-    r = await client.get(ROUTES, params=TRIP)
-    body = r.json()
-    assert r.status_code == 200 and 1 <= len(body["routes"]) <= 5
-    assert body["updatedAt"].endswith("+09:00") and body["stale"] is False
-    routes = body["routes"]
-    keys = [(rt["totalSec"], rt["transfers"]) for rt in routes]
-    assert keys == sorted(keys)
-    assert all(rt["type"] in ("SUBWAY", "WALK") for rt in routes)
-    assert ROUTE_KEYS <= set(routes[0])
-    first = routes[0]["firstBoarding"]
-    assert first["stationId"] == "홍대입구" and first["lineName"] == "2호선"
-    assert first["nextTrains"] and len(first["nextTrains"]) <= 2
+async def get(client, **params):
+    return await client.get(URL, params=params)
 
 
-async def test_kakao_gets_station_coordinates_and_names(client, kakao_route, real_index):
-    route = kakao_route("kakao_route_subway_only.json")
-    await client.get(ROUTES, params=TRIP)
-    p = route.calls.last.request.url.params
-    start, end = real_index.get("홍대입구"), real_index.get("강남")
-    assert (float(p["start_x"]), float(p["start_y"])) == (start.lng, start.lat)
-    assert (float(p["end_x"]), float(p["end_y"])) == (end.lng, end.lat)
-    assert (p["s_name"], p["e_name"]) == (start.name, end.name)
+async def test_route_ends_at_destination(client, trips_loaded):
+    body = (await get(client, **{"from": "마포", "to": "노량진"})).json()
+    route = body["routes"][0]
+    assert steps(route)[-1]["alightStationId"] == "노량진"
+    assert [s["lineName"] for s in steps(route)] == ["5호선", "9호선"]
+    assert route["transfers"] == 1
 
 
-async def test_same_station_rejected(client, respx_mock):
-    kakao = respx_mock.get(KAKAO_ROUTE_URL)
-    r = await client.get(ROUTES, params={"from": "홍대입구", "to": "홍대입구"})
-    assert r.status_code == 400 and r.json()["error"]["reason"] == "SAME_STATION"
-    assert r.json()["error"]["message"] == "출발역과 도착역이 같아요."
-    assert not kakao.called
+async def test_no_external_calls_with_depart_at(client, trips_loaded, respx_mock):
+    params = {"from": "마포", "to": "노량진", "departAt": "2026-11-03T08:00:00+09:00"}
+    r = await get(client, **params)
+    assert r.status_code == 200 and not respx_mock.calls
 
 
-async def test_bus_only_is_no_subway(client, respx_mock):
-    kakao = respx_mock.get(KAKAO_ROUTE_URL).mock(
-        return_value=fixture_response("kakao_route_subway_only.json", only_bus)
-    )
-    for _ in range(2):
-        r = await client.get(ROUTES, params=TRIP)
-        assert r.status_code == 404 and r.json()["error"]["reason"] == "NO_SUBWAY"
-        assert r.json()["error"]["message"] == "지하철로 갈 수 있는 경로가 없어요."
-    assert kakao.call_count == 1  # 결과 없음도 캐시한다
+async def test_fare_is_null_and_steps_are_subway_only(client, trips_loaded):
+    route = (await get(client, **{"from": "마포", "to": "노량진"})).json()["routes"][0]
+    assert route["fare"] is None and route["type"] == "SUBWAY"
+    assert {s["mode"] for s in steps(route)} == {"SUBWAY"}
 
 
-@pytest.mark.parametrize("params", [{"from": "없는역", "to": "강남"}, {"from": "홍대입구"}])
-async def test_unknown_or_missing_station(client, params):
-    r = await client.get(ROUTES, params=params)
-    assert r.status_code in (400, 404)
-    if "to" in params:
-        assert r.json()["error"]["code"] == "NOT_FOUND"
+async def test_steps_carry_train_times(client, trips_loaded):
+    params = {"from": "마포", "to": "노량진", "departAt": "2026-11-03T08:00:00+09:00"}
+    route = (await get(client, **params)).json()["routes"][0]
+    first, second = steps(route)
+    assert first["trainNo"] == "5301" and first["departsAt"][11:16] == "08:05"
+    assert first["arrivesAt"][11:16] == "08:09" and first["stops"] == ["마포", "여의나루", "여의도"]
+    assert second["trainNo"] == "9101" and second["departsAt"][11:16] == "08:10"
+    assert route["departAt"][11:16] == "08:05" and route["arriveAt"][11:16] == "08:14"
+    assert route["totalSec"] == 9 * 60
+    assert first["source"] == "official" and first["estimated"] is False
+    assert route["firstBoarding"]["stationId"] == "마포"
+    assert route["firstBoarding"]["towards"] == "여의나루"
 
 
-@pytest.mark.parametrize(
-    "kakao_code, status, code, reason",
-    [
-        ("STARTNODES_NULL", 404, "NO_ROUTE", "NO_START_STOP"),
-        ("ENDNODES_NULL", 404, "NO_ROUTE", "NO_END_STOP"),
-        ("NO_RESULTS", 404, "NO_ROUTE", "NO_RESULTS"),
-        ("INVALID_REQUEST", 502, "UPSTREAM_ERROR", "INVALID_REQUEST"),
-    ],
-)
-async def test_kakao_error_codes(client, respx_mock, kakao_code, status, code, reason):
-    respx_mock.get(KAKAO_ROUTE_URL).mock(return_value=kakao_error_response(kakao_code))
-    r = await client.get(ROUTES, params=TRIP)
-    assert r.status_code == status and r.json()["error"]["code"] == code
-    assert r.json()["error"]["reason"] == reason
+async def test_via_route(client, trips_loaded):
+    params = {"from": "마포", "to": "노량진", "via": "여의도"}
+    route = (await get(client, **params)).json()["routes"][0]
+    assert len(route["legs"]) == 2
+    assert route["legs"][0]["steps"][-1]["alightStationId"] == "여의도"
 
 
-async def test_cached_for_10_minutes(client, kakao_route, clock):
-    route = kakao_route("kakao_route_subway_only.json")
-    await client.get(ROUTES, params=TRIP)
-    clock.advance(599)
-    await client.get(ROUTES, params=TRIP)
-    assert route.call_count == 1
-    clock.advance(1)
-    await client.get(ROUTES, params=TRIP)
-    assert route.call_count == 2
+async def test_non_seoul_station_is_no_route(client, trips_loaded):
+    r = await get(client, **{"from": "마포", "to": "가재울"})
+    assert r.status_code == 404 and r.json()["error"]["code"] == "NO_ROUTE"
 
 
-async def test_next_trains_fail_soft(client, kakao_route, respx_mock):
-    """실시간·시간표가 모두 실패해도 경로는 준다. 다음 열차만 비운다."""
-    kakao_route("kakao_route_subway_only.json")
-    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE, name="seoul_realtime").mock(
-        return_value=httpx.Response(500)
-    )
-    r = await client.get(ROUTES, params=TRIP)
-    assert r.status_code == 200 and r.json()["routes"][0]["firstBoarding"]["nextTrains"] is None
+async def test_routes_503_before_trips_loaded(client):
+    r = await get(client, **{"from": "마포", "to": "노량진"})
+    assert r.status_code == 503 and r.json()["error"]["code"] == "ROUTES_NOT_READY"
+    assert "준비 중" in r.json()["error"]["message"]
 
 
-async def test_stale_route_when_kakao_down(client, respx_mock, clock):
-    respx_mock.get(KAKAO_ROUTE_URL).mock(
-        side_effect=[
-            fixture_response("kakao_route_subway_only.json"),
-            httpx.Response(500),
-            httpx.Response(500),
-        ]
-    )
-    await client.get(ROUTES, params=TRIP)
-    clock.advance(601)
-    r = await client.get(ROUTES, params=TRIP)
-    assert r.status_code == 200 and r.json()["stale"] is True
-
-
-# --- 경유역과 출발 시각 지정(재설계 스펙 5.3) ---
-
-
-async def test_via_calls_kakao_per_leg_and_caches(client, kakao_route):
-    route = kakao_route("kakao_route_subway_only.json")
-    params = {**TRIP, "via": "시청"}
-    for _ in range(2):
-        r = await client.get(ROUTES, params=params)
-        body = r.json()
-        assert r.status_code == 200 and 1 <= len(body["routes"]) <= 5
-        assert all(len(rt["legs"]) == 2 for rt in body["routes"])
-    assert route.call_count == 2  # 출발→경유, 경유→도착 각 1번, 두 번째 요청은 캐시
-    names = [(c.request.url.params["s_name"], c.request.url.params["e_name"]) for c in route.calls]
-    assert names == [("홍대입구", "시청"), ("시청", "강남")]
-
-
-@pytest.mark.parametrize("via", ["홍대입구", "강남"])
-async def test_via_equal_to_end_rejected(client, via):
-    r = await client.get(ROUTES, params={**TRIP, "via": via})
+async def test_same_station_is_400(client, trips_loaded):
+    r = await get(client, **{"from": "마포", "to": "마포"})
     assert r.status_code == 400 and r.json()["error"]["reason"] == "SAME_STATION"
 
 
-async def test_depart_at_uses_timetable(client, kakao_route, respx_mock):
-    kakao_route("kakao_route_subway_only.json")
-    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
-        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
-    )
-    depart = datetime(2026, 11, 13, 8, 0, tzinfo=KST)
-    r = await client.get(ROUTES, params={**TRIP, "departAt": depart.isoformat()})
-    scheduled = [rt for rt in r.json()["routes"] if rt["departAt"]]
-    assert scheduled
-    for rt in scheduled:
-        fb = rt["firstBoarding"]
-        leave = datetime.fromisoformat(rt["departAt"])
-        arrive = datetime.fromisoformat(rt["arriveAt"])
-        assert leave.timestamp() >= depart.timestamp() + fb["secToBoarding"]
-        assert arrive.timestamp() == leave.timestamp() + rt["totalSec"] - fb["secToBoarding"]
-        assert fb["nextTrains"] and fb["nextTrains"][0]["message"].endswith("출발")
+async def test_unknown_station_is_404(client, trips_loaded):
+    assert (await get(client, **{"from": "마포", "to": "없는역"})).status_code == 404
 
 
-async def test_without_depart_at_fields_are_null(client, kakao_route):
-    kakao_route("kakao_route_subway_only.json")
-    rt = (await client.get(ROUTES, params=TRIP)).json()["routes"][0]
-    assert rt["departAt"] is None and rt["arriveAt"] is None
-
-
-async def test_bad_depart_at(client):
-    r = await client.get(ROUTES, params={**TRIP, "departAt": "내일"})
+async def test_bad_depart_at(client, trips_loaded):
+    r = await get(client, **{"from": "마포", "to": "노량진", "departAt": "어제"})
     assert r.status_code == 400
 
 
-# --- 환승역 열차: 걸어서 탈 수 있는 빠른 열차와 그다음 열차(2026-11-12 사용자 요청) ---
-
-GYEONGBOKGUNG = {"from": "홍대입구", "to": "경복궁"}
-
-
-def transfer_steps(route: dict) -> list[dict]:
-    subway = [s for leg in route["legs"] for s in leg["steps"] if s["mode"] == "SUBWAY"]
-    return subway[1:]
-
-
-async def test_transfer_trains_with_depart_at(client, kakao_route, respx_mock):
-    kakao_route("kakao_route_transfer.json")
-    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
-        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
-    )
-    depart = datetime(2026, 11, 13, 8, 0, tzinfo=KST)
-    r = await client.get(ROUTES, params={**GYEONGBOKGUNG, "departAt": depart.isoformat()})
-    route = r.json()["routes"][0]
-    step = transfer_steps(route)[0]  # 을지로3가 3호선
-    trains = step["transferTrains"]
-    assert len(trains) == 2
-    ready = datetime.fromisoformat(step["boardAfter"])
-    # 첫 열차 출발 + 2호선 탑승 810초. 환승 걷기는 더하지 않는다(사용자 요청).
-    assert ready == datetime.fromisoformat(route["departAt"]) + timedelta(seconds=810)
-    first, second = (datetime.fromisoformat(t["departsAt"]) for t in trains)
-    assert ready <= first < second
-    assert {t["source"] for t in trains} == {"timetable"}
-
-
-async def test_transfer_trains_now_fall_back_to_timetable(client, kakao_route, respx_mock):
-    kakao_route("kakao_route_transfer.json")
-    respx_mock.get(url__startswith=SEOUL_OPENAPI_BASE, name="seoul_timetable").mock(
-        return_value=fixture_response("seoul_timetable_yeongdeungpo_weekday_up.json")
-    )
-    route = (await client.get(ROUTES, params=GYEONGBOKGUNG)).json()["routes"][0]
-    step = transfer_steps(route)[0]
-    assert step["boardAfter"] and 1 <= len(step["transferTrains"]) <= 2
-    assert datetime.fromisoformat(step["transferTrains"][0]["departsAt"]) >= datetime.fromisoformat(
-        step["boardAfter"]
-    )
-
-
-async def test_no_transfer_trains_without_first_train(client, kakao_route, respx_mock):
-    kakao_route("kakao_route_transfer.json")
-    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE, name="seoul_realtime").mock(
-        return_value=httpx.Response(500)
-    )
-    route = (await client.get(ROUTES, params=GYEONGBOKGUNG)).json()["routes"][0]
-    assert all(s.get("transferTrains") is None for s in transfer_steps(route))
+async def test_now_route_survives_realtime_failure(client, trips_loaded, respx_mock):
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(return_value=fixture_response(
+        "seoul_realtime_exception.json"
+    ))  # fmt: skip
+    r = await get(client, **{"from": "마포", "to": "노량진"})
+    assert r.status_code == 200 and r.json()["routes"][0]["firstBoarding"]["nextTrains"] is None

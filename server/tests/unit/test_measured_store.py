@@ -243,3 +243,20 @@ async def test_unchanged_b1_b2_are_not_downloaded_again(store):
     assert (
         routes[B1_NAME].call_count == 0 and routes["trips-20261119T033000.json.gz"].call_count == 1
     )
+
+
+@respx.mock
+async def test_failed_refresh_retries_soon_not_after_6h(store, clock):
+    # 첫 받기가 실패하면 6시간이 아니라 곧 다시 시도한다(최종 리뷰 #3: 경로가 6시간 503).
+    from app.services.measured_store import RETRY_SEC
+
+    route = respx.get(f"{BASE}/{MANIFEST_FILE}").mock(return_value=httpx.Response(500))
+    store.current_trips()
+    await store.refreshing
+    clock.advance(RETRY_SEC - 1)
+    store.current_trips()
+    assert route.call_count == 1
+    clock.advance(2)
+    store.current_trips()
+    await store.refreshing
+    assert route.call_count == 2

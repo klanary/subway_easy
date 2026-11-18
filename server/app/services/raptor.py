@@ -7,7 +7,7 @@
 - 운행일: 05시 전이면 전날 운행일도 본다. 그날 못 닿으면 다음 운행일 첫차부터 한 번 더.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
 
 from app.core.clock import KST
@@ -16,6 +16,7 @@ from app.services.trips import DayTrips, TripsData
 
 MAX_ROUNDS = 5
 MAX_RESULTS = 5
+CONTINUE_SEC = 300  # 같은 노선·방향으로 이만큼 안에 이어지면 열차 번호만 바뀐 것(2호선 성수)
 _INF = 10**9
 
 
@@ -189,6 +190,33 @@ def _to_journey(day: DayTrips, service_day: date, legs: list[tuple[int, int, int
     return Journey(rides)
 
 
+def _merge_continuations(journey: Journey) -> Journey:
+    """같은 노선·방향으로 내린 역에서 곧바로 이어 타는 것은 한 번 탄 것으로 합친다.
+
+    2호선 내선은 성수에서 열차 번호가 바뀌어 운행표에서는 두 운행이지만, 같은 차량이 계속 달린다.
+    """
+    rides: list[Ride] = []
+    for ride in journey.rides:
+        prev = rides[-1] if rides else None
+        if (
+            prev is not None
+            and prev.line == ride.line
+            and prev.direction == ride.direction
+            and prev.alight_station == ride.board_station
+            and 0 <= (ride.departs_at - prev.arrives_at).total_seconds() <= CONTINUE_SEC
+        ):
+            rides[-1] = replace(
+                prev,
+                alight_station=ride.alight_station,
+                arrives_at=ride.arrives_at,
+                stops=prev.stops + ride.stops[1:],
+                estimated=prev.estimated or ride.estimated,
+            )
+        else:
+            rides.append(ride)
+    return Journey(rides)
+
+
 def _run_day(
     trips: TripsData, service_day: date, origin: str, dest: str, t0: int, max_rounds: int
 ) -> list[Journey]:
@@ -196,7 +224,10 @@ def _run_day(
     o, d = day.stop_index(origin), day.stop_index(dest)
     if o is None or d is None:
         return []
-    return [_to_journey(day, service_day, legs) for _, legs in _raptor(day, o, d, t0, max_rounds)]
+    return [
+        _merge_continuations(_to_journey(day, service_day, legs))
+        for _, legs in _raptor(day, o, d, t0, max_rounds)
+    ]
 
 
 def pareto(journeys: list[Journey]) -> list[Journey]:

@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.session
 
+import io.github.klanary.jigeumchulbal.data.remote.CandidateDto
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalGroupDto
 import io.github.klanary.jigeumchulbal.data.remote.LegDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
@@ -117,5 +118,14 @@ class SessionMathTest {
         val stripped = twoLines.withoutPaths()
         assertEquals(emptyList<List<Double>>(), stripped.legs.flatMap { it.steps }.flatMap { it.path })
         assertEquals(twoLines.legs.flatMap { it.steps }.map { it.durationSec }, stripped.legs.flatMap { it.steps }.map { it.durationSec })
+    }
+
+    @Test fun withoutPathsDropsCandidates() {
+        // 세션·루틴 저장본에는 후보 열차 목록을 남기지 않는다(DataStore 크기).
+        val candidate = CandidateDto(trainNo = "5301", departsAt = "2026-11-18T08:05:00+09:00")
+        val withCandidates = twoLines.copy(
+            legs = twoLines.legs.map { leg -> leg.copy(steps = leg.steps.map { it.copy(candidates = listOf(candidate)) }) },
+        )
+        assertTrue(withCandidates.withoutPaths().legs.flatMap { it.steps }.all { it.candidates == null })
     }
 }

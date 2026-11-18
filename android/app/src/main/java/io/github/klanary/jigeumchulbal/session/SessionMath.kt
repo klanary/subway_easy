@@ -126,6 +126,6 @@ fun stopLabel(point: AlightPoint): String = when {
 fun pickGroup(groups: List<ArrivalGroupDto>, target: WaitTarget): ArrivalGroupDto? =
     groups.firstOrNull { it.line == target.line && (target.direction == null || it.direction == target.direction) }
 
-/** 경로 좌표를 뺀 사본. 세션 저장 크기를 줄인다(알림 계산에는 좌표가 필요 없다). */
+/** 경로 좌표와 후보 열차 목록을 뺀 사본. 세션·루틴 저장 크기를 줄인다(알림 계산에는 둘 다 필요 없다). */
 fun RouteDto.withoutPaths(): RouteDto =
-    copy(legs = legs.map { leg -> leg.copy(steps = leg.steps.map { it.copy(path = emptyList()) }) })
+    copy(legs = legs.map { leg -> leg.copy(steps = leg.steps.map { it.copy(path = emptyList(), candidates = null) }) })

@@ -25,6 +25,21 @@ class DtoDecodingTest {
         assertEquals(2, group.trains.size)
     }
 
+    @Test fun candidatesDecode() {
+        val step = json.decodeFromString<StepDto>(
+            """{"mode":"SUBWAY","durationSec":240,"distanceM":1000,"candidates":[
+              {"trainNo":"5301","departsAt":"2026-11-18T08:05:00+09:00","arrivesAt":"2026-11-18T08:09:00+09:00",
+               "isExpress":false,"destination":"마천","source":"official","estimated":false},
+              {"trainNo":null,"departsAt":"2026-11-18T08:15:00+09:00","arrivesAt":"2026-11-18T08:19:00+09:00",
+               "isExpress":true,"destination":null,"source":"measured","estimated":true}]}""",
+        )
+        val candidates = step.candidates!!
+        assertEquals(2, candidates.size)
+        assertEquals("2026-11-18T08:09:00+09:00", candidates[0].arrivesAt)
+        assertTrue(candidates[1].isExpress && candidates[1].estimated)
+        assertNull(candidates[1].trainNo)
+    }
+
     @Test fun nullsAndUnknownFieldsDecode() {
         val dto = json.decodeFromString<NearestDto>("""{"station":null,"extra":1}""")
         assertNull(dto.station)

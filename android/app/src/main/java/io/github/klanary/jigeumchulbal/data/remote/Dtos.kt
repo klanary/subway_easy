@@ -101,6 +101,20 @@ data class StepDto(
     val source: String? = null,
     /** 구간 시간으로 어림한 시각(열차 번호로 못 묶는 노선). */
     val estimated: Boolean = false,
+    /** 이 구간에서 고를 수 있는 열차(출발 순, 열차 고르기 설계 2026-11-18). 옛 서버·저장본은 null. */
+    val candidates: List<CandidateDto>? = null,
+)
+
+/** 구간에서 탈 수 있는 열차 하나: 탈 역 출발, 내릴 역 도착(ISO). */
+@Serializable
+data class CandidateDto(
+    val trainNo: String? = null,
+    val departsAt: String,
+    val arrivesAt: String? = null,
+    val isExpress: Boolean = false,
+    val destination: String? = null,
+    val source: String? = null,
+    val estimated: Boolean = false,
 )
 
 /** 환승역에서 타고 온 열차가 도착한 뒤 출발하는 열차. 첫째와 그다음 열차. */

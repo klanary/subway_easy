@@ -26,6 +26,22 @@ fun departurePlan(trains: List<TrainDto>, receivedAt: Long, travelSec: Int, marg
     )
 }
 
+/**
+ * 고른 열차의 출발 타이밍(열차 고르기 설계 §5.4). 실시간에 번호(앞의 0은 무시)가 같은 열차가 있으면 그 남은 시간으로,
+ * 없으면(아직 실시간 범위 밖, 실측 노선) 고른 출발 시각으로 정한다.
+ */
+fun chosenPlan(trains: List<TrainDto>, receivedAt: Long, chosen: ChosenTrain, travelSec: Int, marginSec: Int): TrainPlan {
+    val key = chosen.trainNo?.trimStart('0')
+    val live = trains.firstOrNull { key != null && it.trainNo?.trimStart('0') == key && it.remainingSec != null }
+    val arrival = live?.let { receivedAt + it.remainingSec!! * SECOND_MS } ?: chosen.departsAt
+    return TrainPlan(
+        alertAt = arrival - (travelSec + marginSec) * SECOND_MS,
+        trainArrivalAt = arrival,
+        destination = live?.destination,
+        trainNo = chosen.trainNo,
+    )
+}
+
 /** 도착 N분 전(역 상세에서 시작): 남은 시간을 아는 첫 열차가 [leadSec] 전이 되는 시각. 이미 지났으면 지금. */
 fun minutesBeforePlan(trains: List<TrainDto>, receivedAt: Long, leadSec: Int, now: Long): TrainPlan? {
     val (dto, sec) = trains.withRemaining().firstOrNull() ?: return null

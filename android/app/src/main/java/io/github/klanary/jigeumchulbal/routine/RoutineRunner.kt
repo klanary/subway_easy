@@ -47,6 +47,7 @@ class RoutineRunner(
             travelSec = routine.walkMin * 60,
             settings = settings.first(),
             alightAlerts = routine.alightAlerts,
+            // chosen은 넘기지 않는다: 저장한 열차 시각은 만든 날의 것이라, 그날 실시간 첫 열차로 맞춘다.
         )
         if (controller.start(event, inAppOnly = false) == StartResult.ALREADY_RUNNING) {
             notifier.alert(AlertContent.RoutineSkipped)

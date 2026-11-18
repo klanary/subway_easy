@@ -37,6 +37,8 @@ sealed interface SessionState {
          * 이 칸이 없던 예전 저장분은 false로 읽는다.
          */
         val alightAlerts: Boolean = false,
+        /** 경로 상세에서 고른 첫 열차. 있으면 그 열차에만 맞추고, 놓치면 알린 뒤 끝낸다. 예전 저장분은 null. */
+        val chosen: ChosenTrain? = null,
     ) : SessionState
 
     /**
@@ -77,6 +79,8 @@ sealed interface SessionEvent {
         val settings: AppSettings,
         /** [탑승했어요] 뒤 환승·하차 진동 알림을 이어 갈지. 사용자가 켰을 때만 true. */
         val alightAlerts: Boolean = false,
+        /** 경로 상세에서 고른 첫 열차(열차 고르기 설계 §5.4). */
+        val chosen: ChosenTrain? = null,
     ) : SessionEvent
 
     data class ArrivalsUpdated(val trains: List<TrainDto>, val receivedAt: Long) : SessionEvent
@@ -118,9 +122,12 @@ sealed interface AlertContent {
 
     /** 백그라운드에서 세션 서비스를 켜지 못했다: 눌러서 앱을 열면 이어 간다(재설계 스펙 13). */
     data object TapToStart : AlertContent
+
+    /** "고른 열차를 놓쳤어요"(열차 고르기 설계 §5.4): 다음 열차로 넘어가지 않고 세션을 끝낸다. */
+    data object ChosenMissed : AlertContent
 }
 
-enum class EndReason { CANCELLED, TIMEOUT, ARRIVED, BOARDED_AT_STATION, INTERRUPTED }
+enum class EndReason { CANCELLED, TIMEOUT, ARRIVED, BOARDED_AT_STATION, INTERRUPTED, MISSED_CHOSEN }
 
 /** 상태 머신이 돌려주는 "할 일". SessionController가 안드로이드 구성 요소로 실행한다. */
 sealed interface SessionEffect {
@@ -174,6 +181,7 @@ class CommuteSession(
                 startedAt = now,
                 deadlineAt = now + event.settings.maxWaitMin * MINUTE_MS,
                 alightAlerts = event.alightAlerts,
+                chosen = event.chosen,
             )
             listOf(SessionEffect.StartSessionService, SessionEffect.UpdateOngoing)
         }
@@ -230,6 +238,8 @@ class CommuteSession(
             updatedAt = event.receivedAt,
         )
         val locked = current.lockedUntil
+        val chosen = current.chosen
+        if (chosen != null && current.mode == WaitMode.DEPARTURE_TIMING) return onChosenArrivals(current, refreshed, chosen, event, now)
         if (locked != null && now < locked) {
             // 출발 알림대로 역으로 걸어가는 중: 다음 열차 기준으로 바꾸지 않는다(스펙 8.2).
             state = refreshed
@@ -250,6 +260,30 @@ class CommuteSession(
             }
             add(SessionEffect.UpdateOngoing)
         }
+    }
+
+    /**
+     * 고른 열차로 기다릴 때(열차 고르기 설계 §5.4): 실시간에 그 번호가 있으면 그 시각, 없으면 고른 출발 시각.
+     * 그 열차가 지나갔으면(도착 + 60초) 다음 열차로 넘어가지 않고 알린 뒤 끝낸다(고른 계획이 깨졌다).
+     */
+    private fun onChosenArrivals(
+        current: SessionState.Waiting,
+        refreshed: SessionState.Waiting,
+        chosen: ChosenTrain,
+        event: SessionEvent.ArrivalsUpdated,
+        now: Long,
+    ): List<SessionEffect> {
+        val plan = chosenPlan(event.trains, event.receivedAt, chosen, current.travelSec, current.marginSec)
+        if (now > plan.trainArrivalAt + MISS_GRACE_MS) {
+            return listOf(SessionEffect.Alert(AlertContent.ChosenMissed)) + end(EndReason.MISSED_CHOSEN, stopService = true)
+        }
+        val locked = current.lockedUntil
+        if (locked != null && now < locked) {
+            state = refreshed // 출발 알림대로 역으로 가는 중: 예약을 바꾸지 않는다
+            return listOf(SessionEffect.UpdateOngoing)
+        }
+        state = refreshed.copy(plan = plan, lockedUntil = null)
+        return listOf(SessionEffect.Schedule(AlarmId.PreBoarding, plan.alertAt), SessionEffect.UpdateOngoing)
     }
 
     private fun onRiding(current: SessionState.Riding, event: SessionEvent): List<SessionEffect> = when (event) {

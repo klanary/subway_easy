@@ -6,6 +6,7 @@ import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
+import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
@@ -19,6 +20,16 @@ import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.toUiState
 import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
+import io.github.klanary.jigeumchulbal.ui.routedetail.ExpressFilter
+import io.github.klanary.jigeumchulbal.ui.routedetail.PickedSegment
+import io.github.klanary.jigeumchulbal.ui.routedetail.SegmentChoice
+import io.github.klanary.jigeumchulbal.ui.routedetail.move
+import io.github.klanary.jigeumchulbal.ui.routedetail.pickTrains
+import io.github.klanary.jigeumchulbal.ui.routedetail.setFilter
+import io.github.klanary.jigeumchulbal.ui.routedetail.subwaySteps
+import io.github.klanary.jigeumchulbal.ui.routedetail.unpin
+import io.github.klanary.jigeumchulbal.ui.routedetail.withPicks
+import java.time.OffsetDateTime
 import java.time.Instant
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +52,10 @@ data class RouteFlowState(
     val receivedAt: Long? = null,
     val selectedRouteId: String? = null,
     val isFavorite: Boolean = false,
+    /** 경로 상세에서 구간마다 고른 열차(열차 고르기 설계 2026-11-18). 경로를 고르거나 다시 찾으면 비운다. */
+    val choices: List<SegmentChoice> = emptyList(),
+    /** "더 늦은 열차 불러오기" 중. */
+    val loadingMore: Boolean = false,
 ) {
     /** 출발·도착이 있고, 출발·경유·도착이 모두 다른 역이어야 한다(서버는 같으면 400). */
     val canSearch: Boolean
@@ -51,6 +66,14 @@ data class RouteFlowState(
 
     val selectedRoute: RouteDto?
         get() = (results as? UiState.Content)?.data?.routes?.find { it.id == selectedRouteId }
+
+    /** 구간마다 계산한 열차(고정·자동 맞춤·경고). */
+    val picks: List<PickedSegment>
+        get() = selectedRoute?.let { pickTrains(it, choices) }.orEmpty()
+
+    /** 고른 열차로 바꾼 경로. 제목·알림·루틴이 쓴다. */
+    val pickedRoute: RouteDto?
+        get() = selectedRoute?.withPicks(picks)
 }
 
 /** 중첩 그래프 RouteFlowGraph에 하나만 두고 세 화면이 공유한다. */
@@ -137,7 +160,7 @@ class RouteFlowViewModel(
         val origin = current.origin ?: return
         val dest = current.dest ?: return
         searchJob?.cancel()
-        _state.update { it.copy(results = UiState.Loading, selectedRouteId = null) }
+        _state.update { it.copy(results = UiState.Loading, selectedRouteId = null, choices = emptyList()) }
         searchJob = viewModelScope.launch {
             val result = routes.routes(origin, dest, current.via, current.departAt)
             val at = clock()
@@ -166,7 +189,46 @@ class RouteFlowViewModel(
     }
 
     fun select(routeId: String) {
-        _state.update { it.copy(selectedRouteId = routeId) }
+        _state.update { it.copy(selectedRouteId = routeId, choices = emptyList(), loadingMore = false) }
+    }
+
+    /** 구간 [segment]의 열차를 [delta](−1 이전, +1 다음)만큼 옮기고 고정한다. */
+    fun moveTrain(segment: Int, delta: Int) = updateChoices { route, choices -> move(route, choices, segment, delta) }
+
+    fun setExpressFilter(segment: Int, filter: ExpressFilter) = updateChoices { _, choices -> setFilter(choices, segment, filter) }
+
+    fun unpin(segment: Int) = updateChoices { _, choices -> unpin(choices, segment) }
+
+    private fun updateChoices(change: (RouteDto, List<SegmentChoice>) -> List<SegmentChoice>) {
+        _state.update { s -> s.selectedRoute?.let { s.copy(choices = change(it, s.choices)) } ?: s }
+    }
+
+    /**
+     * 구간 [segment]의 후보 끝을 넘을 때: 그 구간 마지막 후보 출발 + 1분으로 경로를 다시 받아, 지하철 구간 열
+     * (노선·탄 역·내릴 역)이 같은 경로의 후보를 구간마다 합친다. 검색 조건(출발 시각)과 결과 목록 순서는 그대로 둔다.
+     */
+    fun loadLater(segment: Int) {
+        val current = _state.value
+        val route = current.selectedRoute ?: return
+        val origin = current.origin ?: return
+        val dest = current.dest ?: return
+        if (current.loadingMore) return
+        val last = subwaySteps(route).getOrNull(segment)?.candidates?.lastOrNull()?.departsAt
+            ?: subwaySteps(route).getOrNull(segment)?.departsAt ?: return
+        val at = OffsetDateTime.parse(last).toInstant().plusSeconds(60)
+        _state.update { it.copy(loadingMore = true) }
+        viewModelScope.launch {
+            val later = (routes.routes(origin, dest, current.via, at) as? ApiResult.Ok)?.value?.routes
+                ?.firstOrNull { it.segmentKey() == route.segmentKey() }
+            _state.update { s ->
+                val content = s.results as? UiState.Content
+                if (later == null || content == null) return@update s.copy(loadingMore = false)
+                val merged = content.data.copy(
+                    routes = content.data.routes.map { if (it.id == route.id) it.mergeCandidates(later) else it },
+                )
+                s.copy(results = content.copy(data = merged), loadingMore = false)
+            }
+        }
     }
 
     /** 도착 칸이 비어 있으면 처음 한 번만 true. 검색 화면에서 그냥 돌아와도 다시 열지 않는다. */
@@ -200,5 +262,28 @@ class RouteFlowViewModel(
 
     /** 출발·도착이 바뀌면 이전 검색 결과는 맞지 않으므로 지운다. */
     private fun RouteFlowState.withoutResults() =
-        copy(results = null, receivedAt = null, selectedRouteId = null, isFavorite = false)
+        copy(results = null, receivedAt = null, selectedRouteId = null, isFavorite = false, choices = emptyList())
+}
+
+/** 같은 경로인지 비교하는 열: 지하철 구간마다 노선·탄 역·내릴 역. */
+private fun RouteDto.segmentKey() = subwaySteps(this).map { Triple(it.lineName, it.boardStationId, it.alightStationId) }
+
+/** 구간마다 [other]의 후보를 더한다(번호+출발로 중복 제거, 출발 순). */
+private fun RouteDto.mergeCandidates(other: RouteDto): RouteDto {
+    val extra = subwaySteps(other).map { it.candidates.orEmpty() }
+    var k = 0
+    return copy(
+        legs = legs.map { leg ->
+            leg.copy(
+                steps = leg.steps.map { step ->
+                    if (step.mode != StepMode.SUBWAY) return@map step
+                    val more = extra.getOrNull(k++).orEmpty()
+                    val all = (step.candidates.orEmpty() + more)
+                        .distinctBy { it.trainNo to it.departsAt }
+                        .sortedBy { OffsetDateTime.parse(it.departsAt).toInstant() }
+                    step.copy(candidates = all)
+                },
+            )
+        },
+    )
 }

@@ -82,7 +82,7 @@ def build_services(
         clock,
         timetable,
     )
-    routes = RouteService(stations, measured, clock, arrivals)
+    routes = RouteService(stations, measured, clock)
     return AppServices(
         settings=settings,
         clock=clock,

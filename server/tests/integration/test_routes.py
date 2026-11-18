@@ -124,9 +124,16 @@ async def test_bad_depart_at(client, trips_loaded):
     assert r.status_code == 400
 
 
-async def test_now_route_survives_realtime_failure(client, trips_loaded, respx_mock):
-    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(return_value=fixture_response(
-        "seoul_realtime_exception.json"
-    ))  # fmt: skip
-    r = await get(client, **{"from": "마포", "to": "노량진"})
-    assert r.status_code == 200 and r.json()["routes"][0]["firstBoarding"]["nextTrains"] is None
+async def test_next_trains_from_timetable_with_depart_at(client, trips_loaded):
+    # 루틴 미리 보기가 이 목록("HH:MM 출발")을 쓴다(최종 리뷰 #2).
+    params = {"from": "마포", "to": "노량진", "departAt": "2026-11-03T08:00:00+09:00"}
+    boarding = (await get(client, **params)).json()["routes"][0]["firstBoarding"]
+    assert [t["message"] for t in boarding["nextTrains"]] == ["08:05 출발", "08:15 출발"]
+    assert boarding["nextTrains"][0]["trainNo"] == "5301"
+
+
+async def test_now_route_has_next_trains_without_external_calls(client, trips_loaded, respx_mock):
+    body = (await get(client, **{"from": "마포", "to": "노량진"})).json()
+    trains = body["routes"][0]["firstBoarding"]["nextTrains"]
+    assert [t["remainingSec"] for t in trains] == [300, 900]  # 시계 08:00 기준
+    assert not respx_mock.calls

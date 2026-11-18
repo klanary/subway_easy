@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routedetail
 
+import io.github.klanary.jigeumchulbal.data.remote.CandidateDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
@@ -16,6 +17,17 @@ fun trainLine(step: StepDto): String? {
         times + if (step.estimated) " (어림)" else "",
         step.trainNo?.let { "$it 열차" },
         "급행".takeIf { step.isExpress },
+    ).joinToString(" · ")
+}
+
+/** 열차 고르기 줄(열차 고르기 설계 §5.3): "08:05 출발 → 08:09 도착 · 5301 · 급행". 버튼 사이라 짧게 쓴다. */
+fun pickLine(train: CandidateDto): String {
+    val arrives = train.arrivesAt?.let { " → ${it.substring(11, 16)} 도착" }.orEmpty()
+    val times = "${train.departsAt.substring(11, 16)} 출발$arrives"
+    return listOfNotNull(
+        times + if (train.estimated) " (어림)" else "",
+        train.trainNo,
+        "급행".takeIf { train.isExpress },
     ).joinToString(" · ")
 }
 

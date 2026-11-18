@@ -91,6 +91,16 @@ data class StepDto(
     /** 환승해서 타는 지하철 단계만: 이 역에 걸어 도착하는 예상 시각(ISO)과 그 뒤 열차 2대. */
     val boardAfter: String? = null,
     val transferTrains: List<TransferTrainDto>? = null,
+    /** 운행표로 고른 열차(경로 설계 2026-11-18): 탈 역 출발·내릴 역 도착(ISO), 번호, 급행, 행선지. */
+    val departsAt: String? = null,
+    val arrivesAt: String? = null,
+    val trainNo: String? = null,
+    val isExpress: Boolean = false,
+    val destination: String? = null,
+    /** "official"(서울시 시간표) 또는 "measured"(실측). */
+    val source: String? = null,
+    /** 구간 시간으로 어림한 시각(열차 번호로 못 묶는 노선). */
+    val estimated: Boolean = false,
 )
 
 /** 환승역에서 타고 온 열차가 도착한 뒤 출발하는 열차. 첫째와 그다음 열차. */

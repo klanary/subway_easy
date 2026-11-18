@@ -3,7 +3,6 @@ package io.github.klanary.jigeumchulbal.ui.routes
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.ui.common.color
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
-import io.github.klanary.jigeumchulbal.ui.common.formatFare
 import io.github.klanary.jigeumchulbal.ui.common.formatRemaining
 
 /** 구간 막대의 한 칸. [weight]는 전체 단계 소요 시간에서 이 단계가 차지하는 비율이다. */
@@ -13,7 +12,6 @@ data class RouteCardUi(
     val id: String,
     val totalText: String,
     val transfersText: String,
-    val fareText: String,
     val segments: List<Segment>,
     /** "5호선 마포 승차 · 다음 열차 3분", 출발 시각을 골랐으면 "08:14 출발 · 도착 약 08:46"(재설계 스펙 4.4). */
     val boardingText: String?,
@@ -33,7 +31,6 @@ fun RouteDto.toCardUi(receivedAt: Long, now: Long): RouteCardUi {
         id = id,
         totalText = formatDuration(totalSec),
         transfersText = if (transfers == 0) "환승 없음" else "환승 ${transfers}회",
-        fareText = formatFare(fare),
         segments = steps.map { step ->
             Segment(step.durationSec.toFloat() / stepsTotal, step.color(), step.lineName ?: step.routeName)
         },

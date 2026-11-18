@@ -110,7 +110,7 @@ private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(ui.totalText, style = MaterialTheme.typography.headlineSmall)
-            Text("${ui.transfersText} · ${ui.fareText}", style = MaterialTheme.typography.bodyMedium)
+            Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium)
             SegmentBar(ui.segments)
             ui.boardingText?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)

@@ -4,6 +4,21 @@ import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
 
+/**
+ * 운행표로 고른 열차 줄(경로 설계 2026-11-18): "08:03 출발 → 08:17 도착 · 5101 열차 · 급행".
+ * 번호로 못 묶는 노선은 구간 시간으로 어림한 시각이라 "(어림)"을 붙인다. 시각이 없으면 null.
+ */
+fun trainLine(step: StepDto): String? {
+    val departs = step.departsAt ?: return null
+    val arrives = step.arrivesAt ?: return null
+    val times = "${departs.substring(11, 16)} 출발 → ${arrives.substring(11, 16)} 도착"
+    return listOfNotNull(
+        times + if (step.estimated) " (어림)" else "",
+        step.trainNo?.let { "$it 열차" },
+        "급행".takeIf { step.isExpress },
+    ).joinToString(" · ")
+}
+
 /** 단계 안내의 제목. 정거장 수는 탄 역을 뺀 정차 역 수다. */
 fun stepTitle(step: StepDto): String {
     val stops = step.stops.orEmpty()

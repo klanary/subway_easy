@@ -30,8 +30,7 @@ fun formatRemaining(sec: Int?): String = when {
     else -> "${sec / 60}분"
 }
 
-fun formatFare(fare: Int?): String =
-    if (fare == null) "요금 정보 없음" else String.format(Locale.KOREA, "%,d원", fare)
+
 
 fun formatUpdatedAgo(sec: Long): String =
     if (sec < 60) "${sec}초 전 갱신" else "${sec / 60}분 전 갱신"

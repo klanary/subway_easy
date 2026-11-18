@@ -56,7 +56,6 @@ import kotlinx.serialization.json.Json
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.color
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
-import io.github.klanary.jigeumchulbal.ui.common.formatFare
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.session.rememberStartSession
 
@@ -77,7 +76,7 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { route?.let { Text("${formatDuration(it.totalSec)} · ${formatFare(it.fare)}") } },
+                title = { route?.let { Text(formatDuration(it.totalSec)) } },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
@@ -175,6 +174,10 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
                 supportingContent = {
                     Column {
                         step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
+                        // 운행표로 고른 열차: 탈 역 출발 → 내릴 역 도착 · 열차 번호(경로 설계 2026-11-18)
+                        trainLine(step)?.let {
+                            Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                        }
                         // 환승역에서 타고 온 열차가 도착한 뒤 출발하는 열차 두 대
                         transferLine(step)?.let {
                             Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)

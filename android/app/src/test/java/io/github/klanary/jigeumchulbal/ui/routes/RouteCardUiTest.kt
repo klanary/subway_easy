@@ -12,13 +12,13 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RouteCardUiTest {
-    private val route = specRoute() // 스펙 6.2 예시: 1980초, 환승 1, 1550원, 도보 420 + 2호선 600
+    private val route = specRoute() // 스펙 6.2 예시: 1980초, 환승 1(요금은 2026-11-18부터 보이지 않음), 도보 420 + 2호선 600
 
     @Test fun cardTexts() {
         val ui = route.toCardUi(receivedAt = 0, now = 0)
         assertEquals(
-            listOf("33분", "환승 1회", "1,550원", "2호선 홍대입구 승차 · 다음 열차 3분"),
-            listOf(ui.totalText, ui.transfersText, ui.fareText, ui.boardingText),
+            listOf("33분", "환승 1회", "2호선 홍대입구 승차 · 다음 열차 3분"),
+            listOf(ui.totalText, ui.transfersText, ui.boardingText),
         )
     }
 

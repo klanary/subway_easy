@@ -50,4 +50,4 @@ subway_easy/
 
 - 서울 열린데이터광장: 서울시 지하철 실시간 도착정보, 서울시 역사마스터 정보, 서울시 지하철역 정보, 서울시 지하철역 시간표
 - VM 위치 수집(서울시 실시간 열차 위치정보)으로 만든 실측 시간표·구간 시간
-- 노선도: 위키미디어 공용 [Seoul_subway_linemap_ko.svg](https://commons.wikimedia.org/wiki/File:Seoul_subway_linemap_ko.svg) (퍼블릭 도메인, IRTC1015, 2025-06-29 판). `server/scripts/build_linemap.py`가 역 위치표를 만든다.
+- 노선도: 직접 그린 "수도권 철도 노선도 아틀라스 에디션"(`server/data/raw/linemap_atlas.svg`, 2026-11-19). `server/scripts/build_linemap.py`가 역 위치표를 만든다.

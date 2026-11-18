@@ -29,6 +29,7 @@ B1_PREFIX = "measured_timetable-"
 B2_PREFIX = "segment_times-"
 TRIPS_PREFIX = "trips-"  # 열차 운행표(경로 설계 2026-11-18). 매일 바뀐다
 REFRESH_SEC = 21_600
+RETRY_SEC = 120  # 받기가 실패하면 이만큼 뒤에 다시(경로가 운행표에 기대므로 6시간을 기다리지 않음)
 STALE_DAYS = 14
 TIMEOUT_SEC = 30.0
 TRIPS_WARN_DAYS = 3
@@ -86,6 +87,7 @@ class MeasuredStore:
             built_at = manifest["built_at"]
         except Exception as e:
             logger.warning("실측 결과물 받기 실패: %s", type(e).__name__)
+            self._retry_soon()
             return False
         if built_at == self._built_at:
             return True
@@ -114,7 +116,13 @@ class MeasuredStore:
             ok = False
         if ok:
             self._built_at = built_at
+        else:
+            self._retry_soon()
         return ok
+
+    def _retry_soon(self) -> None:
+        """다음 확인을 6시간 뒤가 아니라 RETRY_SEC 뒤로 당긴다."""
+        self._checked_at = self._clock() - REFRESH_SEC + RETRY_SEC
 
     def replace(self, data: MeasuredData) -> None:
         """실측 결과물을 바꾼다(받기가 쓰고, 테스트가 픽스처를 넣을 때도 쓴다)."""

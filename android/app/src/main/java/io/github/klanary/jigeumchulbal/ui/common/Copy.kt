@@ -45,6 +45,16 @@ object Copy {
 
     // 경로 결과
     const val NO_ROUTES = "경로가 없어요"
+    // 구간별 열차 고르기(열차 고르기 설계 2026-11-18)
+    const val PREV_TRAIN = "◀ 이전"
+    const val NEXT_TRAIN = "다음 ▶"
+    const val PINNED = "📌 고정됨"
+    const val UNPIN = "고정 풀기"
+    const val LOAD_LATER = "더 늦은 열차 불러오기"
+    const val NO_LATER_TRAIN = "이 시각 뒤 열차 정보가 없어요"
+    const val FILTER_ALL = "전체"
+    const val FILTER_EXPRESS = "급행"
+    const val FILTER_LOCAL = "일반"
     const val ROUTE_GONE = "경로 정보가 없어요. 경로를 다시 검색해 주세요."
 
     // 역 상세

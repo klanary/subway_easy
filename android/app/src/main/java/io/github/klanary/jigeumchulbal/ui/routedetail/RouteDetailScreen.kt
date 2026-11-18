@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.data.local.AppSettings
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
+import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.session.SessionEvent
 import io.github.klanary.jigeumchulbal.session.hasTransit
 import io.github.klanary.jigeumchulbal.session.waitStartFromRoute
@@ -69,7 +71,8 @@ import io.github.klanary.jigeumchulbal.ui.session.rememberStartSession
 fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navController: NavController) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(routeId) { viewModel.select(routeId) }
-    val route = state.selectedRoute
+    // 구간마다 고른 열차로 바꾼 경로(열차 고르기 설계 2026-11-18). 제목·알림·루틴이 이것을 쓴다.
+    val route = state.pickedRoute
     val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest) })
     val container = (LocalContext.current.applicationContext as App).container
 
@@ -112,7 +115,12 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
                 }
                 HorizontalDivider()
             }
-            stepItems(route, viaName = state.via?.name)
+            stepItems(route, viaName = state.via?.name) { k ->
+                state.picks.getOrNull(k)?.let {
+                    val filter = state.choices.getOrNull(k)?.filter ?: ExpressFilter.ALL
+                    TrainPickRow(it, k, filter, state.loadingMore, viewModel)
+                }
+            }
         }
     }
 }
@@ -155,7 +163,8 @@ private fun SessionButtons(route: RouteDto, startSession: ((AppSettings) -> Sess
     }
 }
 
-private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
+private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: @Composable (Int) -> Unit) {
+    var subway = 0
     route.legs.forEachIndexed { legIndex, leg ->
         // 경유지가 있으면 두 구간 사이에 구분선을 둔다.
         if (legIndex > 0) {
@@ -165,7 +174,9 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
                 HorizontalDivider()
             }
         }
-        itemsIndexed(leg.steps) { _, step ->
+        // 지하철 단계의 구간 번호(열차 고르기 상태의 위치)
+        val segments = leg.steps.map { if (it.mode == StepMode.SUBWAY) subway++ else -1 }
+        itemsIndexed(leg.steps) { i, step ->
             ListItem(
                 leadingContent = {
                     Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
@@ -174,9 +185,13 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
                 supportingContent = {
                     Column {
                         step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
-                        // 운행표로 고른 열차: 탈 역 출발 → 내릴 역 도착 · 열차 번호(경로 설계 2026-11-18)
-                        trainLine(step)?.let {
-                            Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                        // 지하철 구간은 열차 고르기 줄(이전/다음·급행·고정·경고), 그 밖은 운행표 열차 줄
+                        if (segments[i] >= 0) {
+                            pickRow(segments[i])
+                        } else {
+                            trainLine(step)?.let {
+                                Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                         // 환승역에서 타고 온 열차가 도착한 뒤 출발하는 열차 두 대
                         transferLine(step)?.let {
@@ -185,6 +200,50 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?) {
                     }
                 },
             )
+        }
+    }
+}
+
+/**
+ * 구간 하나의 열차 고르기(열차 고르기 설계 §5.3):
+ * [◀ 이전] 08:05 출발 → 08:09 도착 · 5301 [다음 ▶], 급행과 일반이 함께 다니면 전체/급행/일반,
+ * 고정했으면 📌 고정됨 [고정 풀기], 어긋나면 ⚠ 경고, 맞는 열차가 없으면 더 늦은 열차 불러오기.
+ */
+@Composable
+private fun TrainPickRow(pick: PickedSegment, k: Int, current: ExpressFilter, loadingMore: Boolean, viewModel: RouteFlowViewModel) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(enabled = pick.canPrev, onClick = { viewModel.moveTrain(k, -1) }) { Text(Copy.PREV_TRAIN) }
+            Text(
+                pick.train?.let(::pickLine) ?: Copy.NO_LATER_TRAIN,
+                Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(
+                enabled = pick.canNext || (pick.needsMore && !loadingMore),
+                onClick = { if (pick.canNext) viewModel.moveTrain(k, 1) else viewModel.loadLater(k) },
+            ) { Text(Copy.NEXT_TRAIN) }
+        }
+        if (pick.hasExpress && pick.hasLocal) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(ExpressFilter.ALL to Copy.FILTER_ALL, ExpressFilter.EXPRESS to Copy.FILTER_EXPRESS, ExpressFilter.LOCAL to Copy.FILTER_LOCAL)
+                    .forEach { (filter, label) ->
+                        FilterChip(selected = current == filter, onClick = { viewModel.setExpressFilter(k, filter) }, label = { Text(label) })
+                    }
+            }
+        }
+        if (pick.pinned) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(Copy.PINNED, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { viewModel.unpin(k) }) { Text(Copy.UNPIN) }
+            }
+        }
+        pick.warning?.let {
+            Text("⚠ $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        if (pick.train == null && pick.needsMore) {
+            TextButton(enabled = !loadingMore, onClick = { viewModel.loadLater(k) }) { Text(Copy.LOAD_LATER) }
         }
     }
 }

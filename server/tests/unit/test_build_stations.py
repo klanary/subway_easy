@@ -55,6 +55,14 @@ def test_aliases_skip_station_ids():
     assert "이수" not in aliases  # 7호선 '이수' 역의 id와 겹침
 
 
+def test_pyeongtaek_jije_alias():
+    # 서울시 역 정보는 1호선 지제를 "평택지제"로 쓴다. 별칭이 없으면 시간표 역 코드가 이어지지 않아
+    # 운행표에서 지제가 빠진다(경로 리뷰).
+    from scripts.build_stations import EXTRA_ALIASES
+
+    assert EXTRA_ALIASES["평택지제"] == "지제"
+
+
 def test_api_name_exception_applied():
     assert station(built(api_names={"서울": "서울역"}), "서울").api_name == "서울역"
 

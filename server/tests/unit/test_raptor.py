@@ -171,3 +171,16 @@ def test_ride_lists_chosen_and_next_departure():
         ("11", "11-18 08:00"),
         ("13", "11-18 08:10"),
     ]
+
+
+def test_loop_line_number_change_is_not_a_transfer():
+    # 2호선 내선은 성수에서 열차 번호가 바뀐다(같은 차량이 계속 달림). 같은 노선·방향으로
+    # 내린 역에서 5분 안에 이어지면 한 번 탄 것으로 본다(가짜 환승 방지).
+    t1 = trip("2001", [(hm(8, 0), hm(8, 0)), (hm(8, 5), hm(8, 5))])
+    t2 = trip("2101", [(hm(8, 6), hm(8, 6)), (hm(8, 10), hm(8, 10))])
+    first = pattern("2호선", ["A", "B"], [t1], direction="내선")
+    second = pattern("2호선", ["B", "C"], [t2], direction="내선")
+    (journey,) = search(data(first, second), "A", "C", at("2026-11-18T07:55"))
+    assert journey.transfers == 0
+    (ride,) = journey.rides
+    assert ride.stops == ["A", "B", "C"] and hhmm(ride.arrives_at) == "11-18 08:10"

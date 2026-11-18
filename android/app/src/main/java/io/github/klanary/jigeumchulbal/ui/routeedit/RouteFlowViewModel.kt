@@ -74,12 +74,10 @@ data class RouteFlowState(
         get() = (results as? UiState.Content)?.data?.routes?.find { it.id == selectedRouteId }
 
     /** 구간마다 계산한 열차(고정·자동 맞춤·경고). */
-    val picks: List<PickedSegment>
-        get() = selectedRoute?.let { pickTrains(it, choices) }.orEmpty()
+    val picks: List<PickedSegment> by lazy { selectedRoute?.let { pickTrains(it, choices) }.orEmpty() }
 
     /** 고른 열차로 바꾼 경로. 제목·알림·루틴이 쓴다. */
-    val pickedRoute: RouteDto?
-        get() = selectedRoute?.withPicks(picks)
+    val pickedRoute: RouteDto? by lazy { selectedRoute?.withPicks(picks) }
 }
 
 /** 중첩 그래프 RouteFlowGraph에 하나만 두고 세 화면이 공유한다. */
@@ -97,6 +95,7 @@ class RouteFlowViewModel(
     private var autoOpenConsumed = false
     private var openResultsPending = false
     private var searchJob: Job? = null
+    private var loadJob: Job? = null
 
     /**
      * [favoriteRouteId]가 있으면 그 자주 가는 경로의 출발·경유·도착을 넣고 바로 검색한다(홈 카드 1탭).
@@ -166,6 +165,7 @@ class RouteFlowViewModel(
         val origin = current.origin ?: return
         val dest = current.dest ?: return
         searchJob?.cancel()
+        loadJob?.cancel()
         _state.update { it.copy(results = UiState.Loading, selectedRouteId = null, choices = emptyList(), exhausted = emptySet()) }
         searchJob = viewModelScope.launch {
             val result = routes.routes(origin, dest, current.via, current.departAt)
@@ -195,6 +195,7 @@ class RouteFlowViewModel(
     }
 
     fun select(routeId: String) {
+        loadJob?.cancel() // 앞 경로의 "더 늦은 열차" 응답이 새 선택에 섞이지 않게
         _state.update { it.copy(selectedRouteId = routeId, choices = emptyList(), loadingMore = false, exhausted = emptySet()) }
     }
 
@@ -230,7 +231,7 @@ class RouteFlowViewModel(
         }
         val at = OffsetDateTime.parse(last).toInstant().plusSeconds(60).minus(offset)
         _state.update { it.copy(loadingMore = true) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             val result = routes.routes(origin, dest, current.via, at)
             val later = (result as? ApiResult.Ok)?.value?.routes?.firstOrNull { it.segmentKey() == route.segmentKey() }
             _state.update { s ->

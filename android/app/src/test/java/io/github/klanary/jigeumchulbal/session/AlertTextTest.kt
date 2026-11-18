@@ -42,7 +42,7 @@ class AlertTextTest {
 
 
     @Test fun chosenMissed() = assertEquals(
-        "고른 열차를 놓쳤어요" to "경로에서 다른 열차를 골라 다시 시작해 주세요",
+        "고른 열차를 놓쳤어요" to "이미 타셨다면 무시하세요. 아니면 경로에서 다른 열차를 골라 다시 시작해 주세요",
         alertText(AlertContent.ChosenMissed),
     )
 }

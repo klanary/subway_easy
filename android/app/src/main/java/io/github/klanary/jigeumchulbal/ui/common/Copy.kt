@@ -50,6 +50,7 @@ object Copy {
     const val NEXT_TRAIN = "다음 ▶"
     const val PINNED = "📌 고정됨"
     const val UNPIN = "고정 풀기"
+    const val DEPARTED = "이미 떠남"
     const val LOAD_LATER = "더 늦은 열차 불러오기"
     const val NO_LATER_TRAIN = "이 시각 뒤 열차 정보가 없어요"
     const val FILTER_ALL = "전체"

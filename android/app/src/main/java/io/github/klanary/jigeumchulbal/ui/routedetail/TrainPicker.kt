@@ -142,4 +142,4 @@ private fun List<SegmentChoice>.with(route: RouteDto?, segment: Int, change: (Se
 
 private fun instant(iso: String): Instant = OffsetDateTime.parse(iso).toInstant()
 
-private fun hhmm(iso: String?): String = iso?.substring(11, 16) ?: ""
+private fun hhmm(iso: String?): String = iso?.let(::clockTime).orEmpty()

@@ -223,10 +223,12 @@ private fun TrainPickRow(
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(enabled = pick.canPrev, onClick = { viewModel.moveTrain(k, -1) }) { Text(Copy.PREV_TRAIN) }
+            // 이미 떠난 열차는 흐리게(고르면 알림이 바로 "놓쳤어요"가 된다)
+            val departed = pick.train?.let { isDeparted(it, System.currentTimeMillis()) } == true
             Text(
-                pick.train?.let(::pickLine) ?: Copy.NO_LATER_TRAIN,
+                pick.train?.let { pickLine(it) + if (departed) " · ${Copy.DEPARTED}" else "" } ?: Copy.NO_LATER_TRAIN,
                 Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.primary,
+                color = if (departed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium,
             )
             TextButton(

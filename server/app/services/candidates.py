@@ -45,10 +45,15 @@ def candidates(
             j = next((k for k in later if pattern.stops[k] == alight), None)
             if j is None:
                 continue  # 내릴 역에 서지 않는 패턴(급행 등)
-            for t in range(pattern.n_trips):
-                departs = start + timedelta(seconds=pattern.dep(t, i))
-                if not lo <= departs <= hi:
-                    continue
+            # 운행은 정차마다 출발 순이다: 창의 처음을 이분 탐색으로 찾고, 끝을 넘으면 멈춘다.
+            lo_sec = int((lo - start).total_seconds())
+            hi_sec = int((hi - start).total_seconds())
+            first = pattern.earliest_trip(i, lo_sec)
+            for t in range(first if first is not None else pattern.n_trips, pattern.n_trips):
+                dep = pattern.dep(t, i)
+                if dep > hi_sec:
+                    break
+                departs = start + timedelta(seconds=dep)
                 meta = pattern.trip_meta(t)
                 found[(meta.train_no, departs)] = Departure(
                     departs_at=departs,

@@ -5,6 +5,8 @@ import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /** 구간마다 운행표로 고른 열차(경로 설계 2026-11-18): "08:03 출발 → 08:17 도착 · 5101 열차". */
@@ -41,5 +43,17 @@ class TrainLineTest {
         assertEquals("08:05 출발 → 08:09 도착 · 5301", pickLine(candidate()))
         assertEquals("08:05 출발 → 08:09 도착 · 5301 · 급행", pickLine(candidate(express = true)))
         assertEquals("08:05 출발 → 08:09 도착 (어림)", pickLine(candidate(no = null, estimated = true)))
+    }
+
+    // ── 미뤄 둔 문제 #8, #11 ──
+    @Test fun departedWhenBeforeNow() {
+        val now = java.time.Instant.parse("2026-11-17T23:06:00Z").toEpochMilli() // 08:06 KST
+        assertTrue(isDeparted(candidate(), now))
+        assertFalse(isDeparted(candidate(), now - 120_000))
+    }
+
+    @Test fun clockTimeParsesIsoWithoutFixedLayout() {
+        assertEquals("08:05", clockTime("2026-11-18T08:05+09:00"))
+        assertEquals("08:05", clockTime("2026-11-18T08:05:30.5+09:00"))
     }
 }

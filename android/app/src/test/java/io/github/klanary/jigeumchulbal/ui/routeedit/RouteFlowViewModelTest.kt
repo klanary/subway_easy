@@ -317,4 +317,16 @@ class RouteFlowViewModelTest {
         vm.select(pickRoute.id)
         assertTrue(vm.state.value.exhausted.isEmpty())
     }
+
+    // ── 미뤄 둔 문제 #5: 다른 경로를 고르면 불러오기를 취소 ──
+    @Test fun selectCancelsPendingLoadLater() = runTest {
+        val vm = searchedWith(pickRoute)
+        val later = picked("r1", listOf(c("5307", "08:35", "08:39")), listOf(c("9107", "08:40", "08:44")))
+        routes.result = ApiResult.Ok(RoutesDto(updatedAt = t("08:00"), routes = listOf(later)))
+        vm.loadLater(0)
+        vm.select(pickRoute.id) // 응답이 오기 전에 다시 고름
+        advanceUntilIdle()
+        assertEquals(3, vm.state.value.selectedRoute!!.legs.flatMap { it.steps }[0].candidates!!.size)
+        assertFalse(vm.state.value.loadingMore)
+    }
 }

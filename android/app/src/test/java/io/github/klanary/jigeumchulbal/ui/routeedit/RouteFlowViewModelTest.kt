@@ -5,6 +5,12 @@ import io.github.klanary.jigeumchulbal.data.model.GeoPoint
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.remote.ApiError
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
+import io.github.klanary.jigeumchulbal.data.remote.CandidateDto
+import io.github.klanary.jigeumchulbal.data.remote.LegDto
+import io.github.klanary.jigeumchulbal.data.remote.RouteDto
+import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
+import io.github.klanary.jigeumchulbal.data.remote.StepDto
+import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.remote.NearestStationDto
 import io.github.klanary.jigeumchulbal.fakes.FakeFavoriteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeLocationProvider
@@ -203,5 +209,86 @@ class RouteFlowViewModelTest {
         assertTrue(stations.nearestCalls.isEmpty()) // 출발을 현재 위치로 덮어쓰지 않는다
         assertTrue(vm.consumeOpenResults())
         assertFalse(vm.consumeAutoOpenSearch())
+    }
+
+    // ── 구간별 열차 고르기(열차 고르기 설계 2026-11-18 §5.2) ──
+
+    private fun t(hhmm: String) = "2026-11-18T$hhmm:00+09:00"
+
+    private fun c(no: String, dep: String, arr: String) = CandidateDto(trainNo = no, departsAt = t(dep), arrivesAt = t(arr))
+
+    private fun picked(id: String, five: List<CandidateDto>, nine: List<CandidateDto>, line2: String = "9호선"): RouteDto {
+        fun step(line: String, from: String, to: String, list: List<CandidateDto>) = StepDto(
+            mode = StepMode.SUBWAY, durationSec = 240, distanceM = 0, lineName = line,
+            boardStationId = from, alightStationId = to, departsAt = list[0].departsAt, arrivesAt = list[0].arrivesAt,
+            trainNo = list[0].trainNo, candidates = list,
+        )
+        return RouteDto(
+            id = id, type = "SUBWAY", totalSec = 540, distanceM = 0, transfers = 1,
+            legs = listOf(LegDto(listOf(step("5호선", "마포", "여의도", five), step(line2, "여의도", "노량진", nine)))),
+            departAt = five[0].departsAt, arriveAt = nine[0].arrivesAt,
+        )
+    }
+
+    private val pickRoute = picked(
+        "r1",
+        listOf(c("5301", "08:05", "08:09"), c("5303", "08:15", "08:19"), c("5305", "08:25", "08:29")),
+        listOf(c("9101", "08:10", "08:14"), c("9103", "08:20", "08:24"), c("9105", "08:30", "08:34")),
+    )
+
+    private suspend fun kotlinx.coroutines.test.TestScope.searchedWith(route: RouteDto): RouteFlowViewModel {
+        routes.result = ApiResult.Ok(RoutesDto(updatedAt = t("08:00"), routes = listOf(route)))
+        val vm = vm(FakeLocationProvider(false, null))
+        vm.withEnds()
+        vm.search()
+        advanceUntilIdle()
+        vm.select(route.id)
+        return vm
+    }
+
+    @Test fun moveTrainChangesPickedRouteAndTotal() = runTest {
+        val vm = searchedWith(pickRoute)
+        vm.moveTrain(0, 1)
+        val state = vm.state.value
+        assertEquals(t("08:15"), state.pickedRoute?.departAt)
+        assertEquals(t("08:24"), state.pickedRoute?.arriveAt)
+        assertEquals(listOf("5303", "9103"), state.picks.map { it.train?.trainNo })
+        assertTrue(state.picks[0].pinned)
+    }
+
+    @Test fun selectResetsChoices() = runTest {
+        val vm = searchedWith(pickRoute)
+        vm.moveTrain(0, 1)
+        vm.select(pickRoute.id)
+        assertTrue(vm.state.value.choices.isEmpty())
+        assertEquals("5301", vm.state.value.picks[0].train?.trainNo)
+    }
+
+    @Test fun loadLaterMergesCandidatesOfMatchingRoute() = runTest {
+        val vm = searchedWith(pickRoute)
+        val later = picked(
+            "r1",
+            listOf(c("5305", "08:25", "08:29"), c("5307", "08:35", "08:39")),
+            listOf(c("9105", "08:30", "08:34"), c("9107", "08:40", "08:44")),
+        )
+        routes.result = ApiResult.Ok(RoutesDto(updatedAt = t("08:00"), routes = listOf(later)))
+        vm.loadLater(0)
+        advanceUntilIdle()
+        assertEquals(Instant.parse("2026-11-17T23:26:00Z"), routes.calls.last().departAt) // 08:25 + 1분
+        val steps = vm.state.value.selectedRoute!!.legs.flatMap { it.steps }
+        assertEquals(listOf("5301", "5303", "5305", "5307"), steps[0].candidates!!.map { it.trainNo })
+        assertEquals(listOf("9101", "9103", "9105", "9107"), steps[1].candidates!!.map { it.trainNo })
+        assertFalse(vm.state.value.loadingMore)
+        assertNull(vm.state.value.departAt) // 검색 조건은 그대로
+    }
+
+    @Test fun loadLaterWithoutMatchingRouteKeepsState() = runTest {
+        val vm = searchedWith(pickRoute)
+        val other = picked("r2", listOf(c("5307", "08:35", "08:39")), listOf(c("2001", "08:40", "08:44")), line2 = "2호선")
+        routes.result = ApiResult.Ok(RoutesDto(updatedAt = t("08:00"), routes = listOf(other)))
+        vm.loadLater(0)
+        advanceUntilIdle()
+        assertEquals(pickRoute, vm.state.value.selectedRoute)
+        assertFalse(vm.state.value.loadingMore)
     }
 }

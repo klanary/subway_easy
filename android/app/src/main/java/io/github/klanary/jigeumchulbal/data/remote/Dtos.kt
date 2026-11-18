@@ -2,7 +2,7 @@ package io.github.klanary.jigeumchulbal.data.remote
 
 import kotlinx.serialization.Serializable
 
-// 서버 응답 형식(스펙 6.2). 필드 이름은 JSON 키와 같다. 앱은 서울시·카카오 형식을 모른다.
+// 서버 응답 형식(스펙 6.2). 필드 이름은 JSON 키와 같다. 앱은 서울시 형식을 모른다.
 
 @Serializable
 data class StationDto(

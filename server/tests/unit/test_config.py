@@ -21,9 +21,7 @@ def test_env_overrides(monkeypatch):
     assert s.seoul_realtime_daily_limit == 5 and s.mock_upstream is True
 
 
-@pytest.mark.parametrize(
-    "name", ["SEOUL_REALTIME_DAILY_LIMIT", "SEOUL_TIMETABLE_DAILY_LIMIT"]
-)
+@pytest.mark.parametrize("name", ["SEOUL_REALTIME_DAILY_LIMIT", "SEOUL_TIMETABLE_DAILY_LIMIT"])
 def test_negative_daily_limit_is_rejected(monkeypatch, name):
     # 0만 "제한 없음"이다. 음수는 오타로 보고 서버가 뜨지 않게 한다.
     monkeypatch.setenv(name, "-1000")

@@ -137,3 +137,35 @@ async def test_now_route_has_next_trains_without_external_calls(client, trips_lo
     trains = body["routes"][0]["firstBoarding"]["nextTrains"]
     assert [t["remainingSec"] for t in trains] == [300, 900]  # 시계 08:00 기준
     assert not respx_mock.calls
+
+
+async def test_route_id_is_stable_across_departure_times(client, trips_loaded):
+    # 루틴 편집은 같은 경로를 id로 다시 찾는다. 출발 시각이 달라도 같은 길이면 id가 같아야 한다.
+    def ids(body):
+        return [r["id"] for r in body["routes"]]
+
+    early = await get(
+        client, **{"from": "마포", "to": "노량진", "departAt": "2026-11-03T08:00:00+09:00"}
+    )
+    late = await get(
+        client, **{"from": "마포", "to": "노량진", "departAt": "2026-11-03T08:12:00+09:00"}
+    )
+    assert ids(early.json())[0] == ids(late.json())[0]
+
+
+async def test_search_runs_off_the_event_loop(client, trips_loaded, monkeypatch):
+    # 경유 경로는 검색을 여러 번 한다. 요청 처리를 막지 않게 다른 스레드에서 돌린다.
+    import threading
+
+    from app.services import route_service
+
+    seen: list[int] = []
+    original = route_service.search
+
+    def spy(*args, **kwargs):
+        seen.append(threading.get_ident())
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(route_service, "search", spy)
+    await get(client, **{"from": "마포", "to": "노량진"})
+    assert seen and all(t != threading.get_ident() for t in seen)

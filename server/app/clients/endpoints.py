@@ -6,4 +6,3 @@ SEOUL_REALTIME_BASE = "http://swopenapi.seoul.go.kr/api/subway"
 
 # 서울 열린데이터광장 일반 OpenAPI(시간표). 형식: {BASE}/{키}/json/{서비스}/{시작}/{끝}/...
 SEOUL_OPENAPI_BASE = "http://openapi.seoul.go.kr:8088"
-

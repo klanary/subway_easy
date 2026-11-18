@@ -51,4 +51,3 @@ def quota_exceeded_response() -> httpx.Response:
     """서울시의 일일 한도 초과 응답: 데이터 없음 샘플에서 코드만 바꾼 HTTP 200."""
     _, body = load_fixture("seoul_realtime_nodata.json")
     return httpx.Response(200, json={**body, "code": SEOUL_QUOTA_EXCEEDED_CODE})
-

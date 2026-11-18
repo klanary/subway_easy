@@ -30,8 +30,6 @@ fun formatRemaining(sec: Int?): String = when {
     else -> "${sec / 60}분"
 }
 
-
-
 fun formatUpdatedAgo(sec: Long): String =
     if (sec < 60) "${sec}초 전 갱신" else "${sec / 60}분 전 갱신"
 

@@ -16,7 +16,17 @@ import respx
 
 from app.core.clock import KST
 from app.services.measured_store import B1_PREFIX, B2_PREFIX, MANIFEST_FILE, TRIPS_PREFIX
-from ml.publish import API, TAG, UPLOADS, build_files, main, publish, server_b1, server_b2
+from ml.publish import (
+    API,
+    TAG,
+    UPLOADS,
+    build_files,
+    load_b1_for_publish,
+    main,
+    publish,
+    server_b1,
+    server_b2,
+)
 from tests.ml_helpers import trip, weekdays, write_db
 
 REPO = "owner/repo"
@@ -232,7 +242,7 @@ def test_weekday_reuses_previous_b1_b2_and_uploads_only_trips(workdir):
     old = [PREVIOUS["b1"]["name"], PREVIOUS["b2"]["name"], PREVIOUS["trips"]["name"], MANIFEST_FILE]
     deletes, uploads = _mock_release(old)
     args = [*base, "--env-file", str(env), "--day", "2026-11-17",  # 화요일
-            "--timetable-cache", str(tmp_path / "none"),
+            "--timetable-cache", str(official_cache(tmp_path)),
             "--b2-cache", str(tmp_path / "b2.json")]  # fmt: skip
     assert main(args) == 0
     names = [c.request.url.params["name"] for c in uploads.calls]
@@ -248,10 +258,48 @@ def test_wednesday_rebuilds_all(workdir):
     env.write_text(f"GITHUB_RELEASE_TOKEN={TOKEN}\n", encoding="utf-8")
     _, uploads = _mock_release([MANIFEST_FILE])
     args = [*base, "--env-file", str(env), "--day", "2026-11-18",  # 수요일
-            "--timetable-cache", str(tmp_path / "none"),
+            "--timetable-cache", str(official_cache(tmp_path)),
             "--b2-cache", str(tmp_path / "b2.json")]  # fmt: skip
     assert main(args) == 0
     names = [c.request.url.params["name"] for c in uploads.calls]
     prefixes = [n.split("-")[0] for n in names[:-1]]
     assert sorted(prefixes) == ["measured_timetable", "segment_times", "trips"]
     assert (tmp_path / "b2.json").is_file()  # 평일 운행표 만들기에 다시 쓴다
+
+
+def official_cache(tmp_path):
+    """5호선 마포(2529)→여의나루(2528) 평일 상행 열차 하나뿐인 공식 시간표 캐시."""
+    cache = tmp_path / "timetable_cache"
+    cache.mkdir(exist_ok=True)
+    for code, (arr, dep) in {
+        "2529": ("08:00:00", "08:00:30"),
+        "2528": ("08:02:00", "08:02:30"),
+    }.items():
+        row = {"TRAIN_NO": "5101", "ARRIVETIME": arr, "LEFTTIME": dep, "EXPRESS_YN": "G",
+               "SUBWAYENAME": "방화", "INOUT_TAG": "1"}  # fmt: skip
+        (cache / f"{code}_1_1.json").write_text(json.dumps([row], ensure_ascii=False), "utf-8")
+    return cache
+
+
+@respx.mock
+def test_refuses_to_publish_without_official_trips(workdir):
+    # 캐시가 비었거나 경로가 틀리면 1~9호선이 없는 운행표가 올라간다(최종 리뷰 #6).
+    tmp_path, base = workdir
+    env = tmp_path / ".env"
+    env.write_text(f"GITHUB_RELEASE_TOKEN={TOKEN}\n", encoding="utf-8")
+    _, uploads = _mock_release([MANIFEST_FILE])
+    args = [*base, "--env-file", str(env), "--day", "2026-11-18",
+            "--timetable-cache", str(tmp_path / "none"),
+            "--b2-cache", str(tmp_path / "b2.json")]  # fmt: skip
+    assert main(args) == 1
+    assert uploads.call_count == 0
+
+
+def test_load_b1_for_publish_drops_official_lines(tmp_path):
+    # VM 메모리(1GB): 서버용 사본도 운행표도 1~9호선 칸은 쓰지 않으므로 읽자마자 덜어 낸다(리뷰 #5).
+    path = tmp_path / "b1.json"
+    path.write_text(json.dumps(RAW_B1, ensure_ascii=False), encoding="utf-8")
+    b1 = load_b1_for_publish(path)
+    assert list(b1["cells"]) == ["1|신분당선|0|B"]
+    assert list(b1["stations"]) == ["신분당선|B"]
+    assert server_b1(b1) == server_b1(RAW_B1)

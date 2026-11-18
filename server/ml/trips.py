@@ -18,12 +18,15 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from app.services.measured import direction_name
+from app.services.geo import haversine_m
+from app.services.measured import direction_code, direction_name
 from app.services.timetable import OFFICIAL_LINES
 
 KIND, VERSION = "trips-server", 1
 TRIP_GAP_SEC = 10_800  # 같은 열차 번호가 이만큼 끊기면 다른 운행
 DEFAULT_DWELL_SEC = 30
+AVG_SPEED_MPS = 12.5  # 종착역 어림용 평균 속도(시속 45km, 정차 포함)
+MIN_HOP_SEC = 60
 
 
 @dataclass
@@ -44,6 +47,7 @@ class _Trip:
     source: int  # 0 공식, 1 실측
     estimated: int
     stops: list[_Stop]
+    last_statn: str | None = None  # 실측 운행의 마지막 관측 역(statn_id). 종착역까지 잇는 데 쓴다
 
 
 def _secs(text: str | None) -> int | None:
@@ -63,6 +67,16 @@ def _code_map(stations_db: Path) -> dict[str, tuple[str, str]]:
     finally:
         con.close()
     return {code: (station_id, line) for code, station_id, line in rows}
+
+
+def _coords(stations_db: Path) -> dict[str, tuple[float, float]]:
+    con = sqlite3.connect(f"file:{Path(stations_db).as_posix()}?mode=ro", uri=True)
+    try:
+        return {
+            sid: (lat, lng) for sid, lat, lng in con.execute("SELECT id, lat, lng FROM stations")
+        }
+    finally:
+        con.close()
 
 
 def _official(cache_dir: Path, stations_db: Path) -> list[_Trip]:
@@ -117,7 +131,10 @@ def _official_trip(day_type, line, direction, train_no, run) -> _Trip:
     )
 
 
-def _measured(b1: dict, b2: dict | None) -> list[_Trip]:
+def _measured(
+    b1: dict, b2: dict | None, coords: dict[str, tuple[float, float]] | None = None
+) -> list[_Trip]:
+    coords = coords or {}
     stations = b1.get("stations") or {}
     modes = b1.get("modes") or {}
     dwell = {k: v["median"] for k, v in ((b2 or {}).get("dwell") or {}).items()}
@@ -143,6 +160,66 @@ def _measured(b1: dict, b2: dict | None) -> list[_Trip]:
             else:
                 slots[(int(day_type), line, direction, int(code), statn)].append(item)
 
+    # B2 구간: (호선, 방향 코드, 앞 역) → (다음 역, 중앙값). 같은 앞 역에 여럿이면 표본이 많은 것.
+    next_of: dict[tuple[str, int, str], tuple[str, float]] = {}
+    has_incoming: set[tuple[str, int, str]] = set()
+    best_n: dict[tuple[str, int, str], int] = {}
+    for key, stats in hops.items():
+        line, code, a, b, express = key.split("|")
+        if express != "0":
+            continue
+        k = (line, int(code), a)
+        if stats.get("n", 0) >= best_n.get(k, -1):
+            next_of[k] = (b, float(stats["median"]))
+            best_n[k] = stats.get("n", 0)
+        has_incoming.add((line, int(code), b))
+    reverse = {
+        (key.split("|")[0], int(key.split("|")[1]), key.split("|")[2], key.split("|")[3]): float(
+            stats["median"]
+        )
+        for key, stats in hops.items()
+        if key.endswith("|0")
+    }
+    statn_by_name = {
+        (key.split("|")[0], value.get("name")): key.split("|")[1] for key, value in stations.items()
+    }
+
+    def to_terminal(trip: _Trip, last_statn: str) -> None:
+        """B1에는 종착역 출발이 없다(그 역은 반대 방향에만 나온다). 행선지까지 B2 구간으로 잇는다.
+
+        행선지까지 구간이 이어지지 않으면 그대로 둔다(최종 리뷰 #1).
+        """
+        target = statn_by_name.get((trip.line, trip.dest))
+        if target is None or target == last_statn:
+            return
+        code = direction_code(trip.direction)
+        current, arr, added, seen = last_statn, trip.stops[-1].arr, [], {last_statn}
+        while current != target:
+            step = next_of.get((trip.line, code, current))
+            if step is None:
+                # 종착역으로 들어오는 구간은 관측이 거의 없다(종착 도착이 잘 안 찍힘).
+                # 바로 다음이 종착역이면 반대 방향의 같은 구간 시간을 쓴다.
+                back = reverse.get((trip.line, 1 - code, target, current))
+                if back is None:
+                    # 양방향 모두 관측이 없으면(공항철도 종착역) 직선거리 ÷ 평균 속도로 어림한다.
+                    a, b = (
+                        coords.get(our_id(trip.line, current)),
+                        coords.get(our_id(trip.line, target)),
+                    )
+                    if a is None or b is None:
+                        return
+                    back = max(MIN_HOP_SEC, haversine_m(a[0], a[1], b[0], b[1]) / AVG_SPEED_MPS)
+                step = (target, back)
+            current, took = step
+            station = our_id(trip.line, current)
+            if current in seen or station is None:
+                return
+            seen.add(current)
+            arr += int(round(took))
+            added.append(_Stop(station, arr, arr + dwell_of(trip.line, current)))
+        added[-1].dep = added[-1].arr  # 종착역은 떠나지 않는다
+        trip.stops.extend(added)
+
     trips: list[_Trip] = []
     for (day_type, line, direction, train_no), items in numbered.items():
         items.sort()
@@ -156,20 +233,10 @@ def _measured(b1: dict, b2: dict | None) -> list[_Trip]:
             run.append(item)
         if run:
             trips.append(_measured_trip(day_type, line, direction, train_no, run, our_id, dwell_of))
+    for trip in trips:
+        to_terminal(trip, trip.last_statn)
 
     # 번호로 못 묶는 노선: 들어오는 구간이 없는 역(첫 역)의 출발마다 구간을 이어 간다.
-    next_of: dict[tuple[str, int, str], tuple[str, float]] = {}
-    has_incoming: set[tuple[str, int, str]] = set()
-    best_n: dict[tuple[str, int, str], int] = {}
-    for key, stats in hops.items():
-        line, code, a, b, express = key.split("|")
-        if express != "0":
-            continue
-        k = (line, int(code), a)
-        if stats.get("n", 0) >= best_n.get(k, -1):
-            next_of[k] = (b, float(stats["median"]))
-            best_n[k] = stats.get("n", 0)
-        has_incoming.add((line, int(code), b))
     for (day_type, line, direction, code, statn), items in slots.items():
         if (line, code, statn) in has_incoming:
             continue  # 첫 역의 출발만 운행의 시작으로 쓴다
@@ -207,6 +274,7 @@ def _measured_trip(day_type, line, direction, train_no, run, our_id, dwell_of) -
         source=1,
         estimated=0,
         stops=stops,
+        last_statn=run[-1][1],
     )
 
 
@@ -227,7 +295,7 @@ def build_trips(
     """서버용 운행표(`trips-server`). 형식은 구현 계획 2026-11-18 Task 1."""
     trips = _official(cache_dir, stations_db) if cache_dir is not None else []
     if b1 is not None:
-        trips += _measured(b1, b2)
+        trips += _measured(b1, b2, _coords(stations_db))
 
     station_index: dict[str, int] = {}
 

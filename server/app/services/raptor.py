@@ -31,6 +31,10 @@ class Departure:
     train_no: str | None
     dest: str | None
     express: bool
+    # 후보 열차(열차 고르기 설계 2026-11-18)에서만 채운다: 내릴 역 도착, 출처, 어림 여부
+    arrives_at: datetime | None = None
+    source: str = "official"
+    estimated: bool = False
 
 
 @dataclass(frozen=True)

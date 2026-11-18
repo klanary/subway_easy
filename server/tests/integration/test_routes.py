@@ -169,3 +169,19 @@ async def test_search_runs_off_the_event_loop(client, trips_loaded, monkeypatch)
     monkeypatch.setattr(route_service, "search", spy)
     await get(client, **{"from": "마포", "to": "노량진"})
     assert seen and all(t != threading.get_ident() for t in seen)
+
+
+async def test_steps_carry_candidates(client, trips_loaded):
+    # 앱이 구간마다 열차를 바꿀 수 있게 후보를 함께 보낸다(열차 고르기 설계 §5.1).
+    params = {"from": "마포", "to": "노량진", "departAt": "2026-11-03T08:00:00+09:00"}
+    first, second = steps((await get(client, **params)).json()["routes"][0])
+    assert [c["trainNo"] for c in first["candidates"]] == ["5301", "5303"]
+    assert first["candidates"][1]["arrivesAt"][11:16] == "08:19"
+    assert first["candidates"][0]["isExpress"] is False
+    assert [c["trainNo"] for c in second["candidates"]] == ["9101", "9103"]
+
+
+async def test_route_response_is_gzipped(client, trips_loaded):
+    headers = {"Accept-Encoding": "gzip"}
+    r = await client.get(URL, params={"from": "마포", "to": "노량진"}, headers=headers)
+    assert r.headers.get("content-encoding") == "gzip"

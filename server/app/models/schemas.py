@@ -111,6 +111,18 @@ class TransferTrain(ApiModel):
     source: Literal["realtime", "timetable", "measured"]
 
 
+class Candidate(ApiModel):
+    """구간에서 탈 수 있는 열차(열차 고르기 설계 2026-11-18): 탈 역 출발, 내릴 역 도착."""
+
+    train_no: str | None
+    departs_at: datetime
+    arrives_at: datetime
+    is_express: bool
+    destination: str | None
+    source: Literal["official", "measured"]
+    estimated: bool
+
+
 class Step(ApiModel):
     mode: Literal["WALK", "SUBWAY", "BUS"]
     duration_sec: int
@@ -133,6 +145,7 @@ class Step(ApiModel):
     destination: str | None = None
     source: Literal["official", "measured"] | None = None
     estimated: bool = False  # 구간 시간으로 어림한 시각(번호로 못 묶는 노선)
+    candidates: list[Candidate] | None = None  # 이 구간에서 고를 수 있는 열차(출발 순)
 
 
 class Leg(ApiModel):

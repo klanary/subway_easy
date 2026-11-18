@@ -14,10 +14,11 @@ from datetime import datetime
 
 from app.core.clock import kst_from_epoch
 from app.core.errors import InvalidRequest, NoRoute, NotFound, RoutesNotReady
-from app.models.schemas import FirstBoarding, Leg, Route, RoutesResponse, Step, Train
+from app.models.schemas import Candidate, FirstBoarding, Leg, Route, RoutesResponse, Step, Train
+from app.services.candidates import candidates
 from app.services.geo import haversine_m
 from app.services.measured_store import MeasuredStore
-from app.services.raptor import Journey, Ride, pareto, search
+from app.services.raptor import Departure, Journey, Ride, pareto, search
 from app.services.station_index import Station, StationIndex
 
 logger = logging.getLogger("app.routes")
@@ -62,16 +63,24 @@ class RouteService:
             raise RoutesNotReady()
         now = kst_from_epoch(self._clock())
         depart = depart_at or now
-        # 검색은 다른 스레드에서(경유면 여러 번 돈다. 요청 처리를 막지 않게)
-        if via is None:
-            found = await asyncio.to_thread(search, trips, start.id, end.id, depart)
-            journeys = [(j, None) for j in found]
-        else:
-            journeys = await asyncio.to_thread(self._via, trips, start.id, via.id, end.id, depart)
+        # 검색과 후보 모으기는 다른 스레드에서(경유면 여러 번 돈다. 요청 처리를 막지 않게)
+        journeys = await asyncio.to_thread(
+            self._search, trips, start.id, via.id if via else None, end.id, depart
+        )
         if not journeys:
             raise NoRoute("NO_SUBWAY")
-        routes = [self._route(j, split, now) for j, split in journeys]
+        routes = [self._route(j, split, cands, now) for j, split, cands in journeys]
         return RoutesResponse(updated_at=now, stale=False, routes=routes), "none"
+
+    def _search(
+        self, trips, start: str, via: str | None, end: str, depart: datetime
+    ) -> list[tuple[Journey, int | None, list[list[Departure]]]]:
+        found = (
+            [(j, None) for j in search(trips, start, end, depart)]
+            if via is None
+            else self._via(trips, start, via, end, depart)
+        )
+        return [(j, split, [candidates(trips, r) for r in j.rides]) for j, split in found]
 
     def _via(
         self, trips, start: str, via: str, end: str, depart: datetime
@@ -88,7 +97,7 @@ class RouteService:
         station = self._index.get(station_id)
         return station.name if station else station_id
 
-    def _step(self, ride: Ride) -> Step:
+    def _step(self, ride: Ride, cands: list[Departure]) -> Step:
         coords = [
             (s.lat, s.lng) for s in (self._index.get(sid) for sid in ride.stops) if s is not None
         ]
@@ -113,10 +122,24 @@ class RouteService:
             destination=ride.dest,
             source=ride.source,
             estimated=ride.estimated,
+            candidates=[
+                Candidate(
+                    train_no=c.train_no,
+                    departs_at=c.departs_at,
+                    arrives_at=c.arrives_at or c.departs_at,
+                    is_express=c.express,
+                    destination=c.dest,
+                    source=c.source,
+                    estimated=c.estimated,
+                )
+                for c in cands
+            ],
         )
 
-    def _route(self, journey: Journey, split: int | None, now: datetime) -> Route:
-        steps = [self._step(r) for r in journey.rides]
+    def _route(
+        self, journey: Journey, split: int | None, cands: list[list[Departure]], now: datetime
+    ) -> Route:
+        steps = [self._step(r, c) for r, c in zip(journey.rides, cands, strict=True)]
         legs = (
             [Leg(steps=steps)]
             if split is None

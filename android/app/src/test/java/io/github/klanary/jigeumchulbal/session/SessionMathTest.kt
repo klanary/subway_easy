@@ -128,4 +128,27 @@ class SessionMathTest {
         )
         assertTrue(withCandidates.withoutPaths().legs.flatMap { it.steps }.all { it.candidates == null })
     }
+
+    // ── 고른 열차로 출발 알림(열차 고르기 설계 §5.4) ──
+    private val chosen = ChosenTrain(trainNo = "5301", departsAt = 900_000L)
+
+    @Test fun chosenPlanUsesRealtimeWhenNumberMatches() {
+        val trains = listOf(TrainDto("마천", 300, trainNo = "5299"), TrainDto("마천", 840, trainNo = "5301"))
+        val plan = chosenPlan(trains, receivedAt = 100_000, chosen = chosen, travelSec = 0, marginSec = 60)
+        assertEquals(940_000L, plan.trainArrivalAt)
+        assertEquals(880_000L, plan.alertAt)
+        assertEquals("5301", plan.trainNo)
+        assertEquals("마천", plan.destination)
+    }
+
+    @Test fun chosenPlanMatchesTrainNumberIgnoringLeadingZeros() {
+        val plan = chosenPlan(listOf(TrainDto("마천", 840, trainNo = "05301")), 100_000, chosen, 0, 0)
+        assertEquals(940_000L, plan.trainArrivalAt)
+    }
+
+    @Test fun chosenWithoutRealtimeUsesScheduledTime() {
+        val plan = chosenPlan(listOf(TrainDto("마천", 300, trainNo = "5299")), 100_000, chosen, 120, 60)
+        assertEquals(900_000L, plan.trainArrivalAt)
+        assertEquals(720_000L, plan.alertAt)
+    }
 }

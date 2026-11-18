@@ -149,6 +149,7 @@ private fun SessionButtons(route: RouteDto, startSession: ((AppSettings) -> Sess
                         startSession { settings ->
                             SessionEvent.StartWaiting(
                                 start.target, start.mode, route.withoutPaths(), start.travelSec, settings, alightAlerts = vibration,
+                                chosen = start.chosen,
                             )
                         }
                     }

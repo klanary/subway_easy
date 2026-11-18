@@ -175,4 +175,55 @@ class CommuteSessionTest {
         val json = Json { ignoreUnknownKeys = true }
         assertEquals(s.state, json.decodeFromString<SessionState>(json.encodeToString<SessionState>(s.state)))
     }
+
+    // ── 고른 열차로 출발 알림(열차 고르기 설계 §5.4) ──
+    private fun waitingFor(chosen: ChosenTrain) = CommuteSession({ now }).also {
+        it.handle(
+            SessionEvent.StartWaiting(target, WaitMode.DEPARTURE_TIMING, specRoute(), travelSec = 0, settings = settings, chosen = chosen),
+        )
+    }
+
+    @Test fun chosenTrainSchedulesPreBoardingForThatTrain() {
+        val s = waitingFor(ChosenTrain("2201", departsAt = 900_000))
+        // 실시간 첫 열차(2199)가 아니라 고른 2201(시간표 900초)에 맞춘다.
+        val effects = s.handle(SessionEvent.ArrivalsUpdated(listOf(TrainDto("성수", 300, trainNo = "2199")), receivedAt = 0))
+        val margin = settings.departMarginSec * 1000L
+        assertTrue(SessionEffect.Schedule(AlarmId.PreBoarding, 900_000 - margin) in effects)
+        assertEquals("2201", (s.state as SessionState.Waiting).plan?.trainNo)
+    }
+
+    @Test fun chosenMissedEndsSession() {
+        val s = waitingFor(ChosenTrain("2201", departsAt = 900_000))
+        now = 961_000
+        val effects = s.handle(SessionEvent.ArrivalsUpdated(listOf(TrainDto("성수", 300, trainNo = "2203")), receivedAt = now))
+        assertEquals(SessionEffect.Alert(AlertContent.ChosenMissed), effects.first())
+        assertTrue(SessionEffect.Finished(EndReason.MISSED_CHOSEN) in effects)
+        assertEquals(SessionState.Idle, s.state)
+    }
+
+    @Test fun chosenStillComingDoesNotReplan() {
+        val s = waitingFor(ChosenTrain("2201", departsAt = 900_000))
+        s.handle(SessionEvent.ArrivalsUpdated(emptyList(), 0))
+        now = 900_000 - settings.departMarginSec * 1000L
+        s.handle(SessionEvent.AlarmFired(AlarmId.PreBoarding))
+        now += 30_000
+        val effects = s.handle(SessionEvent.ArrivalsUpdated(listOf(TrainDto("성수", 30, trainNo = "2201")), now))
+        assertFalse(SessionEffect.Alert(AlertContent.Replanned) in effects)
+    }
+
+    @Test fun withoutChosenBehavesAsBefore() {
+        val s = waiting()
+        assertNull((s.state as SessionState.Waiting).chosen)
+        assertTrue(
+            SessionEffect.Schedule(AlarmId.PreBoarding, 120_000) in s.handle(SessionEvent.ArrivalsUpdated(listOf(t(300), t(600)), receivedAt = 0)),
+        )
+    }
+
+    @Test fun oldSavedWaitingWithoutChosenDecodes() {
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
+        val old = SessionState.Waiting(target, WaitMode.DEPARTURE_TIMING, null, 0, 0, 0, 0, 0, 0)
+        val text = json.encodeToString<SessionState>(old)
+        assertFalse("chosen" in text)
+        assertNull((json.decodeFromString<SessionState>(text) as SessionState.Waiting).chosen)
+    }
 }

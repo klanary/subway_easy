@@ -8,6 +8,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class TrainPlan(val alertAt: Long, val trainArrivalAt: Long, val destination: String?, val trainNo: String? = null)
 
+/**
+ * 경로 상세에서 고른 첫 열차(열차 고르기 설계 2026-11-18 §5.4): 번호와 탈 역 출발 시각(epoch ms).
+ * 대기 중 실시간에 이 번호가 보이면 그 시각을, 아니면 이 출발 시각을 쓴다.
+ */
+@Serializable
+data class ChosenTrain(val trainNo: String?, val departsAt: Long)
+
 /** 승차 전 알림의 두 방식: 경로에서 시작하면 출발 타이밍, 역 상세(또는 첫 탑승 전 버스가 있는 경로)면 도착 N분 전. */
 @Serializable
 enum class WaitMode { DEPARTURE_TIMING, MINUTES_BEFORE }

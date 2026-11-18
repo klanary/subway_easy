@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,6 +63,16 @@ class RoutineRunnerTest {
         assertEquals(300, state.travelSec) // 걷는 시간 5분
         assertTrue(state.alightAlerts)
         assertEquals("홍대입구", state.target.stationId)
+    }
+
+    @Test fun routineIgnoresTrainChosenWhenSaved() = runTest {
+        // 저장한 경로의 열차 시각은 만든 날의 것이다. 루틴은 그날 실시간으로 다시 고른다(열차 고르기 설계 §3 비목표).
+        val saved = specRoute().let { r ->
+            r.copy(legs = r.legs.map { leg -> leg.copy(steps = leg.steps.map { it.copy(trainNo = "2201", departsAt = "2026-11-01T08:05:00+09:00") }) })
+        }
+        repo.save(routine.copy(routeJson = json.encodeToString(saved)))
+        runner().run(7)
+        assertNull((controller.state.value as SessionState.Waiting).chosen)
     }
 
     @Test fun routineSkippedWhenSessionRunning() = runTest {

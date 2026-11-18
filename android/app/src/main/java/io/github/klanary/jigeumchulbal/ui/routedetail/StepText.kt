@@ -4,6 +4,8 @@ import io.github.klanary.jigeumchulbal.data.remote.CandidateDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * 운행표로 고른 열차 줄(경로 설계 2026-11-18): "08:03 출발 → 08:17 도착 · 5101 열차 · 급행".
@@ -12,7 +14,7 @@ import io.github.klanary.jigeumchulbal.ui.common.formatDuration
 fun trainLine(step: StepDto): String? {
     val departs = step.departsAt ?: return null
     val arrives = step.arrivesAt ?: return null
-    val times = "${departs.substring(11, 16)} 출발 → ${arrives.substring(11, 16)} 도착"
+    val times = "${clockTime(departs)} 출발 → ${clockTime(arrives)} 도착"
     return listOfNotNull(
         times + if (step.estimated) " (어림)" else "",
         step.trainNo?.let { "$it 열차" },
@@ -22,14 +24,23 @@ fun trainLine(step: StepDto): String? {
 
 /** 열차 고르기 줄(열차 고르기 설계 §5.3): "08:05 출발 → 08:09 도착 · 5301 · 급행". 버튼 사이라 짧게 쓴다. */
 fun pickLine(train: CandidateDto): String {
-    val arrives = train.arrivesAt?.let { " → ${it.substring(11, 16)} 도착" }.orEmpty()
-    val times = "${train.departsAt.substring(11, 16)} 출발$arrives"
+    val arrives = train.arrivesAt?.let { " → ${clockTime(it)} 도착" }.orEmpty()
+    val times = "${clockTime(train.departsAt)} 출발$arrives"
     return listOfNotNull(
         times + if (train.estimated) " (어림)" else "",
         train.trainNo,
         "급행".takeIf { train.isExpress },
     ).joinToString(" · ")
 }
+
+/** ISO 시각의 "HH:mm"(그 시각의 오프셋 기준). 초·소수점이 있든 없든 읽는다. */
+fun clockTime(iso: String): String = OffsetDateTime.parse(iso).format(HH_MM)
+
+private val HH_MM = DateTimeFormatter.ofPattern("HH:mm")
+
+/** 후보 열차가 [nowMs]보다 먼저 떠났는지(이미 떠난 열차는 흐리게 보인다). */
+fun isDeparted(train: CandidateDto, nowMs: Long): Boolean =
+    OffsetDateTime.parse(train.departsAt).toInstant().toEpochMilli() < nowMs
 
 /** 단계 안내의 제목. 정거장 수는 탄 역을 뺀 정차 역 수다. */
 fun stepTitle(step: StepDto): String {
@@ -60,10 +71,10 @@ fun stepTitle(step: StepDto): String {
 fun transferLine(step: StepDto): String? {
     val trains = step.transferTrains?.takeIf { it.isNotEmpty() } ?: return null
     fun train(t: io.github.klanary.jigeumchulbal.data.remote.TransferTrainDto) =
-        listOfNotNull(t.departsAt.substring(11, 16), t.destination?.let { "${it}행" }).joinToString(" ") +
+        listOfNotNull(clockTime(t.departsAt), t.destination?.let { "${it}행" }).joinToString(" ") +
             if (t.source == "measured") "(실측)" else ""
     return listOfNotNull(
-        step.boardAfter?.let { "${step.stops?.firstOrNull() ?: ""} 도착 ${it.substring(11, 16)}".trim() },
+        step.boardAfter?.let { "${step.stops?.firstOrNull() ?: ""} 도착 ${clockTime(it)}".trim() },
         "환승 열차 ${train(trains[0])}",
         trains.getOrNull(1)?.let { "그다음 ${train(it)}" },
     ).joinToString(" · ")

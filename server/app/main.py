@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api import health, metrics, routes, stations, web
 from app.core.config import Settings, get_settings
@@ -19,6 +20,9 @@ access_logger = logging.getLogger("app.access")
 
 # 요청 제한에서 뺀다: 호스팅 헬스 체크와 깨우기 호출이 막히면 서비스가 재시작된다(스펙 6.8).
 _UNLIMITED_PATHS = {"/health"}
+
+
+GZIP_MIN_BYTES = 500
 
 
 @asynccontextmanager
@@ -81,6 +85,8 @@ def create_app(
     app = FastAPI(title="지금출발 서버", lifespan=lifespan)
     install_error_handlers(app)
     app.middleware("http")(request_context)
+    # 경로 응답에 구간별 후보 열차가 붙어 커진다(열차 고르기 설계 §5.1). 앱(OkHttp)은 알아서 푼다.
+    app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
     app.state.services = build_services(settings, clock, transport)
     app.include_router(health.router)
     app.include_router(metrics.router)

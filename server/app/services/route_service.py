@@ -5,6 +5,7 @@ VM이 만든 열차 운행표로 RAPTOR 검색을 해 구간마다 실제로 탈
 요금은 보이지 않는다(`fare`는 늘 null). 도보 단계도 없다.
 """
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -61,10 +62,12 @@ class RouteService:
             raise RoutesNotReady()
         now = kst_from_epoch(self._clock())
         depart = depart_at or now
+        # 검색은 다른 스레드에서(경유면 여러 번 돈다. 요청 처리를 막지 않게)
         if via is None:
-            journeys = [(j, None) for j in search(trips, start.id, end.id, depart)]
+            found = await asyncio.to_thread(search, trips, start.id, end.id, depart)
+            journeys = [(j, None) for j in found]
         else:
-            journeys = self._via(trips, start.id, via.id, end.id, depart)
+            journeys = await asyncio.to_thread(self._via, trips, start.id, via.id, end.id, depart)
         if not journeys:
             raise NoRoute("NO_SUBWAY")
         routes = [self._route(j, split, now) for j, split in journeys]
@@ -120,10 +123,8 @@ class RouteService:
             else [Leg(steps=steps[:split]), Leg(steps=steps[split:])]
         )
         first = journey.rides[0]
-        key = [
-            [r.line, r.train_no, r.board_station, r.alight_station, r.departs_at.isoformat()]
-            for r in journey.rides
-        ]
+        # 같은 길이면 출발 시각이 달라도 같은 id(루틴 편집이 id로 경로를 다시 찾는다)
+        key = [[r.line, r.direction, r.board_station, r.alight_station] for r in journey.rides]
         return Route(
             id="r_" + hashlib.sha1(json.dumps(key, ensure_ascii=False).encode()).hexdigest()[:8],
             type="SUBWAY",

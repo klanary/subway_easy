@@ -132,7 +132,6 @@ def seoul(respx_mock):
     return use
 
 
-
 @pytest.fixture
 def timetable_mock(respx_mock):
     """서울시 시간표 요청에 영등포구청 5호선 평일 상행 실제 샘플로 답한다(역·방향 무관)."""

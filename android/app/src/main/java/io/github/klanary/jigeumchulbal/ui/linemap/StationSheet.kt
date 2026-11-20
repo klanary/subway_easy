@@ -56,52 +56,75 @@ fun StationSheet(
     }
     val context = LocalContext.current
     val station = StationRef(stationId, stationId)
-    val time = (state as? UiState.Content)?.data?.time ?: SheetTime.NOW
 
     // 반만 열리면 버튼이 시스템 내비게이션 바에 가려진다(2026-11-12 실기기). 처음부터 다 연다.
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        // 시스템 내비게이션 바에 버튼이 가리지 않게 하고, 열차 줄이 많으면 스크롤한다(2026-11-12 실기기).
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
-                .padding(horizontal = 16.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(stationId, style = MaterialTheme.typography.headlineSmall)
-            (state as? UiState.Content)?.data?.lines?.let { Text(it.joinToString(" · "), style = MaterialTheme.typography.bodyMedium) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onRole(TripRole.FROM, station) }, enabled = draft.canSet(TripRole.FROM, station)) {
-                    Text(Copy.AS_FROM)
-                }
-                Button(onClick = { onRole(TripRole.TO, station) }, enabled = draft.canSet(TripRole.TO, station)) {
-                    Text(Copy.AS_TO)
-                }
-                if (draft.from != null && draft.to != null) {
-                    OutlinedButton(onClick = { onRole(TripRole.VIA, station) }, enabled = draft.canSet(TripRole.VIA, station)) {
-                        Text(Copy.AS_VIA)
-                    }
+        StationSheetContent(
+            stationId = stationId,
+            state = state,
+            draft = draft,
+            onRole = { role -> onRole(role, station) },
+            onTime = { viewModel.select(it) },
+            onPickTime = {
+                val now = LocalTime.now()
+                TimePickerDialog(context, { _, h, m ->
+                    val at = pickedTime(h, m)
+                    viewModel.select(SheetTime.CUSTOM, at)
+                }, now.hour, now.minute, true).show()
+            },
+            onDismiss = onDismiss,
+        )
+    }
+}
+
+/** 역 시트 안쪽을 그린다(상태만 받는다). 시트 틀·ViewModel·시각 고르기 대화상자는 [StationSheet]가 잇는다. */
+@Composable
+internal fun StationSheetContent(
+    stationId: String,
+    state: UiState<StationSheetUi>,
+    draft: TripDraft,
+    onRole: (TripRole) -> Unit = {},
+    onTime: (SheetTime) -> Unit = {},
+    onPickTime: () -> Unit = {},
+    onDismiss: () -> Unit = {},
+) {
+    val station = StationRef(stationId, stationId)
+    val time = (state as? UiState.Content)?.data?.time ?: SheetTime.NOW
+    // 시스템 내비게이션 바에 버튼이 가리지 않게 하고, 열차 줄이 많으면 스크롤한다(2026-11-12 실기기).
+    Column(
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
+            .padding(horizontal = 16.dp).padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(stationId, style = MaterialTheme.typography.headlineSmall)
+        (state as? UiState.Content)?.data?.lines?.let { Text(it.joinToString(" · "), style = MaterialTheme.typography.bodyMedium) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { onRole(TripRole.FROM) }, enabled = draft.canSet(TripRole.FROM, station)) {
+                Text(Copy.AS_FROM)
+            }
+            Button(onClick = { onRole(TripRole.TO) }, enabled = draft.canSet(TripRole.TO, station)) {
+                Text(Copy.AS_TO)
+            }
+            if (draft.from != null && draft.to != null) {
+                OutlinedButton(onClick = { onRole(TripRole.VIA) }, enabled = draft.canSet(TripRole.VIA, station)) {
+                    Text(Copy.AS_VIA)
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(time == SheetTime.NOW, { viewModel.select(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
-                FilterChip(time == SheetTime.PLUS_1H, { viewModel.select(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
-                FilterChip(time == SheetTime.PLUS_2H, { viewModel.select(SheetTime.PLUS_2H) }, { Text(Copy.SHEET_PLUS_2H) })
-                FilterChip(time == SheetTime.CUSTOM, {
-                    val now = LocalTime.now()
-                    TimePickerDialog(context, { _, h, m ->
-                        val at = pickedTime(h, m)
-                        viewModel.select(SheetTime.CUSTOM, at)
-                    }, now.hour, now.minute, true).show()
-                }, { Text(Copy.SHEET_PICK_TIME) })
-            }
-            when (val s = state) {
-                UiState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                is UiState.Content -> SheetTrains(s.data)
-                is UiState.Error -> Text(s.message)
-                UiState.Offline -> Text(Copy.OFFLINE)
-                UiState.Empty -> Text(Copy.NO_TRAIN_INFO)
-            }
-            TextButton(onClick = onDismiss) { Text(Copy.CLOSE) }
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(time == SheetTime.NOW, { onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
+            FilterChip(time == SheetTime.PLUS_1H, { onTime(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
+            FilterChip(time == SheetTime.PLUS_2H, { onTime(SheetTime.PLUS_2H) }, { Text(Copy.SHEET_PLUS_2H) })
+            FilterChip(time == SheetTime.CUSTOM, onPickTime, { Text(Copy.SHEET_PICK_TIME) })
+        }
+        when (val s = state) {
+            UiState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            is UiState.Content -> SheetTrains(s.data)
+            is UiState.Error -> Text(s.message)
+            UiState.Offline -> Text(Copy.OFFLINE)
+            UiState.Empty -> Text(Copy.NO_TRAIN_INFO)
+        }
+        TextButton(onClick = onDismiss) { Text(Copy.CLOSE) }
     }
 }
 

@@ -42,11 +42,14 @@ class LineMapContentScreenshotTest {
         favorites: List<FavoriteRouteEntity> = emptyList(),
         expanded: Boolean = false,
         tab: Int = 0,
+        failed: Boolean = false,
         routineList: @androidx.compose.runtime.Composable () -> Unit = { ListItem(headlineContent = { Text(Copy.NO_ROUTINES) }) },
     ) = snapBothThemes("linemap_$name") {
         LineMapContent(
             state = state,
             picture = picture,
+            mapFailed = failed,
+            snapshot = null,
             initialTransform = null,
             favoriteRoutes = favorites,
             nextRoutine = nextRoutine,
@@ -61,6 +64,8 @@ class LineMapContentScreenshotTest {
     @Test fun loadingStations() = snap("loading", state = LineMapUiState())
     @Test fun loadingPicture() = snap("loading_picture", picture = null)
     @Test fun ready() = snap("ready")
+    @Test fun mapFailed() = snap("failed", state = LineMapUiState(), failed = true)
+    @Test fun locationDenied() = snap("denied", state = ready.copy(message = Copy.LOCATION_DENIED, messageAction = MessageAction.OPEN_SETTINGS))
     @Test fun message() = snap("message", state = ready.copy(message = Copy.LOCATION_UNAVAILABLE))
     @Test fun tripOriginPicked() = snap("trip_origin", state = ready.copy(draft = TripDraft(from = StationRef("마포", "마포"))))
     @Test fun session() = snap("session", session = "마포 07:42 열차까지 6분")

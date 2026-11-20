@@ -20,10 +20,15 @@ import kotlinx.coroutines.launch
  * [message]: 잠깐 보일 안내("가까운 역이 없어요" 등).
  * [selected]: 역 시트를 연 역. [draft]: 고르는 중인 출발·경유·도착. [readyTrip]: 경로 결과로 넘길 차례인 여정.
  */
+/** 안내에 붙는 버튼. */
+enum class MessageAction { OPEN_SETTINGS }
+
 data class LineMapUiState(
     val map: LineMapStations? = null,
     val focus: MapStation? = null,
     val message: String? = null,
+    val messageAction: MessageAction? = null,
+    val mapFailed: Boolean = false,
     val selected: String? = null,
     val draft: TripDraft = TripDraft(),
     val readyTrip: TripDraft? = null,
@@ -31,19 +36,35 @@ data class LineMapUiState(
 
 /** 노선도 홈(재설계 스펙 4.1). 역 위치표를 읽고, 현재 위치에서 가장 가까운 역을 찾는다. */
 class LineMapViewModel(
-    loadStations: () -> LineMapStations,
+    private val loadStations: () -> LineMapStations,
     private val stations: StationRepository,
     private val location: LocationProvider,
-    loadDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val loadDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LineMapUiState())
     val state: StateFlow<LineMapUiState> = _state.asStateFlow()
 
     init {
+        loadMap()
+    }
+
+    /** 역 위치표를 읽는다. 실패하면 앱을 끄지 않고 [LineMapUiState.mapFailed]로 알린다. */
+    private fun loadMap() {
         viewModelScope.launch(loadDispatcher) {
-            val map = loadStations()
-            _state.update { it.copy(map = map) }
+            val map = runCatching { loadStations() }.getOrNull()
+            _state.update { it.copy(map = map, mapFailed = map == null) }
         }
+    }
+
+    /** 노선도 실패 화면의 [다시 시도]. */
+    fun retryMap() {
+        _state.update { it.copy(mapFailed = false) }
+        loadMap()
+    }
+
+    /** [현재 위치]에서 위치 권한을 거부했다: 설정을 열 수 있는 안내를 띄운다. */
+    fun onLocationDenied() {
+        _state.update { it.copy(message = Copy.LOCATION_DENIED, messageAction = MessageAction.OPEN_SETTINGS) }
     }
 
     /** [현재 위치]: 권한을 받은 뒤 부른다. 가까운 역이 노선도에 있으면 그 역으로 간다. */
@@ -82,8 +103,24 @@ class LineMapViewModel(
     var savedTransform: MapTransform? = null
         private set
 
+    /** 저장해 둔 마지막 화면에서 위치·배율을 이어받는다(이미 보던 위치가 있으면 그대로 둔다). */
+    fun restoreTransform(transform: MapTransform) {
+        if (savedTransform == null) savedTransform = transform
+    }
+
     fun saveTransform(transform: MapTransform) {
         savedTransform = transform
+    }
+
+    /** 노선도 화면 크기(px). 마지막 화면을 저장할 때 쓴다. */
+    var viewportWidth = 0
+        private set
+    var viewportHeight = 0
+        private set
+
+    fun saveViewport(width: Int, height: Int) {
+        viewportWidth = width
+        viewportHeight = height
     }
 
     fun consumeFocus() {
@@ -117,6 +154,6 @@ class LineMapViewModel(
     }
 
     fun consumeMessage() {
-        _state.update { it.copy(message = null) }
+        _state.update { it.copy(message = null, messageAction = null) }
     }
 }

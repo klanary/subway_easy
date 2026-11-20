@@ -31,8 +31,10 @@ class TripDraftTest {
     }
 
     @Test fun bannerText() {
-        assertEquals("출발: 마포 · 도착: (역을 고르세요)", TripDraft(from = mapo).banner())
-        assertEquals("출발: 마포 · 경유: 홍대입구 · 도착: 공덕", TripDraft(mapo, hongdae, gongdeok).banner())
+        assertEquals("마포에서 출발 · 도착역을 눌러 주세요", TripDraft(from = mapo).banner())
+        assertEquals("공덕까지 · 출발역을 눌러 주세요", TripDraft(to = gongdeok).banner())
+        assertEquals("마포 → 공덕", TripDraft(from = mapo, to = gongdeok).banner())
+        assertEquals("마포 → 홍대입구 → 공덕", TripDraft(mapo, hongdae, gongdeok).banner())
         assertEquals(null, TripDraft().banner())
     }
 }

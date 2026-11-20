@@ -1,6 +1,18 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
 import android.app.TimePickerDialog
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import io.github.klanary.jigeumchulbal.ui.common.StaleNotice
+import io.github.klanary.jigeumchulbal.ui.common.StateKind
+import io.github.klanary.jigeumchulbal.ui.common.StateLoading
+import io.github.klanary.jigeumchulbal.ui.common.StateMessage
+import io.github.klanary.jigeumchulbal.ui.common.StateSize
+import io.github.klanary.jigeumchulbal.ui.common.lineColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -50,6 +61,7 @@ fun StationSheet(
 ) {
     val viewModel = appViewModel(key = "sheet-$stationId") { StationSheetViewModel(stationId, it.stationRepository) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val lines by viewModel.lines.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.runAutoRefresh() }
@@ -62,8 +74,10 @@ fun StationSheet(
         StationSheetContent(
             stationId = stationId,
             state = state,
+            lines = lines,
             draft = draft,
             onRole = { role -> onRole(role, station) },
+            onRetry = viewModel::retry,
             onTime = { viewModel.select(it) },
             onPickTime = {
                 val now = LocalTime.now()
@@ -77,27 +91,35 @@ fun StationSheet(
     }
 }
 
-/** 역 시트 안쪽을 그린다(상태만 받는다). 시트 틀·ViewModel·시각 고르기 대화상자는 [StationSheet]가 잇는다. */
+/**
+ * 역 시트 안쪽을 그린다(상태만 받는다). 시트 틀·ViewModel·시각 고르기 대화상자는 [StationSheet]가 잇는다.
+ * 화면 다듬기 Task 4 합의: 호선 색 배지 아래 방향을 묶고, 첫 열차의 남은 시간을 크게, 막차·급행·근거는 작은 표식.
+ */
 @Composable
 internal fun StationSheetContent(
     stationId: String,
     state: UiState<StationSheetUi>,
     draft: TripDraft,
+    lines: List<String> = (state as? UiState.Content)?.data?.lines.orEmpty(),
     onRole: (TripRole) -> Unit = {},
     onTime: (SheetTime) -> Unit = {},
     onPickTime: () -> Unit = {},
+    onRetry: () -> Unit = {},
     onDismiss: () -> Unit = {},
 ) {
     val station = StationRef(stationId, stationId)
-    val time = (state as? UiState.Content)?.data?.time ?: SheetTime.NOW
+    val content = (state as? UiState.Content)?.data
+    val time = content?.time ?: SheetTime.NOW
     // 시스템 내비게이션 바에 버튼이 가리지 않게 하고, 열차 줄이 많으면 스크롤한다(2026-11-12 실기기).
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
             .padding(horizontal = 16.dp).padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stationId, style = MaterialTheme.typography.headlineSmall)
-        (state as? UiState.Content)?.data?.lines?.let { Text(it.joinToString(" · "), style = MaterialTheme.typography.bodyMedium) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stationId, style = MaterialTheme.typography.headlineSmall)
+            lines.forEach { LineBadge(it) }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onRole(TripRole.FROM) }, enabled = draft.canSet(TripRole.FROM, station)) {
                 Text(Copy.AS_FROM)
@@ -115,33 +137,101 @@ internal fun StationSheetContent(
             FilterChip(time == SheetTime.NOW, { onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
             FilterChip(time == SheetTime.PLUS_1H, { onTime(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
             FilterChip(time == SheetTime.PLUS_2H, { onTime(SheetTime.PLUS_2H) }, { Text(Copy.SHEET_PLUS_2H) })
-            FilterChip(time == SheetTime.CUSTOM, onPickTime, { Text(Copy.SHEET_PICK_TIME) })
+            val picked = content?.customLabel?.takeIf { time == SheetTime.CUSTOM }
+            FilterChip(time == SheetTime.CUSTOM, onPickTime, { Text(picked?.let { "$it ${Copy.SHEET_AT}" } ?: Copy.SHEET_PICK_TIME) })
         }
-        when (val s = state) {
-            UiState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-            is UiState.Content -> SheetTrains(s.data)
-            is UiState.Error -> Text(s.message)
-            UiState.Offline -> Text(Copy.OFFLINE)
-            UiState.Empty -> Text(Copy.NO_TRAIN_INFO)
+        when (state) {
+            UiState.Loading -> StateLoading(StateSize.Inline)
+            is UiState.Content -> {
+                if (state.stale) StaleNotice(onRetry)
+                SheetTrains(state.data)
+            }
+            is UiState.Error -> StateMessage(
+                if (state.message == Copy.NO_TRAIN_INFO) StateKind.Empty else StateKind.Error,
+                state.message,
+                StateSize.Inline,
+                onRetry,
+            )
+            UiState.Offline -> StateMessage(StateKind.Offline, Copy.OFFLINE, StateSize.Inline, onRetry)
+            UiState.Empty -> StateMessage(StateKind.Empty, Copy.NO_TRAIN_INFO, StateSize.Inline, onRetry = null)
         }
         TextButton(onClick = onDismiss) { Text(Copy.CLOSE) }
     }
 }
 
+/** 호선 이름을 호선 색 알약으로. */
+@Composable
+internal fun LineBadge(line: String) {
+    Text(
+        line,
+        color = Color.White,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.background(Color(lineColor(line)), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+/** 작은 표식: [막차] [급행] [시간표]. */
+@Composable
+private fun Tag(text: String, color: Color) {
+    Text(
+        text,
+        color = color,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.border(1.dp, color, RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 1.dp),
+    )
+}
+
 @Composable
 private fun SheetTrains(ui: StationSheetUi) {
-    if (ui.basis.isNotEmpty()) Text(ui.basis.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-    ui.groups.forEach { group ->
-        Column {
-            val head = listOfNotNull(group.line, group.direction, group.towards?.let { "$it 방면" }).joinToString(" ")
-            Text(head, style = MaterialTheme.typography.titleSmall)
-            Text(group.trains.joinToString(if (ui.time == SheetTime.NOW) " · " else ", "), style = MaterialTheme.typography.bodyLarge)
+    // 호선별로 묶는다(서버가 주는 순서에서 처음 나온 호선 순서대로).
+    val byLine = ui.groups.groupBy { it.line }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        byLine.forEach { (line, groups) ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LineBadge(line)
+                groups.forEach { DirectionRow(it) }
+            }
         }
+        (ui.noTimetableLines.map { it to Copy.NO_TIMETABLE_LINE } + ui.unsupportedLines.map { it to Copy.UNSUPPORTED_LINE })
+            .forEach { (line, message) ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    LineBadge(line)
+                    Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
     }
-    ui.noTimetableLines.forEach { line ->
-        Text("$line · ${Copy.NO_TIMETABLE_LINE}", style = MaterialTheme.typography.bodyMedium)
-    }
-    ui.unsupportedLines.forEach { line ->
-        Text("$line · ${Copy.UNSUPPORTED_LINE}", style = MaterialTheme.typography.bodyMedium)
+}
+
+@Composable
+private fun DirectionRow(group: DirectionTrains) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(Modifier.padding(start = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val head = listOfNotNull(group.direction, group.towards?.let { "$it 방면" }).joinToString(" · ")
+            Text(head, style = MaterialTheme.typography.labelLarge, color = muted)
+            group.basis?.let { Tag(it, MaterialTheme.colorScheme.tertiary) }
+        }
+        val first = group.trains.firstOrNull() ?: return@Column
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (first.clock) {
+                Text(first.time, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                first.destination?.let { Text("${it}행", style = MaterialTheme.typography.bodyLarge) }
+            } else {
+                first.destination?.let { Text("${it}행", style = MaterialTheme.typography.bodyLarge) }
+                Text(first.time, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            }
+            if (first.isLast) Tag(Copy.LAST_TRAIN, MaterialTheme.colorScheme.error)
+            if (first.isExpress) Tag(Copy.EXPRESS, MaterialTheme.colorScheme.primary)
+        }
+        val rest = group.trains.drop(1)
+        if (rest.isNotEmpty()) {
+            val text = if (first.clock) rest.joinToString(" · ") { it.text() } else rest.joinToString(" · ") { "그다음 ${it.time}" }
+            val marks = rest.flatMap { listOfNotNull(Copy.LAST_TRAIN.takeIf { _ -> it.isLast }, Copy.EXPRESS.takeIf { _ -> it.isExpress }) }.distinct()
+            Text(
+                (listOf(text) + marks.map { "($it 포함)" }).joinToString(" "),
+                style = MaterialTheme.typography.bodyMedium,
+                color = muted,
+            )
+        }
     }
 }

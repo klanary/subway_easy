@@ -24,13 +24,12 @@ class StationSheetContentScreenshotTest {
         name = "시청",
         lines = listOf("1호선", "2호선"),
         groups = listOf(
-            DirectionTrains("1호선", "상행", "종각", listOf("청량리행 곧 도착", "그다음 1분")),
-            DirectionTrains("2호선", "외선", "충정로", listOf("성수행 1분", "그다음 2분")),
-            DirectionTrains("2호선", "내선", "을지로입구", listOf("성수행 곧 도착", "그다음 5분")),
-            DirectionTrains("1호선", "하행", "서울", listOf("인천행 1분", "그다음 3분")),
+            DirectionTrains("1호선", "상행", "종각", listOf(TrainLine("청량리", "곧 도착", isExpress = true), TrainLine("광운대", "1분"))),
+            DirectionTrains("2호선", "외선", "충정로", listOf(TrainLine("성수", "1분"), TrainLine("성수", "2분"))),
+            DirectionTrains("2호선", "내선", "을지로입구", listOf(TrainLine("성수", "곧 도착"), TrainLine("성수", "5분", isLast = true))),
+            DirectionTrains("1호선", "하행", "서울", listOf(TrainLine("인천", "1분", isLast = true), TrainLine("인천", "3분"))),
         ),
         unsupportedLines = emptyList(),
-        basis = emptyList(),
     )
 
     private fun snap(name: String, state: UiState<StationSheetUi>, draft: TripDraft = TripDraft(), station: String = "시청") =
@@ -50,10 +49,9 @@ class StationSheetContentScreenshotTest {
                 name = "김포공항",
                 lines = listOf("5호선", "9호선", "공항철도", "김포골드라인"),
                 groups = listOf(
-                    DirectionTrains("5호선", "상행", null, listOf("방화행 3분", "그다음 11분")),
-                    DirectionTrains("공항철도", "하행", "계양", listOf("인천공항2터미널행 6분", "그다음 18분")),
+                    DirectionTrains("5호선", "상행", null, listOf(TrainLine("방화", "3분"), TrainLine("방화", "11분")), basis = Copy.BY_TIMETABLE),
+                    DirectionTrains("공항철도", "하행", "계양", listOf(TrainLine("인천공항2터미널", "6분"), TrainLine("인천공항2터미널", "18분")), basis = Copy.BY_MEASURED),
                 ),
-                basis = listOf(Copy.BY_TIMETABLE, Copy.BY_MEASURED),
                 unsupportedLines = listOf("김포골드라인"),
             ),
         ),
@@ -66,15 +64,23 @@ class StationSheetContentScreenshotTest {
             now.copy(
                 time = SheetTime.PLUS_1H,
                 groups = listOf(
-                    DirectionTrains("1호선", "상행", null, listOf("19:32 청량리행", "19:38 광운대행", "19:44 청량리행", "19:51 소요산행")),
-                    DirectionTrains("2호선", "외선", null, listOf("19:30 성수행", "19:35 성수행", "19:40 성수행", "19:45 성수행")),
+                    DirectionTrains(
+                        "1호선", "상행", null,
+                        listOf("19:32" to "청량리", "19:38" to "광운대", "19:44" to "청량리", "19:51" to "소요산").map { TrainLine(it.second, it.first, clock = true) },
+                        basis = Copy.BY_TIMETABLE,
+                    ),
+                    DirectionTrains(
+                        "2호선", "외선", null,
+                        listOf("19:30", "19:35", "19:40", "19:45").map { TrainLine("성수", it, clock = true) },
+                        basis = Copy.BY_TIMETABLE,
+                    ),
                 ),
-                basis = listOf(Copy.BY_TIMETABLE),
                 noTimetableLines = listOf("경의중앙선"),
             ),
         ),
     )
 
+    @Test fun customTime() = snap("custom", UiState.Content(now.copy(time = SheetTime.CUSTOM, customLabel = "19:30")))
     @Test fun originAlreadyHere() = snap("origin_here", UiState.Content(now), draft = TripDraft(from = StationRef("시청", "시청")))
     @Test fun viaAvailable() = snap(
         "via",

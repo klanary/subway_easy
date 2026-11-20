@@ -256,6 +256,15 @@ git switch develop && git merge --no-ff polish/<번호>-<이름>
 - 출발점 상태: Loading(지금은 진행 막대), Content(방향별 열차), Content stale, Empty(`Copy.NO_TRAIN_INFO`), Error, Offline, 미지원 노선 포함(`unsupportedLines`), 시간표 없는 노선(`noTimetableLines`), 시각 NOW/+1h/+2h/직접, 막차·급행 표시, 역할 버튼 비활성(같은 역, 경유는 출발·도착 뒤)
 - 인라인 상태는 `StateSize.Inline`을 쓴다.
 
+**합의 결과(2026-11-20):**
+- 오류·오프라인: 공통 한 줄 상태 + [다시 시도], 오류 때도 호선 줄 유지.
+- 오래된 정보: 공통 띠(정보가 늦어지고 있어요 · 다시 시도).
+- 막차·급행: 열차 옆 작은 표식.
+- [닫기]: 그대로 둔다.
+- 열차 줄: 호선 색 배지 아래 방향을 묶고, 첫 열차 남은 시간을 크고 굵게, 그다음은 작게.
+- 근거: 실시간이 아닌 방향 줄마다 작게. "실측"은 추상적이라 "운행 기록"으로 바꾼다(변경 가능).
+- [시각 선택]: 고른 뒤 "19:30 기준"처럼 보인다.
+
 ### Task 5: 검색 (브랜치 `polish/4-search`)
 
 - 파일: `ui/search/SearchScreen.kt`, `ui/search/SearchViewModel.kt`

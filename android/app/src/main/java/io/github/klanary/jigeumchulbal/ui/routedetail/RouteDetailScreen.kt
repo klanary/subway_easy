@@ -56,8 +56,16 @@ import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
 import io.github.klanary.jigeumchulbal.ui.SessionDest
 import kotlinx.serialization.json.Json
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import io.github.klanary.jigeumchulbal.ui.common.LineBadge
 import io.github.klanary.jigeumchulbal.ui.common.color
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
+import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowState
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.session.rememberStartSession
 
@@ -76,16 +84,74 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
     val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest) })
     val container = (LocalContext.current.applicationContext as App).container
 
+    RouteDetailContent(
+        state = state,
+        onBack = { navController.popBackStack() },
+        onToggleFavorite = viewModel::toggleFavorite,
+        onMakeRoutine = { picked ->
+            val origin = state.origin
+            val dest = state.dest
+            if (origin != null && dest != null) {
+                // 루틴 편집 화면에 이 경로를 넘긴다(재설계 스펙 4.5, 4.6).
+                container.pendingRoutine = RoutineDraft(origin, state.via, dest, routeJson(picked))
+                navController.navigate(RoutineEditDest())
+            }
+        },
+        picks = TrainPickActions(
+            move = viewModel::moveTrain,
+            loadLater = viewModel::loadLater,
+            filter = viewModel::setExpressFilter,
+            unpin = viewModel::unpin,
+        ),
+        sessionButtons = { picked, hasPicks -> SessionButtons(picked, hasPicks, startSession) },
+    )
+}
+
+/** 열차 고르기 줄의 동작(구간 번호를 받는다). */
+internal class TrainPickActions(
+    val move: (Int, Int) -> Unit = { _, _ -> },
+    val loadLater: (Int) -> Unit = {},
+    val filter: (Int, ExpressFilter) -> Unit = { _, _ -> },
+    val unpin: (Int) -> Unit = {},
+)
+
+/** 경로 상세를 그린다(상태만 받는다). 알림 시작 버튼은 권한·대화상자를 다뤄 [sessionButtons] 자리로 받는다. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RouteDetailContent(
+    state: RouteFlowState,
+    now: Long = System.currentTimeMillis(),
+    onBack: () -> Unit = {},
+    onToggleFavorite: () -> Unit = {},
+    onMakeRoutine: (RouteDto) -> Unit = {},
+    picks: TrainPickActions = TrainPickActions(),
+    sessionButtons: @Composable (RouteDto, Boolean) -> Unit = { _, _ -> },
+) {
+    val route = state.pickedRoute
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { route?.let { Text(formatDuration(it.totalSec)) } },
+                // "마포 → 노량진 · 9분"(Task 7 합의)
+                title = {
+                    route?.let {
+                        val name = listOfNotNull(state.origin?.name, state.dest?.name).joinToString(" → ")
+                        Text(listOf(name, formatDuration(it.totalSec)).filter { p -> p.isNotEmpty() }.joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
             )
+        },
+        // 알림 버튼은 아래에 고정해 스크롤해도 보인다(Task 7 합의). 도보만인 경로는 알림을 걸지 않는다.
+        bottomBar = {
+            if (route != null && route.hasTransit()) {
+                Surface(tonalElevation = 3.dp, shadowElevation = 6.dp) {
+                    Box(Modifier.navigationBarsPadding()) { sessionButtons(route, state.hasPicks) }
+                }
+            }
         },
     ) { padding ->
         if (route == null) {
@@ -97,20 +163,14 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
         }
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
-                // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
-                if (route.hasTransit()) SessionButtons(route, state.hasPicks, startSession)
                 Row(Modifier.padding(horizontal = 8.dp)) {
-                    TextButton(onClick = viewModel::toggleFavorite) {
+                    TextButton(onClick = onToggleFavorite) {
                         Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
                     }
                     val origin = state.origin
                     val dest = state.dest
                     if (route.hasTransit() && origin != null && dest != null) {
-                        TextButton(onClick = {
-                            // 루틴 편집 화면에 이 경로를 넘긴다(재설계 스펙 4.5, 4.6).
-                            container.pendingRoutine = RoutineDraft(origin, state.via, dest, routeJson(route))
-                            navController.navigate(RoutineEditDest())
-                        }) { Text(Copy.MAKE_ROUTINE) }
+                        TextButton(onClick = { onMakeRoutine(route) }) { Text(Copy.MAKE_ROUTINE) }
                     }
                 }
                 HorizontalDivider()
@@ -118,12 +178,13 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
             stepItems(route, viaName = state.via?.name) { k ->
                 state.picks.getOrNull(k)?.let {
                     val filter = state.choices.getOrNull(k)?.filter ?: ExpressFilter.ALL
-                    TrainPickRow(it.copy(needsMore = it.needsMore && k !in state.exhausted), k, filter, state.loadingMore, k in state.exhausted, viewModel)
+                    TrainPickRow(it.copy(needsMore = it.needsMore && k !in state.exhausted), k, filter, state.loadingMore, k in state.exhausted, now, picks)
                 }
             }
         }
     }
 }
+
 
 /**
  * [지금 출발 알림](첫 탑승역의 열차 정보가 있을 때만)과 [하차 알림 시작], "환승·하차 진동 알림" 스위치(기본 끔).
@@ -183,9 +244,15 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: 
                 leadingContent = {
                     Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
                 },
-                headlineContent = { Text(stepTitle(step)) },
+                headlineContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (step.mode == StepMode.SUBWAY) step.lineName?.let { LineBadge(it) }
+                        Text(stepHead(step), style = MaterialTheme.typography.titleMedium)
+                    }
+                },
                 supportingContent = {
                     Column {
+                        stepDetail(step)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
                         // 지하철 구간은 열차 고르기 줄(이전/다음·급행·고정·경고), 그 밖은 운행표 열차 줄
                         if (segments[i] >= 0) {
@@ -218,36 +285,47 @@ private fun TrainPickRow(
     current: ExpressFilter,
     loadingMore: Boolean,
     exhausted: Boolean,
-    viewModel: RouteFlowViewModel,
+    now: Long,
+    actions: TrainPickActions,
 ) {
     Column {
+        // 열차 고르기 줄(Task 7 합의): 아이콘 버튼, 가운데 시각을 크게, 번호·급행·떠남은 작게.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(enabled = pick.canPrev, onClick = { viewModel.moveTrain(k, -1) }) { Text(Copy.PREV_TRAIN) }
+            IconButton(enabled = pick.canPrev, onClick = { actions.move(k, -1) }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = Copy.PREV_TRAIN)
+            }
             // 이미 떠난 열차는 흐리게(고르면 알림이 바로 "놓쳤어요"가 된다)
-            val departed = pick.train?.let { isDeparted(it, System.currentTimeMillis()) } == true
-            Text(
-                pick.train?.let { pickLine(it) + if (departed) " · ${Copy.DEPARTED}" else "" } ?: Copy.NO_LATER_TRAIN,
-                Modifier.weight(1f),
-                color = if (departed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            TextButton(
+            val train = pick.train
+            val departed = train?.let { isDeparted(it, now) } == true
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    train?.let { pickTimes(it) } ?: Copy.NO_LATER_TRAIN,
+                    color = if (departed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    style = if (train != null) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (train != null) FontWeight.Bold else null,
+                )
+                val meta = listOfNotNull(train?.let { pickMeta(it) }?.takeIf { it.isNotEmpty() }, Copy.DEPARTED.takeIf { departed })
+                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(
                 enabled = pick.canNext || (pick.needsMore && !loadingMore),
-                onClick = { if (pick.canNext) viewModel.moveTrain(k, 1) else viewModel.loadLater(k) },
-            ) { Text(Copy.NEXT_TRAIN) }
+                onClick = { if (pick.canNext) actions.move(k, 1) else actions.loadLater(k) },
+            ) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = Copy.NEXT_TRAIN)
+            }
         }
         if (pick.hasExpress && pick.hasLocal) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(ExpressFilter.ALL to Copy.FILTER_ALL, ExpressFilter.EXPRESS to Copy.FILTER_EXPRESS, ExpressFilter.LOCAL to Copy.FILTER_LOCAL)
                     .forEach { (filter, label) ->
-                        FilterChip(selected = current == filter, onClick = { viewModel.setExpressFilter(k, filter) }, label = { Text(label) })
+                        FilterChip(selected = current == filter, onClick = { actions.filter(k, filter) }, label = { Text(label) })
                     }
             }
         }
         if (pick.pinned) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Copy.PINNED, style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { viewModel.unpin(k) }) { Text(Copy.UNPIN) }
+                TextButton(onClick = { actions.unpin(k) }) { Text(Copy.UNPIN) }
             }
         }
         pick.warning?.let {
@@ -258,7 +336,7 @@ private fun TrainPickRow(
             Text(Copy.NO_LATER_TRAIN, style = MaterialTheme.typography.bodySmall)
         }
         if (pick.train == null && pick.needsMore) {
-            TextButton(enabled = !loadingMore, onClick = { viewModel.loadLater(k) }) { Text(Copy.LOAD_LATER) }
+            TextButton(enabled = !loadingMore, onClick = { actions.loadLater(k) }) { Text(Copy.LOAD_LATER) }
         }
     }
 }

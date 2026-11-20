@@ -1,5 +1,14 @@
 package io.github.klanary.jigeumchulbal.ui.session
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.filled.Check
 import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -102,12 +111,35 @@ fun SessionScreen(navController: NavController, viewModel: SessionViewModel = se
         )
     }
 
+    SessionContent(
+        state = state,
+        now = now,
+        inAppOnly = inAppOnly,
+        exactAlarms = exactAlarms,
+        onBack = { navController.popBackStack() },
+        onBoarded = viewModel::boarded,
+        onCancel = viewModel::cancel,
+    )
+}
+
+/** 통학 세션을 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SessionContent(
+    state: SessionState,
+    now: Long,
+    inAppOnly: Boolean,
+    exactAlarms: Boolean,
+    onBack: () -> Unit = {},
+    onBoarded: () -> Unit = {},
+    onCancel: () -> Unit = {},
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(Copy.SESSION_TITLE) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
@@ -128,12 +160,13 @@ fun SessionScreen(navController: NavController, viewModel: SessionViewModel = se
             Text(sessionHeadline(state, now) ?: Copy.NO_SESSION, style = MaterialTheme.typography.headlineSmall)
             when (val s = state) {
                 SessionState.Idle -> Unit
-                is SessionState.Waiting -> WaitingSection(s, now, viewModel::boarded, viewModel::cancel)
-                is SessionState.Riding -> RidingSection(s, viewModel::cancel)
+                is SessionState.Waiting -> WaitingSection(s, now, onBoarded, onCancel)
+                is SessionState.Riding -> RidingSection(s, onCancel)
             }
         }
     }
 }
+
 
 @Composable
 private fun NoticeBand(text: String) {
@@ -150,28 +183,46 @@ private fun NoticeBand(text: String) {
 @Composable
 private fun WaitingSection(state: SessionState.Waiting, now: Long, onBoarded: () -> Unit, onCancel: () -> Unit) {
     val content = ongoingContent(state, now, exactAlarms = true) ?: return
-    Text(content.title, style = MaterialTheme.typography.titleMedium)
-    Text(content.text, style = MaterialTheme.typography.bodyLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onBoarded) { Text(SessionAction.BOARDED.label) }
-        OutlinedButton(onClick = onCancel) { Text(SessionAction.CANCEL.label) }
+    Text(content.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // 남은 시간을 크게, [탑승했어요]는 화면 폭 큰 버튼(Task 9 합의).
+    Text(content.text, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Button(onClick = onBoarded, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Text(SessionAction.BOARDED.label, style = MaterialTheme.typography.titleMedium)
     }
+    OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(SessionAction.CANCEL.label) }
 }
 
-/** 하차·환승 지점마다 이름과 하차 예정 시각. 이미 지난 지점은 흐리게 보인다. */
+/** 하차·환승 지점마다 이름과 하차 예정 시각. 지난 지점은 ✓, 다음 지점은 강조(Task 9 합의). */
 @Composable
 private fun RidingSection(state: SessionState.Riding, onCancel: () -> Unit) {
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         state.points.forEachIndexed { i, point ->
+            val passed = i < state.nextIndex
+            val next = i == state.nextIndex
             ListItem(
-                headlineContent = { Text(stopLabel(point)) },
+                leadingContent = {
+                    if (passed) {
+                        Icon(Icons.Filled.Check, contentDescription = Copy.PASSED, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier.size(if (next) 14.dp else 10.dp)
+                                    .background(if (next) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape),
+                            )
+                        }
+                    }
+                },
+                headlineContent = {
+                    Text(stopLabel(point), style = if (next) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge, fontWeight = if (next) FontWeight.Bold else null)
+                },
                 supportingContent = { Text(pointKindLabel(point)) },
                 trailingContent = { Text("${formatClock(point.alightAt)} ${Copy.ALIGHT_EXPECTED}") },
-                modifier = Modifier.alpha(if (i < state.nextIndex) 0.4f else 1f),
+                colors = if (next) ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer) else ListItemDefaults.colors(),
+                modifier = Modifier.alpha(if (passed) 0.5f else 1f).clip(MaterialTheme.shapes.medium),
             )
         }
     }
-    OutlinedButton(onClick = onCancel) { Text(SessionAction.CANCEL.label) }
+    OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(SessionAction.CANCEL.label) }
 }
 
 /** 앱 안 모드 알림의 진동 한 번. 보통 모드에서는 알림 채널이 진동을 맡는다. */

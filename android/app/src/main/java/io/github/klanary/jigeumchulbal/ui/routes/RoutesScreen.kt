@@ -28,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
@@ -38,10 +39,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.ui.RouteDetailDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import io.github.klanary.jigeumchulbal.ui.common.LineBadges
+import androidx.compose.ui.text.font.FontWeight
 import io.github.klanary.jigeumchulbal.ui.common.StateContainer
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.formatClock
 import io.github.klanary.jigeumchulbal.ui.common.pickedTime
+import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowState
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import kotlinx.coroutines.delay
 
@@ -57,16 +61,47 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
             value = System.currentTimeMillis()
         }
     }
+    val context = LocalContext.current
+    RoutesContent(
+        state = state,
+        now = now,
+        onBack = { navController.popBackStack() },
+        onDepartNow = { viewModel.setDepartAt(null) },
+        onPickTime = {
+            val base = java.time.LocalTime.now()
+            TimePickerDialog(context, { _, h, m ->
+                viewModel.setDepartAt(pickedTime(h, m))
+            }, base.hour, base.minute, true).show()
+        },
+        onRetry = viewModel::search,
+        onRoute = { id ->
+            viewModel.select(id)
+            navController.navigate(RouteDetailDest(id))
+        },
+    )
+}
+
+/** 경로 결과를 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RoutesContent(
+    state: RouteFlowState,
+    now: Long,
+    onBack: () -> Unit = {},
+    onDepartNow: () -> Unit = {},
+    onPickTime: () -> Unit = {},
+    onRetry: () -> Unit = {},
+    onRoute: (String) -> Unit = {},
+) {
     // "마포 → (공덕) → 홍대입구"(재설계 스펙 4.4)
     val title = listOfNotNull(state.origin?.name, state.via?.name?.let { "($it)" }, state.dest?.name).joinToString(" → ")
-    val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
@@ -76,28 +111,20 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
         Column(Modifier.padding(padding)) {
         // 출발 시각: 지금 / 시각 선택. 시각을 고르면 시간표 열차와 도착 예상이 붙는다.
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(state.departAt == null, { viewModel.setDepartAt(null) }, { Text(Copy.SHEET_NOW) })
-            FilterChip(state.departAt != null, {
-                val base = java.time.LocalTime.now()
-                TimePickerDialog(context, { _, h, m ->
-                    viewModel.setDepartAt(pickedTime(h, m))
-                }, base.hour, base.minute, true).show()
-            }, { Text(state.departAt?.let { formatClock(it.toEpochMilli()) + " 출발" } ?: Copy.SHEET_PICK_TIME) })
+            FilterChip(state.departAt == null, onDepartNow, { Text(Copy.SHEET_NOW) })
+            FilterChip(state.departAt != null, onPickTime, { Text(state.departAt?.let { formatClock(it.toEpochMilli()) + " 출발" } ?: Copy.SHEET_PICK_TIME) })
         }
         StateContainer(
             state = state.results ?: UiState.Loading,
-            onRetry = viewModel::search,
-            emptyText = Copy.NO_ROUTES,
+            onRetry = onRetry,
+            emptyText = if (state.departAt != null) Copy.NO_ROUTES_AT_TIME else Copy.NO_ROUTES_HINT,
         ) { found ->
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(found.routes, key = { it.id }) { route ->
-                    RouteCard(route.toCardUi(state.receivedAt ?: now, now)) {
-                        viewModel.select(route.id)
-                        navController.navigate(RouteDetailDest(route.id))
-                    }
+                    RouteCard(route.toCardUi(state.receivedAt ?: now, now)) { onRoute(route.id) }
                 }
             }
         }
@@ -105,15 +132,20 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
     }
 }
 
+
 @Composable
 private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(ui.totalText, style = MaterialTheme.typography.headlineSmall)
-            Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(ui.totalText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            // 탈 호선을 순서대로(Task 6 합의)
+            if (ui.lines.isNotEmpty()) LineBadges(ui.lines, arrow = true)
             SegmentBar(ui.segments)
             ui.boardingText?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             }
             ui.transferText?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)

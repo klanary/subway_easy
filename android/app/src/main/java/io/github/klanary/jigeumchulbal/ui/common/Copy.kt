@@ -25,6 +25,8 @@ object Copy {
     const val REALTIME = "실시간"
     const val PICK_ON_MAP = "지도에서 선택"
     const val NO_RESULTS = "검색 결과가 없어요"
+    const val NO_RESULTS_HINT = "검색 결과가 없어요. 역 이름이나 초성을 확인해 주세요"
+    const val SEARCH_START = "역 이름이나 초성(ㅅㅊ)으로 찾아보세요"
 
     // 경로 편집
     const val CURRENT_LOCATION = "현재 위치"
@@ -48,6 +50,8 @@ object Copy {
 
     // 경로 결과
     const val NO_ROUTES = "경로가 없어요"
+    const val NO_ROUTES_HINT = "탈 수 있는 경로가 없어요. 출발·도착역을 바꾸거나 시각을 정해 보세요"
+    const val NO_ROUTES_AT_TIME = "이 시각에 탈 수 있는 경로가 없어요. 출발 시각을 바꿔 보세요"
     // 구간별 열차 고르기(열차 고르기 설계 2026-11-18)
     const val PREV_TRAIN = "◀ 이전"
     const val NEXT_TRAIN = "다음 ▶"
@@ -152,6 +156,8 @@ object Copy {
     const val NO_FAVORITE_ROUTES_HINT = "경로를 찾은 뒤 ★를 눌러 추가해 보세요"
     const val ROUTINES = "루틴"
     const val NO_ROUTINES = "등록한 루틴이 없어요"
+    const val NO_ROUTINES_HINT = "등록한 루틴이 없어요. 경로 상세에서 [루틴으로 만들기]를 눌러 보세요"
+    const val PASSED = "지남"
     const val NO_FAVORITE_ROUTES = "자주 가는 경로가 없어요"
     const val FIND_ROUTE = "경로 찾기"
     const val EXPAND = "펼치기"
@@ -159,13 +165,14 @@ object Copy {
     // 역 시트(재설계 스펙 4.2)
     const val NO_TRAIN_INFO = "열차 정보가 없어요"
     const val UNSUPPORTED_LINE = "실시간 정보를 제공하지 않는 노선이에요"
-    const val BY_TIMETABLE = "시간표 기준"
-    const val BY_MEASURED = "실측 기준"
+    const val BY_TIMETABLE = "시간표"
+    const val BY_MEASURED = "운행 기록"
     const val NO_TIMETABLE_LINE = "시간표를 제공하지 않는 노선이에요"
     const val SHEET_NOW = "지금"
     const val SHEET_PLUS_1H = "+1시간"
     const val SHEET_PLUS_2H = "+2시간"
     const val SHEET_PICK_TIME = "시각 선택"
+    const val SHEET_AT = "기준"
     const val CLOSE = "닫기"
     const val AS_FROM = "출발로"
     const val AS_TO = "도착으로"

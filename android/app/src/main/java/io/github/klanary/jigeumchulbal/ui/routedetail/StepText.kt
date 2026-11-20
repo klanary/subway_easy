@@ -3,6 +3,7 @@ package io.github.klanary.jigeumchulbal.ui.routedetail
 import io.github.klanary.jigeumchulbal.data.remote.CandidateDto
 import io.github.klanary.jigeumchulbal.data.remote.StepDto
 import io.github.klanary.jigeumchulbal.data.remote.StepMode
+import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -72,10 +73,30 @@ fun transferLine(step: StepDto): String? {
     val trains = step.transferTrains?.takeIf { it.isNotEmpty() } ?: return null
     fun train(t: io.github.klanary.jigeumchulbal.data.remote.TransferTrainDto) =
         listOfNotNull(clockTime(t.departsAt), t.destination?.let { "${it}행" }).joinToString(" ") +
-            if (t.source == "measured") "(실측)" else ""
+            if (t.source == "measured") "(${Copy.BY_MEASURED})" else ""
     return listOfNotNull(
         step.boardAfter?.let { "${step.stops?.firstOrNull() ?: ""} 도착 ${clockTime(it)}".trim() },
         "환승 열차 ${train(trains[0])}",
         trains.getOrNull(1)?.let { "그다음 ${train(it)}" },
     ).joinToString(" · ")
 }
+
+/** 단계 줄의 큰 글: 지하철은 "마포 → 애오개", 그 밖은 [stepTitle] 그대로(Task 7 합의). */
+fun stepHead(step: StepDto): String {
+    val stops = step.stops.orEmpty()
+    return if (step.mode == StepMode.SUBWAY && stops.size >= 2) "${stops.first()} → ${stops.last()}" else stepTitle(step)
+}
+
+/** 단계 줄의 작은 글: 지하철은 "공덕 방면 · 2정거장 · 4분", 그 밖은 null. */
+fun stepDetail(step: StepDto): String? {
+    val stops = step.stops.orEmpty()
+    if (step.mode != StepMode.SUBWAY || stops.size < 2) return null
+    return "${stops[1]} 방면 · ${stops.size - 1}정거장 · ${formatDuration(step.durationSec)}"
+}
+
+/** 열차 고르기 줄의 큰 글: "08:20 → 08:24"(도착을 모르면 출발만). */
+fun pickTimes(train: CandidateDto): String =
+    clockTime(train.departsAt) + train.arrivesAt?.let { " → ${clockTime(it)}" }.orEmpty() + if (train.estimated) " (어림)" else ""
+
+/** 열차 고르기 줄의 작은 글: "9501 · 급행". 없으면 빈 글. */
+fun pickMeta(train: CandidateDto): String = listOfNotNull(train.trainNo, "급행".takeIf { train.isExpress }).joinToString(" · ")

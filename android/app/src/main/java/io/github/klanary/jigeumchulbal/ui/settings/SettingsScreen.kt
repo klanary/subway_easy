@@ -1,5 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.settings
 
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -57,12 +59,37 @@ fun SettingsScreen(
 
 
 
+    SettingsContent(
+        state = state,
+        permissions = permissions,
+        onBack = { navController.popBackStack() },
+        onOpenPermission = { row -> context.startActivity(permissionSettingsIntent(context, row)) },
+        onDepartMargin = viewModel::setDepartMargin,
+        onAlightLead = viewModel::setAlightLead,
+        onStationLead = viewModel::setStationLead,
+        onMaxWait = viewModel::setMaxWait,
+    )
+}
+
+/** 설정을 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SettingsContent(
+    state: SettingsUiState,
+    permissions: List<PermissionRow>,
+    onBack: () -> Unit = {},
+    onOpenPermission: (PermissionRow) -> Unit = {},
+    onDepartMargin: (Int) -> Unit = {},
+    onAlightLead: (Int) -> Unit = {},
+    onStationLead: (Int) -> Unit = {},
+    onMaxWait: (Int) -> Unit = {},
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(Copy.SETTINGS) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
@@ -72,16 +99,16 @@ fun SettingsScreen(
         LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(bottom = 24.dp)) {
             item { SectionTitle(Copy.ALERT_TIMING) }
             item {
-                OptionRow(Copy.DEPART_MARGIN, DEPART_MARGIN_OPTIONS, state.settings.departMarginSec, ::secondsText, viewModel::setDepartMargin)
+                OptionRow(Copy.DEPART_MARGIN, DEPART_MARGIN_OPTIONS, state.settings.departMarginSec, ::secondsText, onDepartMargin)
             }
             item {
-                OptionRow(Copy.ALIGHT_LEAD, ALIGHT_LEAD_OPTIONS, state.settings.alightLeadSec, { "${secondsText(it)} 전" }, viewModel::setAlightLead)
+                OptionRow(Copy.ALIGHT_LEAD, ALIGHT_LEAD_OPTIONS, state.settings.alightLeadSec, { "${secondsText(it)} 전" }, onAlightLead)
             }
             item {
-                OptionRow(Copy.STATION_LEAD, STATION_LEAD_OPTIONS, state.settings.stationLeadSec, { "${secondsText(it)} 전" }, viewModel::setStationLead)
+                OptionRow(Copy.STATION_LEAD, STATION_LEAD_OPTIONS, state.settings.stationLeadSec, { "${secondsText(it)} 전" }, onStationLead)
             }
             item {
-                OptionRow(Copy.MAX_WAIT, MAX_WAIT_OPTIONS, state.settings.maxWaitMin, { "${it}분" }, viewModel::setMaxWait)
+                OptionRow(Copy.MAX_WAIT, MAX_WAIT_OPTIONS, state.settings.maxWaitMin, { "${it}분" }, onMaxWait)
             }
 
             item { SectionTitle(Copy.PERMISSIONS) }
@@ -89,9 +116,12 @@ fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text(row.title) },
                     supportingContent = { Text(if (row.granted) Copy.GRANTED else Copy.NOT_GRANTED) },
+                    // 허용된 권한은 ✓만, 허용 안 된 권한만 [설정 열기](Task 10 합의).
                     trailingContent = {
-                        TextButton(onClick = { context.startActivity(permissionSettingsIntent(context, row)) }) {
-                            Text(Copy.OPEN_SETTINGS)
+                        if (row.granted) {
+                            Icon(Icons.Filled.Check, contentDescription = Copy.GRANTED, tint = MaterialTheme.colorScheme.primary)
+                        } else {
+                            FilledTonalButton(onClick = { onOpenPermission(row) }) { Text(Copy.OPEN_SETTINGS) }
                         }
                     },
                 )
@@ -109,6 +139,7 @@ fun SettingsScreen(
         }
     }
 }
+
 
 @Composable
 private fun SectionTitle(title: String) {

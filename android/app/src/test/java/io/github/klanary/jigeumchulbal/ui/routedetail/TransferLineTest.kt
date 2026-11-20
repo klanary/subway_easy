@@ -24,7 +24,7 @@ class TransferLineTest {
     )
 
     @Test fun measuredTrainsAreMarked() = assertEquals(
-        "을지로3가 도착 08:15 · 환승 열차 08:18 대화행(실측) · 그다음 08:21 구파발행(실측)",
+        "을지로3가 도착 08:15 · 환승 열차 08:18 대화행(운행 기록) · 그다음 08:21 구파발행(운행 기록)",
         transferLine(
             step(
                 listOf(

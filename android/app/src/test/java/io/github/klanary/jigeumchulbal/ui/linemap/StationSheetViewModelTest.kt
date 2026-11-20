@@ -1,6 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
 import io.github.klanary.jigeumchulbal.MainDispatcherRule
+import io.github.klanary.jigeumchulbal.data.remote.ApiError
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalGroupDto
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalsDto
@@ -57,8 +58,8 @@ class StationSheetViewModelTest {
         advanceUntilIdle()
         val ui = content(vm)
         assertEquals(listOf("2호선", "5호선"), ui.lines)
-        assertEquals(listOf("방화행 3분 · 그다음 11분", "방화행 1분"), ui.groups.map { it.trains.joinToString(" · ") })
-        assertEquals(emptyList<String>(), ui.basis)
+        assertEquals(listOf("방화행 3분 · 그다음 11분", "방화행 1분"), ui.groups.map { it.text() })
+        assertEquals(listOf<String?>(null, null), ui.groups.map { it.basis })
     }
 
     @Test fun plusOneHourUsesTimetable() = runTest {
@@ -67,11 +68,11 @@ class StationSheetViewModelTest {
         vm.select(SheetTime.PLUS_1H)
         advanceUntilIdle()
         val ui = content(vm)
-        assertEquals(listOf(Copy.BY_TIMETABLE), ui.basis)
+        assertEquals(listOf(Copy.BY_TIMETABLE), ui.groups.mapNotNull { it.basis }.distinct())
         val calls = stations.timetableCalls
         assertEquals(setOf("2호선" to "내선", "2호선" to "외선", "5호선" to "상행", "5호선" to "하행"), calls.map { it.line to it.direction }.toSet())
         assertTrue(calls.all { it.from == now.plusSeconds(3600) && it.count == 4 })
-        assertEquals("20:01 방화행", ui.groups.first().trains.first())
+        assertEquals("20:01 방화행", ui.groups.first().trains.first().text())
     }
 
     @Test fun unsupportedLineMessage() = runTest {
@@ -137,7 +138,7 @@ class StationSheetViewModelTest {
         vm.select(SheetTime.PLUS_1H)
         advanceTimeBy(10_000)
         runCurrent()
-        assertEquals(listOf(Copy.BY_TIMETABLE), content(vm).basis)
+        assertEquals(listOf(Copy.BY_TIMETABLE), content(vm).groups.mapNotNull { it.basis }.distinct())
         assertEquals(SheetTime.PLUS_1H, content(vm).time)
     }
 
@@ -147,7 +148,7 @@ class StationSheetViewModelTest {
         )
         val vm = vm()
         advanceUntilIdle()
-        assertEquals(listOf(Copy.BY_MEASURED), content(vm).basis)
+        assertEquals(listOf(Copy.BY_MEASURED), content(vm).groups.mapNotNull { it.basis }.distinct())
     }
 
     @Test fun mixedTimetableShowsBothBasesAndMeasuredLineIsNotMissing() = runTest {
@@ -161,7 +162,69 @@ class StationSheetViewModelTest {
         advanceUntilIdle()
         vm.select(SheetTime.PLUS_1H)
         advanceUntilIdle()
-        assertEquals(listOf(Copy.BY_TIMETABLE, Copy.BY_MEASURED), content(vm).basis)
+        assertEquals(listOf(Copy.BY_TIMETABLE, Copy.BY_MEASURED), content(vm).groups.mapNotNull { it.basis }.distinct())
         assertEquals(emptyList<String>(), content(vm).noTimetableLines)
+    }
+    @Test fun lastAndExpressAreKept() = runTest {
+        stations.arrivalsResult = ApiResult.Ok(
+            ArrivalsDto(
+                "영등포구청", "2026-11-13T19:00:00+09:00",
+                groups = listOf(ArrivalGroupDto("5호선", "상행", null, listOf(TrainDto("방화", 180, isLast = true, isExpress = true)))),
+            ),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        val train = content(vm).groups.single().trains.single()
+        assertTrue(train.isLast)
+        assertTrue(train.isExpress)
+        assertEquals("방화", train.destination)
+        assertEquals("3분", train.time)
+    }
+
+    @Test fun staleArrivalsAreMarkedStale() = runTest {
+        stations.arrivalsResult = ApiResult.Ok(
+            ArrivalsDto("영등포구청", "2026-11-13T19:00:00+09:00", stale = true, groups = listOf(group("상행", "realtime", 180))),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        assertTrue((vm.state.value as UiState.Content).stale)
+    }
+
+    @Test fun retryReloadsAfterError() = runTest {
+        val ok = stations.arrivalsResult
+        stations.arrivalsResult = ApiResult.Err(ApiError.Network)
+        val vm = vm()
+        advanceUntilIdle()
+        assertTrue(vm.state.value !is UiState.Content)
+        stations.arrivalsResult = ok
+        vm.retry()
+        advanceUntilIdle()
+        assertTrue(vm.state.value is UiState.Content)
+    }
+
+    @Test fun linesStayKnownWhenTrainsFail() = runTest {
+        stations.arrivalsResult = ApiResult.Err(ApiError.Network)
+        val vm = vm()
+        advanceUntilIdle()
+        assertEquals(listOf("2호선", "5호선"), vm.lines.value)
+    }
+
+    @Test fun customTimeShowsPickedClock() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.select(SheetTime.CUSTOM, Instant.parse("2026-11-13T10:30:00Z"))
+        advanceUntilIdle()
+        assertEquals("19:30", content(vm).customLabel)
+    }
+
+    /** 호선 조회가 실패하면 "정보 없음"이 아니라 그 오류와 [다시 시도]를 보인다(최종 리뷰 Minor 3, 중요로 올림). */
+    @Test fun lineLookupFailureIsAnErrorNotNoInfo() = runTest {
+        stations.searchByQuery = emptyMap()
+        stations.result = ApiResult.Err(ApiError.Network)
+        val vm = vm()
+        advanceUntilIdle()
+        vm.select(SheetTime.PLUS_1H)
+        advanceUntilIdle()
+        assertEquals(UiState.Error(Copy.NETWORK_ERROR), vm.state.value)
     }
 }

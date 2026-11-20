@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.activity.compose.LocalActivity
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.klanary.jigeumchulbal.ui.common.StateKind
 import io.github.klanary.jigeumchulbal.ui.common.StateLoading
@@ -149,11 +151,13 @@ fun LineMapScreen(
             store.loadTransform()?.let(viewModel::restoreTransform)
         }
     }
-    val snapshot by produceState<LineMapSnapshot?>(null) {
-        value = withContext(Dispatchers.IO) { snapshotStore.load() }
+    // 저장본 그림은 진짜 노선도가 아직 없을 때만 읽는다(이미 준비됐으면 10MB를 쓸데없이 들고 있지 않는다).
+    val snapshot by produceState<LineMapSnapshot?>(null, mapPicture is MapPicture.Ready) {
+        value = if (mapPicture is MapPicture.Ready) null else withContext(Dispatchers.IO) { snapshotStore.load() }
     }
     val snapshotImage = remember(snapshot) { snapshot?.image?.asImageBitmap() }
-    val lifecycleOwner = LocalLifecycleOwner.current
+    // 화면(Activity)이 백그라운드로 갈 때만 저장한다. 홈에서 검색·설정으로 갈 때마다 저장하지 않는다(최종 리뷰).
+    val lifecycleOwner = LocalActivity.current as? LifecycleOwner ?: LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, picture) {
         val observer = LifecycleEventObserver { _, event ->
             val drawn = picture
@@ -245,7 +249,9 @@ internal fun LineMapContent(
     panelExpanded: Boolean = false,
     panelTab: Int = 0,
 ) {
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    // Surface라야 안쪽 글자색이 테마를 따른다(Box 바탕만 칠하면 다크에서 검정 글자, 최종 리뷰).
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    Box(Modifier.fillMaxSize()) {
         val map = state.map
         val drawn = picture
         if (mapFailed) {
@@ -303,6 +309,7 @@ internal fun LineMapContent(
             initialTab = panelTab,
             )
         }
+    }
     }
 }
 

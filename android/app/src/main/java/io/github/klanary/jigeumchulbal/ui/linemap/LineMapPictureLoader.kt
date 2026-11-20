@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** 노선도 그림을 준비한 상태. */
 sealed interface MapPicture {
@@ -26,6 +28,9 @@ sealed interface MapPicture {
  */
 object LineMapPictureLoader {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** 저장은 하나씩(겹쳐 쓰면 그림과 위치가 어긋난다). */
+    private val saving = Mutex()
     private val _state = MutableStateFlow<MapPicture>(MapPicture.Loading)
     val state: StateFlow<MapPicture> = _state.asStateFlow()
     private var started = false
@@ -56,6 +61,7 @@ object LineMapPictureLoader {
     fun saveSnapshot(store: LineMapSnapshotStore, picture: Picture, transform: MapTransform, width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
         scope.launch {
+            saving.withLock {
             runCatching {
                 val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(bitmap)
@@ -65,6 +71,7 @@ object LineMapPictureLoader {
                 canvas.drawPicture(picture)
                 store.save(bitmap, transform)
                 bitmap.recycle()
+            }
             }
         }
     }

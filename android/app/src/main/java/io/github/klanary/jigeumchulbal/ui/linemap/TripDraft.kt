@@ -34,17 +34,18 @@ data class TripDraft(val from: StationRef? = null, val via: StationRef? = null, 
         TripRole.TO -> copy(to = station)
     }
 
-    /** 노선도 위 띠: "출발: 마포 · 도착: (역을 고르세요)". 아무것도 고르지 않았으면 null. */
+    /**
+     * 노선도 위 띠: 할 일을 말한다. "마포에서 출발 · 도착역을 눌러 주세요", 다 고르면 "마포 → 홍대입구 → 공덕".
+     * 아무것도 고르지 않았으면 null.
+     */
     fun banner(): String? {
-        if (isEmpty) return null
-        return listOfNotNull(
-            "출발: ${from?.name ?: PICK}",
-            via?.let { "경유: ${it.name}" },
-            "도착: ${to?.name ?: PICK}",
-        ).joinToString(" · ")
-    }
-
-    private companion object {
-        const val PICK = "(역을 고르세요)"
+        val from = from
+        val to = to
+        return when {
+            from != null && to != null -> listOfNotNull(from.name, via?.name, to.name).joinToString(" → ")
+            from != null -> "${from.name}에서 출발 · 도착역을 눌러 주세요"
+            to != null -> "${to.name}까지 · 출발역을 눌러 주세요"
+            else -> null
+        }
     }
 }

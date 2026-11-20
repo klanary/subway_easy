@@ -99,13 +99,21 @@ fun StateMessage(kind: StateKind, text: String, size: StateSize, onRetry: (() ->
     }
 }
 
-/** 불러오는 중. 전체 화면은 가운데 원형, 인라인은 얇은 막대. 화면 읽기 프로그램에는 [Copy.LOADING]으로 읽힌다. */
+/** 불러오는 중. 전체 화면은 가운데 원형(아래에 [text]), 인라인은 얇은 막대. 화면 읽기 프로그램에는 [Copy.LOADING]으로 읽힌다. */
 @Composable
-fun StateLoading(size: StateSize, modifier: Modifier = Modifier) {
+fun StateLoading(size: StateSize, modifier: Modifier = Modifier, text: String? = null) {
     val described = Modifier.semantics { contentDescription = Copy.LOADING }
     when (size) {
-        StateSize.Screen -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        StateSize.Screen -> Column(
+            modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             CircularProgressIndicator(described)
+            if (text != null) {
+                Spacer(Modifier.size(16.dp))
+                Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         StateSize.Inline -> LinearProgressIndicator(modifier.fillMaxWidth().padding(vertical = 8.dp).then(described))
     }

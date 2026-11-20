@@ -102,4 +102,31 @@ class LineMapViewModelTest {
         vm.saveTransform(MapTransform(1.5f, -10f, -20f))
         assertEquals(MapTransform(1.5f, -10f, -20f), vm.savedTransform)
     }
+    @Test fun stationTableFailureShowsMapError() = runTest {
+        val vm = LineMapViewModel({ error("asset missing") }, stations, FakeLocationProvider(true, here), Dispatchers.Main)
+        advanceUntilIdle()
+        assertNull(vm.state.value.map)
+        assertEquals(true, vm.state.value.mapFailed)
+    }
+
+    @Test fun retryMapReloadsStationTable() = runTest {
+        var calls = 0
+        val vm = LineMapViewModel({ if (calls++ == 0) error("first fails") else data }, stations, FakeLocationProvider(true, here), Dispatchers.Main)
+        advanceUntilIdle()
+        vm.retryMap()
+        advanceUntilIdle()
+        assertEquals(data, vm.state.value.map)
+        assertEquals(false, vm.state.value.mapFailed)
+    }
+
+    @Test fun locationDeniedOffersSettings() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.onLocationDenied()
+        assertEquals(Copy.LOCATION_DENIED, vm.state.value.message)
+        assertEquals(MessageAction.OPEN_SETTINGS, vm.state.value.messageAction)
+        vm.consumeMessage()
+        assertNull(vm.state.value.message)
+        assertNull(vm.state.value.messageAction)
+    }
 }

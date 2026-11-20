@@ -1,6 +1,27 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
 import android.graphics.Picture
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.github.klanary.jigeumchulbal.ui.common.StateKind
+import io.github.klanary.jigeumchulbal.ui.common.StateLoading
+import io.github.klanary.jigeumchulbal.ui.common.StateMessage
+import io.github.klanary.jigeumchulbal.ui.common.StateSize
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -114,68 +135,174 @@ fun LineMapScreen(
     }
     val homeState by home.state.collectAsStateWithLifecycle()
     val session by sessionViewModel.state.collectAsStateWithLifecycle()
-    val requestLocation = rememberLocationPermissionRequest { granted -> if (granted) viewModel.locate() }
+    val requestLocation = rememberLocationPermissionRequest { granted ->
+        if (granted) viewModel.locate() else viewModel.onLocationDenied()
+    }
     val context = LocalContext.current
-    // 노선도 그림은 프로세스에서 한 번만 만든다(홈으로 돌아올 때마다 다시 해석하지 않는다).
-    val picture by produceState(LineMapPictureCache.picture) {
-        if (value == null) {
-            value = withContext(Dispatchers.Default) {
-                SVG.getFromAsset(context.assets, LINEMAP_SVG_ASSET).renderToPicture()
-            }.also { LineMapPictureCache.picture = it }
+    // 노선도 그림은 App.onCreate에서 미리 해석을 시작한다. 그동안은 저장해 둔 마지막 화면을 보인다(Task 3 합의).
+    LaunchedEffect(Unit) { LineMapPictureLoader.preload(context) }
+    val mapPicture by LineMapPictureLoader.state.collectAsStateWithLifecycle()
+    val picture = (mapPicture as? MapPicture.Ready)?.picture
+    val snapshotStore = remember {
+        LineMapSnapshotStore(context.cacheDir, snapshotVersionKey(context)).also { store ->
+            // 노선도가 자리를 잡기 전에 마지막으로 보던 위치·배율을 넘긴다(그림은 아래에서 따로 읽는다).
+            store.loadTransform()?.let(viewModel::restoreTransform)
         }
     }
+    val snapshot by produceState<LineMapSnapshot?>(null) {
+        value = withContext(Dispatchers.IO) { snapshotStore.load() }
+    }
+    val snapshotImage = remember(snapshot) { snapshot?.image?.asImageBitmap() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, picture) {
+        val observer = LifecycleEventObserver { _, event ->
+            val drawn = picture
+            val transform = viewModel.savedTransform
+            if (event == Lifecycle.Event.ON_STOP && drawn != null && transform != null) {
+                LineMapPictureLoader.saveSnapshot(snapshotStore, drawn, transform, viewModel.viewportWidth, viewModel.viewportHeight)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
+    val routines by appViewModel { RoutineListViewModel(it.routineRepository) }.list.collectAsStateWithLifecycle()
+
+    LineMapContent(
+        state = state,
+        picture = picture,
+        mapFailed = state.mapFailed || mapPicture == MapPicture.Failed,
+        snapshot = snapshotImage,
+        initialTransform = viewModel.savedTransform,
+        favoriteRoutes = homeState.favoriteRoutes,
+        nextRoutine = run {
+            val now = LocalTime.now()
+            nextRoutineLine(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)
+        },
+        showSessionBanner = session != SessionState.Idle,
+        onFocusHandled = { station ->
+            viewModel.consumeFocus()
+            viewModel.selectStation(station.id)
+        },
+        onStationTap = { viewModel.selectStation(it.id) },
+        onTransformChanged = viewModel::saveTransform,
+        onViewport = viewModel::saveViewport,
+        onRetryMap = {
+            viewModel.retryMap()
+            if (mapPicture == MapPicture.Failed) LineMapPictureLoader.retry(context)
+        },
+        onMessageAction = { action ->
+            when (action) {
+                MessageAction.OPEN_SETTINGS -> context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                )
+            }
+        },
+        onSearch = { navController.navigate(SearchDest()) },
+        onLocate = requestLocation,
+        onRoute = { navController.navigate(RouteFlowGraph()) },
+        onSettings = { navController.navigate(SettingsDest) },
+        onCancelTrip = viewModel::cancelTrip,
+        onConsumeMessage = viewModel::consumeMessage,
+        onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
+        sessionBanner = { SessionBanner(sessionViewModel) { navController.navigate(SessionDest) } },
+        routineList = { RoutineList(onEdit = { navController.navigate(RoutineEditDest(it)) }) },
+    )
+    state.selected?.let { stationId ->
+        StationSheet(stationId, state.draft, onRole = viewModel::setRole, onDismiss = viewModel::closeSheet)
+    }
+}
+
+/**
+ * 노선도 홈을 그린다(상태만 받는다). ViewModel·내비게이션은 [LineMapScreen]이 잇는다.
+ * [sessionBanner]·[routineList]는 자기 ViewModel을 쓰는 조각이라 자리로 받는다.
+ */
+@Composable
+internal fun LineMapContent(
+    state: LineMapUiState,
+    picture: Picture?,
+    mapFailed: Boolean,
+    snapshot: ImageBitmap?,
+    initialTransform: MapTransform?,
+    favoriteRoutes: List<FavoriteRouteEntity>,
+    nextRoutine: String?,
+    showSessionBanner: Boolean,
+    onFocusHandled: (MapStation) -> Unit = {},
+    onStationTap: (MapStation) -> Unit = {},
+    onTransformChanged: (MapTransform) -> Unit = {},
+    onViewport: (Int, Int) -> Unit = { _, _ -> },
+    onRetryMap: () -> Unit = {},
+    onMessageAction: (MessageAction) -> Unit = {},
+    onSearch: () -> Unit = {},
+    onLocate: () -> Unit = {},
+    onRoute: () -> Unit = {},
+    onSettings: () -> Unit = {},
+    onCancelTrip: () -> Unit = {},
+    onConsumeMessage: () -> Unit = {},
+    onFavorite: (FavoriteRouteEntity) -> Unit = {},
+    sessionBanner: @Composable () -> Unit = {},
+    routineList: @Composable () -> Unit = {},
+    panelExpanded: Boolean = false,
+    panelTab: Int = 0,
+) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         val map = state.map
         val drawn = picture
-        if (map == null || drawn == null) {
-            CircularProgressIndicator(Modifier.align(Alignment.Center))
+        if (mapFailed) {
+            StateMessage(StateKind.Error, Copy.MAP_FAILED, StateSize.Screen, onRetry = onRetryMap)
+        } else if (map == null || drawn == null) {
+            if (snapshot != null) {
+                // 진짜 노선도가 준비될 때까지 마지막으로 보던 화면을 그대로 보인다.
+                Image(snapshot, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                StateLoading(StateSize.Screen, text = Copy.MAP_PREPARING)
+            }
         } else {
             LineMapCanvas(
                 map = map,
                 picture = drawn,
                 focus = state.focus,
-                onFocusHandled = { station ->
-                    viewModel.consumeFocus()
-                    viewModel.selectStation(station.id)
-                },
-                onStationTap = { viewModel.selectStation(it.id) },
-                initial = viewModel.savedTransform,
-                onTransformChanged = viewModel::saveTransform,
+                onFocusHandled = onFocusHandled,
+                onStationTap = onStationTap,
+                initial = initialTransform,
+                onTransformChanged = onTransformChanged,
+                onViewport = onViewport,
             )
         }
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TopBar(
-                onSearch = { navController.navigate(SearchDest()) },
-                onLocate = requestLocation,
-                onRoute = { navController.navigate(RouteFlowGraph()) },
-                onSettings = { navController.navigate(SettingsDest) },
+                onSearch = onSearch,
+                onLocate = onLocate,
+                onRoute = onRoute,
+                onSettings = onSettings,
             )
-            state.draft.banner()?.let { banner -> TripBanner(banner, onCancel = viewModel::cancelTrip) }
-            if (session != SessionState.Idle) SessionBanner(sessionViewModel) { navController.navigate(SessionDest) }
-            state.message?.let { message ->
-                Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.inverseSurface) {
-                    Text(
-                        message,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                        modifier = Modifier.clickable { viewModel.consumeMessage() }.padding(12.dp),
-                    )
-                }
-                LaunchedEffect(message) {
-                    delay(3_000)
-                    viewModel.consumeMessage()
-                }
-            }
+            state.draft.banner()?.let { banner -> TripBanner(banner, onCancel = onCancelTrip) }
+            if (showSessionBanner) sessionBanner()
         }
-        BottomPanel(
-            favoriteRoutes = homeState.favoriteRoutes,
-            onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
-            onEditRoutine = { navController.navigate(RoutineEditDest(it)) },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
-    }
-    state.selected?.let { stationId ->
-        StationSheet(stationId, state.draft, onRole = viewModel::setRole, onDismiss = viewModel::closeSheet)
+        // 잠깐 뜨는 안내는 아래 패널 바로 위 스낵바(Task 3 합의).
+        val snackbar = remember { SnackbarHostState() }
+        LaunchedEffect(state.message) {
+            val message = state.message ?: return@LaunchedEffect
+            val action = state.messageAction
+            val result = snackbar.showSnackbar(
+                message,
+                actionLabel = action?.let { Copy.OPEN_SETTINGS },
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed && action != null) onMessageAction(action)
+            onConsumeMessage()
+        }
+        Column(Modifier.align(Alignment.BottomCenter)) {
+            SnackbarHost(snackbar)
+            BottomPanel(
+            favoriteRoutes = favoriteRoutes,
+            nextRoutine = nextRoutine,
+            onFavorite = onFavorite,
+            routineList = routineList,
+            initiallyExpanded = panelExpanded,
+            initialTab = panelTab,
+            )
+        }
     }
 }
 
@@ -213,6 +340,7 @@ private fun LineMapCanvas(
     onStationTap: (MapStation) -> Unit,
     initial: MapTransform? = null,
     onTransformChanged: (MapTransform) -> Unit = {},
+    onViewport: (Int, Int) -> Unit = { _, _ -> },
 ) {
     val density = LocalDensity.current.density
     val hitRadiusPx = with(LocalDensity.current) { HIT_RADIUS.toPx() }
@@ -241,7 +369,10 @@ private fun LineMapCanvas(
     Canvas(
         Modifier
             .fillMaxSize()
-            .onSizeChanged { size = it }
+            .onSizeChanged {
+                size = it
+                onViewport(it.width, it.height)
+            }
             .pointerInput(map, minScale, maxScale) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
                     transform = transform?.zoomAround(centroid.x, centroid.y, zoom, minScale, maxScale)?.pan(pan.x, pan.y)
@@ -293,13 +424,15 @@ private fun TopBar(onSearch: () -> Unit, onLocate: () -> Unit, onRoute: () -> Un
 @Composable
 private fun BottomPanel(
     favoriteRoutes: List<FavoriteRouteEntity>,
+    nextRoutine: String?,
     onFavorite: (FavoriteRouteEntity) -> Unit,
-    onEditRoutine: (Long) -> Unit,
+    routineList: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
+    initialTab: Int = 0,
 ) {
-    val routines by appViewModel { RoutineListViewModel(it.routineRepository) }.list.collectAsStateWithLifecycle()
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    var tab by rememberSaveable { mutableIntStateOf(initialTab) }
     Surface(modifier.fillMaxWidth(), tonalElevation = 3.dp, shadowElevation = 6.dp) {
         // 시스템 내비게이션 바 위에 탭이 보이게 한다(2026-11-12 실기기에서 가려짐).
         Column(Modifier.navigationBarsPadding()) {
@@ -316,21 +449,29 @@ private fun BottomPanel(
                 }
             }
             if (!expanded) {
-                val now = LocalTime.now()
-                nextRoutineLine(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)?.let { line ->
+                nextRoutine?.let { line ->
                     Text(line, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             if (expanded) {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
                     when (tab) {
-                        0 -> item { RoutineList(onEdit = onEditRoutine) }
+                        0 -> item { routineList() }
                         else -> if (favoriteRoutes.isEmpty()) {
-                            item { ListItem(headlineContent = { Text(Copy.NO_FAVORITE_ROUTES) }) }
+                            item {
+                                StateMessage(
+                                    StateKind.Empty,
+                                    "${Copy.NO_FAVORITE_ROUTES}. ${Copy.NO_FAVORITE_ROUTES_HINT}",
+                                    StateSize.Inline,
+                                    onRetry = null,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
                         } else {
                             items(favoriteRoutes, key = { it.id }) { route ->
                                 ListItem(
                                     headlineContent = { Text(favoriteRouteTitle(route)) },
+                                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
                                     modifier = Modifier.clickable { onFavorite(route) },
                                 )
                             }
@@ -352,6 +493,11 @@ private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     val headline = sessionHeadline(state, now) ?: return
+    SessionBannerCard(headline, onClick)
+}
+
+@Composable
+internal fun SessionBannerCard(headline: String, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -361,7 +507,6 @@ private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
     }
 }
 
-/** 노선도 SVG를 그린 그림. 한 번 만들면 앱이 살아 있는 동안 다시 쓴다. */
-private object LineMapPictureCache {
-    @Volatile var picture: Picture? = null
-}
+/** 저장본을 언제 버릴지 정하는 열쇠. 앱을 새로 설치·업데이트하면 바뀐다(노선도 파일이 바뀌었을 수 있다). */
+private fun snapshotVersionKey(context: Context): String =
+    context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString()

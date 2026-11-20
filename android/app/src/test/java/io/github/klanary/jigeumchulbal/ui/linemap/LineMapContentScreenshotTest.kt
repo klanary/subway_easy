@@ -10,6 +10,9 @@ import io.github.klanary.jigeumchulbal.data.local.FavoriteRouteEntity
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.screenshot.snapBothThemes
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -21,6 +24,7 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h914dp-xxhdpi")
 class LineMapContentScreenshotTest {
+    @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val map: LineMapStations by lazy {
         parseLineMapStations(context.assets.open(LINEMAP_STATIONS_ASSET).bufferedReader().use { it.readText() })
@@ -44,7 +48,7 @@ class LineMapContentScreenshotTest {
         tab: Int = 0,
         failed: Boolean = false,
         routineList: @androidx.compose.runtime.Composable () -> Unit = { ListItem(headlineContent = { Text(Copy.NO_ROUTINES) }) },
-    ) = snapBothThemes("linemap_$name") {
+    ) = rule.snapBothThemes("linemap_$name") {
         LineMapContent(
             state = state,
             picture = picture,

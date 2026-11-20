@@ -120,12 +120,39 @@ fun RoutineEditScreen(routineId: Long?, navController: NavController) {
         )
     }
 
+    RoutineEditContent(
+        state = state,
+        onBack = { navController.popBackStack() },
+        onName = viewModel::setName,
+        onDay = viewModel::toggleDay,
+        onPickTime = {
+            TimePickerDialog(context, { _, h, m -> viewModel.setTime(h * 60 + m) }, state.minuteOfDay / 60, state.minuteOfDay % 60, true).show()
+        },
+        onWalk = viewModel::setWalk,
+        onAlightAlerts = viewModel::setAlightAlerts,
+        onSave = askPermission,
+    )
+}
+
+/** 루틴 편집을 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun RoutineEditContent(
+    state: RoutineEditUi,
+    onBack: () -> Unit = {},
+    onName: (String) -> Unit = {},
+    onDay: (DayOfWeek) -> Unit = {},
+    onPickTime: () -> Unit = {},
+    onWalk: (Int) -> Unit = {},
+    onAlightAlerts: (Boolean) -> Unit = {},
+    onSave: () -> Unit = {},
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(Copy.ROUTINE_TITLE) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
@@ -137,35 +164,33 @@ fun RoutineEditScreen(routineId: Long?, navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(listOfNotNull(state.from?.name, state.via?.name, state.to?.name).joinToString(" → "), style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(state.name, viewModel::setName, label = { Text(Copy.ROUTINE_NAME) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(state.name, onName, label = { Text(Copy.ROUTINE_NAME) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DayOfWeek.entries.forEachIndexed { i, day ->
-                    FilterChip(state.days and dayBit(day) != 0, { viewModel.toggleDay(day) }, { Text(DAY_LABELS[i]) })
+                    FilterChip(state.days and dayBit(day) != 0, { onDay(day) }, { Text(DAY_LABELS[i]) })
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Copy.ROUTINE_TIME, Modifier.weight(1f))
-                OutlinedButton(onClick = {
-                    TimePickerDialog(context, { _, h, m -> viewModel.setTime(h * 60 + m) }, state.minuteOfDay / 60, state.minuteOfDay % 60, true).show()
-                }) { Text(minuteLabel(state.minuteOfDay)) }
+                OutlinedButton(onClick = onPickTime) { Text(minuteLabel(state.minuteOfDay)) }
             }
             Column {
                 Text("${Copy.ROUTINE_WALK} ${state.walkMin}분")
                 Slider(
                     value = state.walkMin.toFloat(),
-                    onValueChange = { viewModel.setWalk(it.toInt()) },
+                    onValueChange = { onWalk(it.toInt()) },
                     valueRange = 0f..RoutineEntity.MAX_WALK_MIN.toFloat(),
                     steps = RoutineEntity.MAX_WALK_MIN - 1,
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Copy.VIBRATION_ALERTS, Modifier.weight(1f))
-                Switch(checked = state.alightAlerts, onCheckedChange = viewModel::setAlightAlerts)
+                Switch(checked = state.alightAlerts, onCheckedChange = onAlightAlerts)
             }
             if (state.preview.isNotEmpty()) {
                 Text("${Copy.ROUTINE_PREVIEW}: ${state.preview.joinToString(", ")}", style = MaterialTheme.typography.bodyLarge)
             }
-            Button(onClick = askPermission, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onSave, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 Text(Copy.ROUTINE_SAVE)
             }
         }
@@ -203,36 +228,23 @@ fun RoutineList(onEdit: (Long) -> Unit) {
         enabling = null
     }
 
-    Column {
-        if (!exact) {
-            Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(Copy.MAY_BE_LATE, Modifier.weight(1f))
-                    TextButton(onClick = {
-                        context.startActivity(permissionSettingsIntent(context, PermissionRow(Copy.PERMISSION_EXACT_ALARM, false)))
-                    }) { Text(Copy.OPEN_SETTINGS) }
-                }
+    RoutineListContent(
+        routines = routines,
+        exactAlarm = exact,
+        onOpenExactSettings = {
+            context.startActivity(permissionSettingsIntent(context, PermissionRow(Copy.PERMISSION_EXACT_ALARM, false)))
+        },
+        onEdit = onEdit,
+        onDelete = { deleting = it },
+        onEnabled = { routine, on ->
+            if (on) {
+                enabling = routine.id
+                askPermission()
+            } else {
+                viewModel.setEnabled(routine.id, false)
             }
-        }
-        if (routines.isEmpty()) ListItem(headlineContent = { Text(Copy.NO_ROUTINES) })
-        routines.forEach { routine ->
-            ListItem(
-                headlineContent = { Text(minuteLabel(routine.minuteOfDay), style = MaterialTheme.typography.titleLarge) },
-                supportingContent = { Text("${daysLabel(routine.days)} · ${routine.title}") },
-                trailingContent = {
-                    Switch(checked = routine.enabled, onCheckedChange = { on ->
-                        if (on) {
-                            enabling = routine.id
-                            askPermission()
-                        } else {
-                            viewModel.setEnabled(routine.id, false)
-                        }
-                    })
-                },
-                modifier = Modifier.combinedClickable(onClick = { onEdit(routine.id) }, onLongClick = { deleting = routine }),
-            )
-        }
-    }
+        },
+    )
     deleting?.let { routine ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -245,6 +257,40 @@ fun RoutineList(onEdit: (Long) -> Unit) {
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(Copy.CANCEL) } },
         )
+    }
+}
+
+/** 루틴 목록을 그린다(상태만 받는다). */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun RoutineListContent(
+    routines: List<RoutineEntity>,
+    exactAlarm: Boolean,
+    onOpenExactSettings: () -> Unit = {},
+    onEdit: (Long) -> Unit = {},
+    onDelete: (RoutineEntity) -> Unit = {},
+    onEnabled: (RoutineEntity, Boolean) -> Unit = { _, _ -> },
+) {
+    Column {
+        if (!exactAlarm) {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(Copy.MAY_BE_LATE, Modifier.weight(1f))
+                    TextButton(onClick = onOpenExactSettings) { Text(Copy.OPEN_SETTINGS) }
+                }
+            }
+        }
+        if (routines.isEmpty()) ListItem(headlineContent = { Text(Copy.NO_ROUTINES) })
+        routines.forEach { routine ->
+            ListItem(
+                headlineContent = { Text(minuteLabel(routine.minuteOfDay), style = MaterialTheme.typography.titleLarge) },
+                supportingContent = { Text("${daysLabel(routine.days)} · ${routine.title}") },
+                trailingContent = {
+                    Switch(checked = routine.enabled, onCheckedChange = { on -> onEnabled(routine, on) })
+                },
+                modifier = Modifier.combinedClickable(onClick = { onEdit(routine.id) }, onLongClick = { onDelete(routine) }),
+            )
+        }
     }
 }
 

@@ -60,18 +60,39 @@ fun SearchScreen(
         scope.launch { navController.returnPick(viewModel.select(station)) }
     }
 
+    SearchContent(
+        state = state,
+        onBack = { navController.popBackStack() },
+        onQueryChange = viewModel::onQueryChange,
+        onRetry = viewModel::retry,
+        onPick = ::pick,
+        focus = focus,
+    )
+}
+
+/** 역 검색을 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SearchContent(
+    state: SearchUiState,
+    onBack: () -> Unit = {},
+    onQueryChange: (String) -> Unit = {},
+    onRetry: () -> Unit = {},
+    onPick: (StationRef) -> Unit = {},
+    focus: FocusRequester = remember { FocusRequester() },
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
                 title = {
                     TextField(
                         value = state.query,
-                        onValueChange = viewModel::onQueryChange,
+                        onValueChange = onQueryChange,
                         placeholder = { Text(Copy.SEARCH_HINT) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().focusRequester(focus),
@@ -86,18 +107,18 @@ fun SearchScreen(
                 items(state.recents, key = { "recent-${it.id}" }) { recent ->
                     ListItem(
                         headlineContent = { Text(recent.name) },
-                        modifier = Modifier.clickable { pick(StationRef(recent.stationId, recent.name)) },
+                        modifier = Modifier.clickable { onPick(StationRef(recent.stationId, recent.name)) },
                     )
                 }
             }
             if (state.query.isNotBlank()) {
                 sectionHeader(Copy.STATIONS)
-                resultSection(state.stations, viewModel::retry) { stations ->
+                resultSection(state.stations, onRetry) { stations ->
                     items(stations, key = { "station-${it.id}" }) { station ->
                         ListItem(
                             headlineContent = { Text(station.name) },
                             supportingContent = { Text(station.lines.joinToString(" · ")) },
-                            modifier = Modifier.clickable { pick(station.toRef()) },
+                            modifier = Modifier.clickable { onPick(station.toRef()) },
                         )
                     }
                 }
@@ -105,6 +126,7 @@ fun SearchScreen(
         }
     }
 }
+
 
 private fun LazyListScope.sectionHeader(title: String) {
     item(key = "header-$title") {

@@ -102,12 +102,35 @@ fun SessionScreen(navController: NavController, viewModel: SessionViewModel = se
         )
     }
 
+    SessionContent(
+        state = state,
+        now = now,
+        inAppOnly = inAppOnly,
+        exactAlarms = exactAlarms,
+        onBack = { navController.popBackStack() },
+        onBoarded = viewModel::boarded,
+        onCancel = viewModel::cancel,
+    )
+}
+
+/** 통학 세션을 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SessionContent(
+    state: SessionState,
+    now: Long,
+    inAppOnly: Boolean,
+    exactAlarms: Boolean,
+    onBack: () -> Unit = {},
+    onBoarded: () -> Unit = {},
+    onCancel: () -> Unit = {},
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(Copy.SESSION_TITLE) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
@@ -128,12 +151,13 @@ fun SessionScreen(navController: NavController, viewModel: SessionViewModel = se
             Text(sessionHeadline(state, now) ?: Copy.NO_SESSION, style = MaterialTheme.typography.headlineSmall)
             when (val s = state) {
                 SessionState.Idle -> Unit
-                is SessionState.Waiting -> WaitingSection(s, now, viewModel::boarded, viewModel::cancel)
-                is SessionState.Riding -> RidingSection(s, viewModel::cancel)
+                is SessionState.Waiting -> WaitingSection(s, now, onBoarded, onCancel)
+                is SessionState.Riding -> RidingSection(s, onCancel)
             }
         }
     }
 }
+
 
 @Composable
 private fun NoticeBand(text: String) {

@@ -60,12 +60,38 @@ fun RouteEditScreen(
         }
     }
 
+    RouteEditContent(
+        state = state,
+        onBack = { navController.popBackStack() },
+        onSlot = { navController.navigate(SearchDest(it)) },
+        onToggleVia = viewModel::toggleVia,
+        onUseLocation = requestLocation,
+        onSwap = viewModel::swap,
+        onSearch = {
+            viewModel.search()
+            navController.navigate(RoutesDest)
+        },
+    )
+}
+
+/** 경로 편집을 그린다(상태만 받는다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RouteEditContent(
+    state: RouteFlowState,
+    onBack: () -> Unit = {},
+    onSlot: (Slot) -> Unit = {},
+    onToggleVia: () -> Unit = {},
+    onUseLocation: () -> Unit = {},
+    onSwap: () -> Unit = {},
+    onSearch: () -> Unit = {},
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(Copy.ROUTE_EDIT_TITLE) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
@@ -81,16 +107,16 @@ fun RouteEditScreen(
                     label = Copy.ORIGIN,
                     value = state.origin?.name,
                     hint = state.originHint ?: Copy.ORIGIN_HINT,
-                    onClick = { navController.navigate(SearchDest(Slot.ORIGIN)) },
+                    onClick = { onSlot(Slot.ORIGIN) },
                 )
                 if (state.viaVisible) {
                     EndpointRow(
                         label = Copy.VIA,
                         value = state.via?.name,
                         hint = Copy.VIA_HINT,
-                        onClick = { navController.navigate(SearchDest(Slot.VIA)) },
+                        onClick = { onSlot(Slot.VIA) },
                         trailing = {
-                            IconButton(onClick = viewModel::toggleVia) {
+                            IconButton(onClick = onToggleVia) {
                                 Icon(Icons.Filled.Close, contentDescription = Copy.REMOVE_VIA)
                             }
                         },
@@ -100,21 +126,18 @@ fun RouteEditScreen(
                     label = Copy.DEST,
                     value = state.dest?.name,
                     hint = Copy.DEST_HINT,
-                    onClick = { navController.navigate(SearchDest(Slot.DEST)) },
+                    onClick = { onSlot(Slot.DEST) },
                 )
             }
             if (state.origin == null) {
-                AssistChip(onClick = requestLocation, label = { Text(Copy.CURRENT_LOCATION) })
+                AssistChip(onClick = onUseLocation, label = { Text(Copy.CURRENT_LOCATION) })
             }
             if (!state.viaVisible) {
-                TextButton(onClick = viewModel::toggleVia) { Text(Copy.ADD_VIA) }
+                TextButton(onClick = onToggleVia) { Text(Copy.ADD_VIA) }
             }
-            TextButton(onClick = viewModel::swap) { Text(Copy.SWAP) }
+            TextButton(onClick = onSwap) { Text(Copy.SWAP) }
             Button(
-                onClick = {
-                    viewModel.search()
-                    navController.navigate(RoutesDest)
-                },
+                onClick = onSearch,
                 enabled = state.canSearch,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -123,6 +146,7 @@ fun RouteEditScreen(
         }
     }
 }
+
 
 @Composable
 private fun EndpointRow(

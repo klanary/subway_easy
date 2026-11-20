@@ -1,7 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.screenshot
 
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -49,7 +51,8 @@ fun SnapRule.snapBothThemes(name: String, fontScale: Float = 1f, content: @Compo
                 val base = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(base.density, h.fontScale)) {
                     AppTheme(darkTheme = h.dark) {
-                        Surface(Modifier.fillMaxSize()) { key(shown) { shown() } }
+                        // 앱처럼 바탕색만 칠한다. Surface로 감싸면 글자색이 정해져 앱에서만 생기는 문제를 가린다(최종 리뷰).
+                        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { key(shown) { shown() } }
                     }
                 }
             }

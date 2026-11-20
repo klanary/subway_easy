@@ -216,4 +216,15 @@ class StationSheetViewModelTest {
         advanceUntilIdle()
         assertEquals("19:30", content(vm).customLabel)
     }
+
+    /** 호선 조회가 실패하면 "정보 없음"이 아니라 그 오류와 [다시 시도]를 보인다(최종 리뷰 Minor 3, 중요로 올림). */
+    @Test fun lineLookupFailureIsAnErrorNotNoInfo() = runTest {
+        stations.searchByQuery = emptyMap()
+        stations.result = ApiResult.Err(ApiError.Network)
+        val vm = vm()
+        advanceUntilIdle()
+        vm.select(SheetTime.PLUS_1H)
+        advanceUntilIdle()
+        assertEquals(UiState.Error(Copy.NETWORK_ERROR), vm.state.value)
+    }
 }

@@ -13,6 +13,7 @@ import io.github.klanary.jigeumchulbal.ui.common.StateLoading
 import io.github.klanary.jigeumchulbal.ui.common.StateMessage
 import io.github.klanary.jigeumchulbal.ui.common.StateSize
 import io.github.klanary.jigeumchulbal.ui.common.LineBadge
+import io.github.klanary.jigeumchulbal.ui.common.LineBadges
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -116,10 +117,9 @@ internal fun StationSheetContent(
             .padding(horizontal = 16.dp).padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stationId, style = MaterialTheme.typography.headlineSmall)
-            lines.forEach { LineBadge(it) }
-        }
+        // 역 이름 아래에 호선 배지(줄바꿈). 한 줄에 몰면 호선이 많은 역·큰 글꼴에서 넘쳤다(최종 리뷰).
+        Text(stationId, style = MaterialTheme.typography.headlineSmall)
+        if (lines.isNotEmpty()) LineBadges(lines)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onRole(TripRole.FROM) }, enabled = draft.canSet(TripRole.FROM, station)) {
                 Text(Copy.AS_FROM)

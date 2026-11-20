@@ -1,6 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.screenshot
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.Surface
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import io.github.klanary.jigeumchulbal.data.local.AppSettings
 import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
@@ -115,9 +116,9 @@ class RestScreensScreenshotTest {
         routeJson = "", days = 0b0011111, minuteOfDay = minute, enabled = enabled,
     )
 
-    @Test fun routinesEmpty() = rule.snapBothThemes("routines_empty") { RoutineListContent(emptyList(), exactAlarm = true) }
+    @Test fun routinesEmpty() = rule.snapBothThemes("routines_empty") { Surface { RoutineListContent(emptyList(), exactAlarm = true) } }
     @Test fun routinesList() = rule.snapBothThemes("routines_list") {
-        RoutineListContent(listOf(routine(1, 7 * 60 + 30, true), routine(2, 18 * 60, false)), exactAlarm = false)
+        Surface { RoutineListContent(listOf(routine(1, 7 * 60 + 30, true), routine(2, 18 * 60, false)), exactAlarm = false) }
     }
 
     private val edit = RoutineEditUi(name = "통학", from = StationRef("마포", "마포"), to = StationRef("노량진", "노량진"), preview = listOf("08:14", "08:22"))

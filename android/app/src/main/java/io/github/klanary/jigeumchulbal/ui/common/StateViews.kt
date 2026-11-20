@@ -71,7 +71,7 @@ fun StateMessage(kind: StateKind, text: String, size: StateSize, onRetry: (() ->
             Icon(kind.icon, contentDescription = null, tint = tint, modifier = Modifier.size(48.dp))
             Spacer(Modifier.size(16.dp))
             val title = kind.title
-            Text(title ?: text, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+            Text(title ?: text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
             if (title != null) {
                 Spacer(Modifier.size(8.dp))
                 Text(
@@ -93,7 +93,7 @@ fun StateMessage(kind: StateKind, text: String, size: StateSize, onRetry: (() ->
         ) {
             Icon(kind.icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
             if (retry != null) TextButton(onClick = retry) { Text(Copy.RETRY) }
         }
     }

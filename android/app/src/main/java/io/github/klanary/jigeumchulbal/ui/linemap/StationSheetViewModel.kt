@@ -126,13 +126,23 @@ class StationSheetViewModel(
 
     private suspend fun load() {
         // 호선 목록은 처음 조회가 실패했거나 취소됐어도 다음 불러오기에서 다시 묻는다.
+        var lookupFailure: ApiResult.Err? = null
         if (lineNames.isEmpty()) {
-            lineNames = (stations.search(stationId) as? ApiResult.Ok)?.value?.firstOrNull { it.id == stationId }?.lines.orEmpty()
+            when (val found = stations.search(stationId)) {
+                is ApiResult.Ok -> lineNames = found.value.firstOrNull { it.id == stationId }?.lines.orEmpty()
+                is ApiResult.Err -> lookupFailure = found
+            }
         }
         // 늦게 끝난 불러오기(예: [+1시간]을 누르기 전에 시작한 "지금" 새로 고침)가 새 결과를 덮지 않게 한다.
         val generation = ++loads
         val requested = time
-        val result = if (requested == SheetTime.NOW) loadNow() else loadTimetable(startAt())
+        // 호선을 모르면 시간표를 물을 수 없다: "정보 없음" 대신 그 오류와 [다시 시도]를 보인다(최종 리뷰).
+        val failure = lookupFailure
+        val result = when {
+            requested == SheetTime.NOW -> loadNow()
+            lineNames.isEmpty() && failure != null -> failure.toUiState()
+            else -> loadTimetable(startAt())
+        }
         if (generation == loads && requested == time) _state.value = result
     }
 

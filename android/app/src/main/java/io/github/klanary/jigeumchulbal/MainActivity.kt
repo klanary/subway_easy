@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import io.github.klanary.jigeumchulbal.session.ACTION_OPEN_SESSION
 import io.github.klanary.jigeumchulbal.ui.AppNavHost
+import io.github.klanary.jigeumchulbal.ui.linemap.LineMapPictureLoader
 import io.github.klanary.jigeumchulbal.ui.theme.AppTheme
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -21,6 +22,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // 노선도 해석은 오래 걸려 화면을 그리기 전에 시작한다. 알람·부팅으로만 깨어난 프로세스에서는 하지 않는다(최종 리뷰).
+        LineMapPictureLoader.preload(this)
         // 저장된 세션을 이어 간다(스펙 8.7). 프로세스가 죽었다가 화면 상태만 복원된 경우도 있어 매번 부른다.
         // 같은 알람은 같은 요청 코드로 덮어쓰고, 이미 도는 대기 서비스는 조회를 새로 시작하지 않는다.
         lifecycleScope.launch { (application as App).container.sessionController.restore(onBoot = false) }

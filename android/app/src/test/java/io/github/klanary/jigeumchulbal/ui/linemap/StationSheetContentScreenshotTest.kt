@@ -1,6 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.Surface
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.ui.common.Copy
@@ -33,7 +34,7 @@ class StationSheetContentScreenshotTest {
     )
 
     private fun snap(name: String, state: UiState<StationSheetUi>, draft: TripDraft = TripDraft(), station: String = "시청") =
-        rule.snapBothThemes("sheet_$name") { StationSheetContent(station, state, draft) }
+        rule.snapBothThemes("sheet_$name") { Surface { StationSheetContent(station, state, draft) } } // 앱에서는 시트(Surface) 안
 
     @Test fun loading() = snap("loading", UiState.Loading)
     @Test fun realtime() = snap("realtime", UiState.Content(now))

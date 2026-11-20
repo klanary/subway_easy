@@ -226,6 +226,8 @@ git switch develop && git merge --no-ff polish/<번호>-<이름>
 
 ### Task 3: 노선도 홈 (브랜치 `polish/2-linemap-home`)
 
+> Task 1 확인: 노선도 SVG(AndroidSVG `renderToPicture` → `nativeCanvas.drawPicture`)는 Robolectric NATIVE 그래픽에서 그대로 그려진다. 자리표시 없이 실제 노선도를 기준 이미지에 넣는다.
+
 - 파일: `ui/linemap/LineMapScreen.kt`, `ui/linemap/LineMapViewModel.kt`, `ui/linemap/TripDraft.kt`, `ui/home/HomeViewModel.kt`
 - `<화면>` = `LineMapScreen`, `<Content>` = `LineMapContent`
 - 출발점 상태:

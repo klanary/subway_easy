@@ -125,6 +125,66 @@ fun LineMapScreen(
         }
     }
 
+    val routines by appViewModel { RoutineListViewModel(it.routineRepository) }.list.collectAsStateWithLifecycle()
+
+    LineMapContent(
+        state = state,
+        picture = picture,
+        initialTransform = viewModel.savedTransform,
+        favoriteRoutes = homeState.favoriteRoutes,
+        nextRoutine = run {
+            val now = LocalTime.now()
+            nextRoutineLine(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)
+        },
+        showSessionBanner = session != SessionState.Idle,
+        onFocusHandled = { station ->
+            viewModel.consumeFocus()
+            viewModel.selectStation(station.id)
+        },
+        onStationTap = { viewModel.selectStation(it.id) },
+        onTransformChanged = viewModel::saveTransform,
+        onSearch = { navController.navigate(SearchDest()) },
+        onLocate = requestLocation,
+        onRoute = { navController.navigate(RouteFlowGraph()) },
+        onSettings = { navController.navigate(SettingsDest) },
+        onCancelTrip = viewModel::cancelTrip,
+        onConsumeMessage = viewModel::consumeMessage,
+        onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
+        sessionBanner = { SessionBanner(sessionViewModel) { navController.navigate(SessionDest) } },
+        routineList = { RoutineList(onEdit = { navController.navigate(RoutineEditDest(it)) }) },
+    )
+    state.selected?.let { stationId ->
+        StationSheet(stationId, state.draft, onRole = viewModel::setRole, onDismiss = viewModel::closeSheet)
+    }
+}
+
+/**
+ * 노선도 홈을 그린다(상태만 받는다). ViewModel·내비게이션은 [LineMapScreen]이 잇는다.
+ * [sessionBanner]·[routineList]는 자기 ViewModel을 쓰는 조각이라 자리로 받는다.
+ */
+@Composable
+internal fun LineMapContent(
+    state: LineMapUiState,
+    picture: Picture?,
+    initialTransform: MapTransform?,
+    favoriteRoutes: List<FavoriteRouteEntity>,
+    nextRoutine: String?,
+    showSessionBanner: Boolean,
+    onFocusHandled: (MapStation) -> Unit = {},
+    onStationTap: (MapStation) -> Unit = {},
+    onTransformChanged: (MapTransform) -> Unit = {},
+    onSearch: () -> Unit = {},
+    onLocate: () -> Unit = {},
+    onRoute: () -> Unit = {},
+    onSettings: () -> Unit = {},
+    onCancelTrip: () -> Unit = {},
+    onConsumeMessage: () -> Unit = {},
+    onFavorite: (FavoriteRouteEntity) -> Unit = {},
+    sessionBanner: @Composable () -> Unit = {},
+    routineList: @Composable () -> Unit = {},
+    panelExpanded: Boolean = false,
+    panelTab: Int = 0,
+) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         val map = state.map
         val drawn = picture
@@ -135,47 +195,44 @@ fun LineMapScreen(
                 map = map,
                 picture = drawn,
                 focus = state.focus,
-                onFocusHandled = { station ->
-                    viewModel.consumeFocus()
-                    viewModel.selectStation(station.id)
-                },
-                onStationTap = { viewModel.selectStation(it.id) },
-                initial = viewModel.savedTransform,
-                onTransformChanged = viewModel::saveTransform,
+                onFocusHandled = onFocusHandled,
+                onStationTap = onStationTap,
+                initial = initialTransform,
+                onTransformChanged = onTransformChanged,
             )
         }
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TopBar(
-                onSearch = { navController.navigate(SearchDest()) },
-                onLocate = requestLocation,
-                onRoute = { navController.navigate(RouteFlowGraph()) },
-                onSettings = { navController.navigate(SettingsDest) },
+                onSearch = onSearch,
+                onLocate = onLocate,
+                onRoute = onRoute,
+                onSettings = onSettings,
             )
-            state.draft.banner()?.let { banner -> TripBanner(banner, onCancel = viewModel::cancelTrip) }
-            if (session != SessionState.Idle) SessionBanner(sessionViewModel) { navController.navigate(SessionDest) }
+            state.draft.banner()?.let { banner -> TripBanner(banner, onCancel = onCancelTrip) }
+            if (showSessionBanner) sessionBanner()
             state.message?.let { message ->
                 Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.inverseSurface) {
                     Text(
                         message,
                         color = MaterialTheme.colorScheme.inverseOnSurface,
-                        modifier = Modifier.clickable { viewModel.consumeMessage() }.padding(12.dp),
+                        modifier = Modifier.clickable { onConsumeMessage() }.padding(12.dp),
                     )
                 }
                 LaunchedEffect(message) {
                     delay(3_000)
-                    viewModel.consumeMessage()
+                    onConsumeMessage()
                 }
             }
         }
         BottomPanel(
-            favoriteRoutes = homeState.favoriteRoutes,
-            onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
-            onEditRoutine = { navController.navigate(RoutineEditDest(it)) },
+            favoriteRoutes = favoriteRoutes,
+            nextRoutine = nextRoutine,
+            onFavorite = onFavorite,
+            routineList = routineList,
+            initiallyExpanded = panelExpanded,
+            initialTab = panelTab,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-    }
-    state.selected?.let { stationId ->
-        StationSheet(stationId, state.draft, onRole = viewModel::setRole, onDismiss = viewModel::closeSheet)
     }
 }
 
@@ -293,13 +350,15 @@ private fun TopBar(onSearch: () -> Unit, onLocate: () -> Unit, onRoute: () -> Un
 @Composable
 private fun BottomPanel(
     favoriteRoutes: List<FavoriteRouteEntity>,
+    nextRoutine: String?,
     onFavorite: (FavoriteRouteEntity) -> Unit,
-    onEditRoutine: (Long) -> Unit,
+    routineList: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
+    initialTab: Int = 0,
 ) {
-    val routines by appViewModel { RoutineListViewModel(it.routineRepository) }.list.collectAsStateWithLifecycle()
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    var tab by rememberSaveable { mutableIntStateOf(initialTab) }
     Surface(modifier.fillMaxWidth(), tonalElevation = 3.dp, shadowElevation = 6.dp) {
         // 시스템 내비게이션 바 위에 탭이 보이게 한다(2026-11-12 실기기에서 가려짐).
         Column(Modifier.navigationBarsPadding()) {
@@ -316,15 +375,14 @@ private fun BottomPanel(
                 }
             }
             if (!expanded) {
-                val now = LocalTime.now()
-                nextRoutineLine(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)?.let { line ->
+                nextRoutine?.let { line ->
                     Text(line, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             if (expanded) {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
                     when (tab) {
-                        0 -> item { RoutineList(onEdit = onEditRoutine) }
+                        0 -> item { routineList() }
                         else -> if (favoriteRoutes.isEmpty()) {
                             item { ListItem(headlineContent = { Text(Copy.NO_FAVORITE_ROUTES) }) }
                         } else {
@@ -352,6 +410,11 @@ private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val now by viewModel.now.collectAsStateWithLifecycle()
     val headline = sessionHeadline(state, now) ?: return
+    SessionBannerCard(headline, onClick)
+}
+
+@Composable
+internal fun SessionBannerCard(headline: String, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),

@@ -56,6 +56,13 @@ import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
 import io.github.klanary.jigeumchulbal.ui.SessionDest
 import kotlinx.serialization.json.Json
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import io.github.klanary.jigeumchulbal.ui.common.LineBadge
 import io.github.klanary.jigeumchulbal.ui.common.color
 import io.github.klanary.jigeumchulbal.ui.common.formatDuration
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowState
@@ -124,13 +131,27 @@ internal fun RouteDetailContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { route?.let { Text(formatDuration(it.totalSec)) } },
+                // "마포 → 노량진 · 9분"(Task 7 합의)
+                title = {
+                    route?.let {
+                        val name = listOfNotNull(state.origin?.name, state.dest?.name).joinToString(" → ")
+                        Text(listOf(name, formatDuration(it.totalSec)).filter { p -> p.isNotEmpty() }.joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
                     }
                 },
             )
+        },
+        // 알림 버튼은 아래에 고정해 스크롤해도 보인다(Task 7 합의). 도보만인 경로는 알림을 걸지 않는다.
+        bottomBar = {
+            if (route != null && route.hasTransit()) {
+                Surface(tonalElevation = 3.dp, shadowElevation = 6.dp) {
+                    Box(Modifier.navigationBarsPadding()) { sessionButtons(route, state.hasPicks) }
+                }
+            }
         },
     ) { padding ->
         if (route == null) {
@@ -142,8 +163,6 @@ internal fun RouteDetailContent(
         }
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
-                // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
-                if (route.hasTransit()) sessionButtons(route, state.hasPicks)
                 Row(Modifier.padding(horizontal = 8.dp)) {
                     TextButton(onClick = onToggleFavorite) {
                         Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
@@ -225,9 +244,15 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: 
                 leadingContent = {
                     Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
                 },
-                headlineContent = { Text(stepTitle(step)) },
+                headlineContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (step.mode == StepMode.SUBWAY) step.lineName?.let { LineBadge(it) }
+                        Text(stepHead(step), style = MaterialTheme.typography.titleMedium)
+                    }
+                },
                 supportingContent = {
                     Column {
+                        stepDetail(step)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
                         // 지하철 구간은 열차 고르기 줄(이전/다음·급행·고정·경고), 그 밖은 운행표 열차 줄
                         if (segments[i] >= 0) {
@@ -264,20 +289,30 @@ private fun TrainPickRow(
     actions: TrainPickActions,
 ) {
     Column {
+        // 열차 고르기 줄(Task 7 합의): 아이콘 버튼, 가운데 시각을 크게, 번호·급행·떠남은 작게.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(enabled = pick.canPrev, onClick = { actions.move(k, -1) }) { Text(Copy.PREV_TRAIN) }
+            IconButton(enabled = pick.canPrev, onClick = { actions.move(k, -1) }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = Copy.PREV_TRAIN)
+            }
             // 이미 떠난 열차는 흐리게(고르면 알림이 바로 "놓쳤어요"가 된다)
-            val departed = pick.train?.let { isDeparted(it, now) } == true
-            Text(
-                pick.train?.let { pickLine(it) + if (departed) " · ${Copy.DEPARTED}" else "" } ?: Copy.NO_LATER_TRAIN,
-                Modifier.weight(1f),
-                color = if (departed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            TextButton(
+            val train = pick.train
+            val departed = train?.let { isDeparted(it, now) } == true
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    train?.let { pickTimes(it) } ?: Copy.NO_LATER_TRAIN,
+                    color = if (departed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                    style = if (train != null) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (train != null) FontWeight.Bold else null,
+                )
+                val meta = listOfNotNull(train?.let { pickMeta(it) }?.takeIf { it.isNotEmpty() }, Copy.DEPARTED.takeIf { departed })
+                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(
                 enabled = pick.canNext || (pick.needsMore && !loadingMore),
                 onClick = { if (pick.canNext) actions.move(k, 1) else actions.loadLater(k) },
-            ) { Text(Copy.NEXT_TRAIN) }
+            ) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = Copy.NEXT_TRAIN)
+            }
         }
         if (pick.hasExpress && pick.hasLocal) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

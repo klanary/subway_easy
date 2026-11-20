@@ -34,7 +34,13 @@ import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.data.model.StationRef
 import io.github.klanary.jigeumchulbal.data.model.toRef
 import io.github.klanary.jigeumchulbal.ui.Slot
+import io.github.klanary.jigeumchulbal.ui.common.ClockIcon
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import io.github.klanary.jigeumchulbal.ui.common.LineBadges
+import io.github.klanary.jigeumchulbal.ui.common.StateKind
+import io.github.klanary.jigeumchulbal.ui.common.StateLoading
+import io.github.klanary.jigeumchulbal.ui.common.StateMessage
+import io.github.klanary.jigeumchulbal.ui.common.StateSize
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.returnPick
@@ -102,10 +108,15 @@ internal fun SearchContent(
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            if (state.query.isBlank() && state.recents.isEmpty()) {
+                // 처음 화면: 무엇을 입력하면 되는지 알려 준다(Task 5 합의).
+                item { StateMessage(StateKind.Empty, Copy.SEARCH_START, StateSize.Inline, null, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+            }
             if (state.recents.isNotEmpty()) {
                 sectionHeader(Copy.RECENT_SEARCHES)
                 items(state.recents, key = { "recent-${it.id}" }) { recent ->
                     ListItem(
+                        leadingContent = { Icon(ClockIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         headlineContent = { Text(recent.name) },
                         modifier = Modifier.clickable { onPick(StationRef(recent.stationId, recent.name)) },
                     )
@@ -117,7 +128,7 @@ internal fun SearchContent(
                     items(stations, key = { "station-${it.id}" }) { station ->
                         ListItem(
                             headlineContent = { Text(station.name) },
-                            supportingContent = { Text(station.lines.joinToString(" · ")) },
+                            supportingContent = { LineBadges(station.lines) },
                             modifier = Modifier.clickable { onPick(station.toRef()) },
                         )
                     }
@@ -146,18 +157,15 @@ private fun <T> LazyListScope.resultSection(
     content: LazyListScope.(List<T>) -> Unit,
 ) {
     when (state) {
-        UiState.Loading -> item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp)) }
-        UiState.Empty -> item { MessageRow(Copy.NO_RESULTS, onRetry = null) }
-        is UiState.Error -> item { MessageRow(state.message, onRetry) }
-        UiState.Offline -> item { MessageRow(Copy.OFFLINE, onRetry) }
+        UiState.Loading -> item { StateLoading(StateSize.Inline, Modifier.padding(horizontal = 16.dp)) }
+        UiState.Empty -> item { MessageRow(StateKind.Empty, Copy.NO_RESULTS_HINT, onRetry = null) }
+        is UiState.Error -> item { MessageRow(StateKind.Error, state.message, onRetry) }
+        UiState.Offline -> item { MessageRow(StateKind.Offline, Copy.OFFLINE, onRetry) }
         is UiState.Content -> content(state.data)
     }
 }
 
 @Composable
-private fun MessageRow(text: String, onRetry: (() -> Unit)?) {
-    ListItem(
-        headlineContent = { Text(text, style = MaterialTheme.typography.bodyMedium) },
-        trailingContent = onRetry?.let { retry -> { TextButton(onClick = retry) { Text(Copy.RETRY) } } },
-    )
+private fun MessageRow(kind: StateKind, text: String, onRetry: (() -> Unit)?) {
+    StateMessage(kind, text, StateSize.Inline, onRetry, Modifier.padding(horizontal = 16.dp))
 }

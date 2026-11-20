@@ -33,6 +33,10 @@ import io.github.klanary.jigeumchulbal.ui.RoutesDest
 import io.github.klanary.jigeumchulbal.ui.SearchDest
 import io.github.klanary.jigeumchulbal.ui.Slot
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import io.github.klanary.jigeumchulbal.ui.common.SwapIcon
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
 
 /** 경로 편집. 출발 기본값은 현재 위치에서 가장 가까운 역이고, 칸을 누르면 역 검색이 열린다. */
@@ -102,40 +106,47 @@ internal fun RouteEditContent(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedCard(Modifier.fillMaxWidth()) {
-                EndpointRow(
-                    label = Copy.ORIGIN,
-                    value = state.origin?.name,
-                    hint = state.originHint ?: Copy.ORIGIN_HINT,
-                    onClick = { onSlot(Slot.ORIGIN) },
-                )
-                if (state.viaVisible) {
+            // 버튼 정리(Task 6 합의): 바꾸기는 카드 오른쪽 ⇅, 현재 위치는 출발 칸 안, 경유지는 카드 아래 글자 버튼.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedCard(Modifier.weight(1f)) {
                     EndpointRow(
-                        label = Copy.VIA,
-                        value = state.via?.name,
-                        hint = Copy.VIA_HINT,
-                        onClick = { onSlot(Slot.VIA) },
+                        label = Copy.ORIGIN,
+                        value = state.origin?.name,
+                        hint = state.originHint ?: Copy.ORIGIN_HINT,
+                        onClick = { onSlot(Slot.ORIGIN) },
                         trailing = {
-                            IconButton(onClick = onToggleVia) {
-                                Icon(Icons.Filled.Close, contentDescription = Copy.REMOVE_VIA)
+                            IconButton(onClick = onUseLocation) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = Copy.CURRENT_LOCATION)
                             }
                         },
                     )
+                    if (state.viaVisible) {
+                        EndpointRow(
+                            label = Copy.VIA,
+                            value = state.via?.name,
+                            hint = Copy.VIA_HINT,
+                            onClick = { onSlot(Slot.VIA) },
+                            trailing = {
+                                IconButton(onClick = onToggleVia) {
+                                    Icon(Icons.Filled.Close, contentDescription = Copy.REMOVE_VIA)
+                                }
+                            },
+                        )
+                    }
+                    EndpointRow(
+                        label = Copy.DEST,
+                        value = state.dest?.name,
+                        hint = Copy.DEST_HINT,
+                        onClick = { onSlot(Slot.DEST) },
+                    )
                 }
-                EndpointRow(
-                    label = Copy.DEST,
-                    value = state.dest?.name,
-                    hint = Copy.DEST_HINT,
-                    onClick = { onSlot(Slot.DEST) },
-                )
-            }
-            if (state.origin == null) {
-                AssistChip(onClick = onUseLocation, label = { Text(Copy.CURRENT_LOCATION) })
+                IconButton(onClick = onSwap) {
+                    Icon(SwapIcon, contentDescription = Copy.SWAP)
+                }
             }
             if (!state.viaVisible) {
                 TextButton(onClick = onToggleVia) { Text(Copy.ADD_VIA) }
             }
-            TextButton(onClick = onSwap) { Text(Copy.SWAP) }
             Button(
                 onClick = onSearch,
                 enabled = state.canSearch,

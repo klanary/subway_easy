@@ -12,7 +12,7 @@ import io.github.klanary.jigeumchulbal.ui.common.StateKind
 import io.github.klanary.jigeumchulbal.ui.common.StateLoading
 import io.github.klanary.jigeumchulbal.ui.common.StateMessage
 import io.github.klanary.jigeumchulbal.ui.common.StateSize
-import io.github.klanary.jigeumchulbal.ui.common.lineColor
+import io.github.klanary.jigeumchulbal.ui.common.LineBadge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -157,17 +157,6 @@ internal fun StationSheetContent(
         }
         TextButton(onClick = onDismiss) { Text(Copy.CLOSE) }
     }
-}
-
-/** 호선 이름을 호선 색 알약으로. */
-@Composable
-internal fun LineBadge(line: String) {
-    Text(
-        line,
-        color = Color.White,
-        style = MaterialTheme.typography.labelMedium,
-        modifier = Modifier.background(Color(lineColor(line)), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 2.dp),
-    )
 }
 
 /** 작은 표식: [막차] [급행] [시간표]. */

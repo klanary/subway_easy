@@ -1,5 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.settings
 
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -114,9 +116,12 @@ internal fun SettingsContent(
                 ListItem(
                     headlineContent = { Text(row.title) },
                     supportingContent = { Text(if (row.granted) Copy.GRANTED else Copy.NOT_GRANTED) },
+                    // 허용된 권한은 ✓만, 허용 안 된 권한만 [설정 열기](Task 10 합의).
                     trailingContent = {
-                        TextButton(onClick = { onOpenPermission(row) }) {
-                            Text(Copy.OPEN_SETTINGS)
+                        if (row.granted) {
+                            Icon(Icons.Filled.Check, contentDescription = Copy.GRANTED, tint = MaterialTheme.colorScheme.primary)
+                        } else {
+                            FilledTonalButton(onClick = { onOpenPermission(row) }) { Text(Copy.OPEN_SETTINGS) }
                         }
                     },
                 )

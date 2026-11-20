@@ -17,6 +17,8 @@ data class RouteCardUi(
     val boardingText: String?,
     /** 첫 환승역에서 도착 뒤 출발하는 열차 두 대: "을지로3가 환승 08:18 · 그다음 08:21". */
     val transferText: String? = null,
+    /** 탈 호선(·버스) 순서. 도보는 빼고 이어지는 같은 호선은 한 번만(Task 6 합의). */
+    val lines: List<String> = emptyList(),
 )
 
 /**
@@ -36,6 +38,7 @@ fun RouteDto.toCardUi(receivedAt: Long, now: Long): RouteCardUi {
         },
         boardingText = boardingLine(elapsedSec),
         transferText = transferSummary(),
+        lines = steps.mapNotNull { it.lineName ?: it.routeName }.fold(emptyList()) { acc, l -> if (acc.lastOrNull() == l) acc else acc + l },
     )
 }
 

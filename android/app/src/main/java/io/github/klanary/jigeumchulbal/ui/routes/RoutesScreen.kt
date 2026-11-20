@@ -28,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
@@ -38,6 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.ui.RouteDetailDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
+import io.github.klanary.jigeumchulbal.ui.common.LineBadges
+import androidx.compose.ui.text.font.FontWeight
 import io.github.klanary.jigeumchulbal.ui.common.StateContainer
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.formatClock
@@ -114,7 +117,7 @@ internal fun RoutesContent(
         StateContainer(
             state = state.results ?: UiState.Loading,
             onRetry = onRetry,
-            emptyText = Copy.NO_ROUTES,
+            emptyText = if (state.departAt != null) Copy.NO_ROUTES_AT_TIME else Copy.NO_ROUTES_HINT,
         ) { found ->
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
@@ -134,11 +137,15 @@ internal fun RoutesContent(
 private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(ui.totalText, style = MaterialTheme.typography.headlineSmall)
-            Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(ui.totalText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            // 탈 호선을 순서대로(Task 6 합의)
+            if (ui.lines.isNotEmpty()) LineBadges(ui.lines, arrow = true)
             SegmentBar(ui.segments)
             ui.boardingText?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             }
             ui.transferText?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)

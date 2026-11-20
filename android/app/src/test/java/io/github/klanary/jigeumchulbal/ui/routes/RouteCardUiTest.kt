@@ -22,6 +22,9 @@ class RouteCardUiTest {
         )
     }
 
+    /** 경로 카드에 탈 호선을 순서대로(Task 6 합의). 도보는 빼고, 같은 호선이 이어지면 한 번만. */
+    @Test fun ridesInOrder() = assertEquals(listOf("2호선"), route.toCardUi(0, 0).lines)
+
     @Test fun segmentWeightsAndColors() {
         val s = route.toCardUi(0, 0).segments
         assertEquals(0.41f, s[0].weight, 0.01f)

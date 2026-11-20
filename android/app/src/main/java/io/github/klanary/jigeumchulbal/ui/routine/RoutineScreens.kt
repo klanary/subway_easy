@@ -1,5 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.routine
 
+import io.github.klanary.jigeumchulbal.ui.common.StateSize
+import io.github.klanary.jigeumchulbal.ui.common.StateMessage
+import io.github.klanary.jigeumchulbal.ui.common.StateKind
+import androidx.compose.ui.draw.alpha
 import android.Manifest
 import android.app.NotificationManager
 import android.app.TimePickerDialog
@@ -280,11 +284,18 @@ internal fun RoutineListContent(
                 }
             }
         }
-        if (routines.isEmpty()) ListItem(headlineContent = { Text(Copy.NO_ROUTINES) })
+        if (routines.isEmpty()) {
+            StateMessage(StateKind.Empty, Copy.NO_ROUTINES_HINT, StateSize.Inline, null, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        }
         routines.forEach { routine ->
             ListItem(
-                headlineContent = { Text(minuteLabel(routine.minuteOfDay), style = MaterialTheme.typography.titleLarge) },
-                supportingContent = { Text("${daysLabel(routine.days)} · ${routine.title}") },
+                // 꺼진 루틴은 흐리게(Task 8 합의)
+                headlineContent = {
+                    Text(minuteLabel(routine.minuteOfDay), style = MaterialTheme.typography.titleLarge, modifier = Modifier.alpha(if (routine.enabled) 1f else 0.4f))
+                },
+                supportingContent = {
+                    Text("${daysLabel(routine.days)} · ${routine.title}", modifier = Modifier.alpha(if (routine.enabled) 1f else 0.4f))
+                },
                 trailingContent = {
                     Switch(checked = routine.enabled, onCheckedChange = { on -> onEnabled(routine, on) })
                 },

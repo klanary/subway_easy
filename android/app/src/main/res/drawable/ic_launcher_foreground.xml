@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 아이콘: 열차 앞모습(2차 다듬기 Task 2, 사용자 선택). 108dp 적응형 아이콘 앞 그림, 안전 영역(66dp) 안. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- 차체 -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M39,28h30a9,9 0 0 1 9,9v28a9,9 0 0 1 -9,9h-30a9,9 0 0 1 -9,-9v-28a9,9 0 0 1 9,-9z" />
+    <!-- 앞 유리 -->
+    <path android:fillColor="#2F5BEA"
+        android:pathData="M37,36h34v15h-34z" />
+    <!-- 불빛 -->
+    <path android:fillColor="#2F5BEA"
+        android:pathData="M44,63m-3.5,0a3.5,3.5 0 1 0 7,0a3.5,3.5 0 1 0 -7,0" />
+    <path android:fillColor="#2F5BEA"
+        android:pathData="M64,63m-3.5,0a3.5,3.5 0 1 0 7,0a3.5,3.5 0 1 0 -7,0" />
+    <!-- 다리 -->
+    <path android:fillColor="#FFFFFF" android:pathData="M38,74l-4,6h5l4,-6z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M70,74l4,6h-5l-4,-6z" />
+</vector>

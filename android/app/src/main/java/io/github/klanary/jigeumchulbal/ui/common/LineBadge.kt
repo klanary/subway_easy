@@ -66,3 +66,11 @@ val SwapIcon: ImageVector = ImageVector.Builder("Swap", 24.dp, 24.dp, 24f, 24f).
         moveTo(16f, 4f); lineTo(16f, 20f); moveTo(12f, 16f); lineTo(16f, 20f); lineTo(20f, 16f)
     }
 }.build()
+
+/** 빈 별(자주 가는 경로에 아직 넣지 않음). 넣은 상태는 Icons.Filled.Star와 강조색(최종 리뷰: 색만으로 상태를 알리지 않는다). */
+val StarOutlineIcon: ImageVector = ImageVector.Builder("StarOutline", 24.dp, 24.dp, 24f, 24f).apply {
+    path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round) {
+        moveTo(12f, 3.5f); lineTo(14.6f, 9f); lineTo(20.5f, 9.6f); lineTo(16f, 13.6f); lineTo(17.3f, 19.5f)
+        lineTo(12f, 16.5f); lineTo(6.7f, 19.5f); lineTo(8f, 13.6f); lineTo(3.5f, 9.6f); lineTo(9.4f, 9f); close()
+    }
+}.build()

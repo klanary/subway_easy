@@ -1,5 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui
 
+import org.junit.Assert.assertTrue
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -89,5 +91,12 @@ class AppNavGraphTest {
         val nav = navController()
         nav.navigate(RouteFlowGraph(favoriteRouteId = 3))
         assertEquals(RouteEditDest::class.qualifiedName, nav.currentDestination!!.route)
+    }
+
+    /** 홈에서 [루틴 전체 보기]로 여는 루틴 목록 화면(2차 다듬기 Task 3). */
+    @Test fun routinesDestRoundTrips() {
+        val nav = navController()
+        nav.navigate(RoutinesDest)
+        assertTrue(nav.currentBackStackEntry!!.destination.hasRoute(RoutinesDest::class))
     }
 }

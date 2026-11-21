@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 2차 다듬기: 강조색(신호 파랑)과 시작 화면 바탕(테마 background와 같음). -->
+    <color name="brand_blue">#2F5BEA</color>
+    <color name="app_background">#F6F7F9</color>
+</resources>

@@ -1,5 +1,11 @@
 package io.github.klanary.jigeumchulbal.ui.routedetail
 
+import io.github.klanary.jigeumchulbal.ui.common.StarOutlineIcon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import io.github.klanary.jigeumchulbal.ui.common.ClockIcon
+import androidx.compose.material.icons.filled.Star
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -131,6 +137,23 @@ internal fun RouteDetailContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
+                // [★ 자주 가는 경로]·[루틴으로 만들기]를 제목 띠 아이콘으로(2차 다듬기 Task 4 합의)
+                actions = {
+                    route?.let { r ->
+                        IconButton(onClick = onToggleFavorite) {
+                            // 넣은 상태는 채운 별·강조색, 아니면 빈 별(모양과 이름으로도 상태를 알린다)
+                            Icon(
+                                if (state.isFavorite) Icons.Filled.Star else StarOutlineIcon,
+                                contentDescription = if (state.isFavorite) Copy.FAVORITE_REMOVE_ACTION else Copy.FAVORITE_ADD_ACTION,
+                                tint = if (state.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (r.hasTransit() && state.origin != null && state.dest != null) {
+                            IconButton(onClick = { onMakeRoutine(r) }) { Icon(ClockIcon, contentDescription = Copy.MAKE_ROUTINE) }
+                        }
+                    }
+                },
                 // "마포 → 노량진 · 9분"(Task 7 합의)
                 title = {
                     route?.let {
@@ -163,17 +186,6 @@ internal fun RouteDetailContent(
         }
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
-                Row(Modifier.padding(horizontal = 8.dp)) {
-                    TextButton(onClick = onToggleFavorite) {
-                        Text(if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE)
-                    }
-                    val origin = state.origin
-                    val dest = state.dest
-                    if (route.hasTransit() && origin != null && dest != null) {
-                        TextButton(onClick = { onMakeRoutine(route) }) { Text(Copy.MAKE_ROUTINE) }
-                    }
-                }
-                HorizontalDivider()
             }
             stepItems(route, viaName = state.via?.name) { k ->
                 state.picks.getOrNull(k)?.let {
@@ -204,6 +216,7 @@ private fun SessionButtons(route: RouteDto, hasPicks: Boolean, startSession: ((A
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
+                shape = ButtonShape,
                 enabled = waitStart != null,
                 onClick = {
                     waitStart?.let { start ->
@@ -218,6 +231,7 @@ private fun SessionButtons(route: RouteDto, hasPicks: Boolean, startSession: ((A
                 },
             ) { Text(Copy.PRE_BOARDING_ALERT) }
             Button(
+                shape = ButtonShape,
                 enabled = vibration,
                 onClick = { startSession { settings -> SessionEvent.StartRiding(route.withoutPaths(), settings) } },
             ) { Text(Copy.START_ALIGHT_ALERT) }
@@ -242,7 +256,8 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: 
         itemsIndexed(leg.steps) { i, step ->
             ListItem(
                 leadingContent = {
-                    Box(Modifier.size(12.dp).background(Color(step.color()), CircleShape))
+                    // 색 점 대신 단계를 잇는 세로 막대(타임라인, 2차 다듬기 Task 4 합의)
+                    Box(Modifier.size(width = 4.dp, height = 44.dp).background(Color(step.color()), RoundedCornerShape(2.dp)))
                 },
                 headlineContent = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -253,7 +268,7 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: 
                 supportingContent = {
                     Column {
                         stepDetail(step)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
+                        step.guidance.takeIf { shouldShowGuidance(step) }?.let { Text(it) }
                         // 지하철 구간은 열차 고르기 줄(이전/다음·급행·고정·경고), 그 밖은 운행표 열차 줄
                         if (segments[i] >= 0) {
                             pickRow(segments[i])

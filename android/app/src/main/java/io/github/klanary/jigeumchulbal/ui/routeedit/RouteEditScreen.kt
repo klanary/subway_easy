@@ -1,5 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.routeedit
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -93,6 +95,7 @@ internal fun RouteEditContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.ROUTE_EDIT_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -148,6 +151,7 @@ internal fun RouteEditContent(
                 TextButton(onClick = onToggleVia) { Text(Copy.ADD_VIA) }
             }
             Button(
+                shape = ButtonShape,
                 onClick = onSearch,
                 enabled = state.canSearch,
                 modifier = Modifier.fillMaxWidth(),

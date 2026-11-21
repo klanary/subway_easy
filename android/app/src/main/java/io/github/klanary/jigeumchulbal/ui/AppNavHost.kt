@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui
 
+import io.github.klanary.jigeumchulbal.ui.routine.RoutinesScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -74,6 +75,7 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
     composable<SettingsDest> { SettingsScreen(navController) }
+    composable<RoutinesDest> { RoutinesScreen(navController) }
     composable<RoutineEditDest> { entry -> RoutineEditScreen(entry.toRoute<RoutineEditDest>().routineId, navController) }
     composable<SessionDest> { SessionScreen(navController) }
 }

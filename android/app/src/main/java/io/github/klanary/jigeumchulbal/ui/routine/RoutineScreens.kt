@@ -1,5 +1,8 @@
 package io.github.klanary.jigeumchulbal.ui.routine
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
+import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import io.github.klanary.jigeumchulbal.ui.common.StateSize
 import io.github.klanary.jigeumchulbal.ui.common.StateMessage
 import io.github.klanary.jigeumchulbal.ui.common.StateKind
@@ -154,6 +157,7 @@ internal fun RoutineEditContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.ROUTINE_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -176,7 +180,7 @@ internal fun RoutineEditContent(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Copy.ROUTINE_TIME, Modifier.weight(1f))
-                OutlinedButton(onClick = onPickTime) { Text(minuteLabel(state.minuteOfDay)) }
+                OutlinedButton(onClick = onPickTime, shape = ButtonShape) { Text(minuteLabel(state.minuteOfDay)) }
             }
             Column {
                 Text("${Copy.ROUTINE_WALK} ${state.walkMin}분")
@@ -194,9 +198,32 @@ internal fun RoutineEditContent(
             if (state.preview.isNotEmpty()) {
                 Text("${Copy.ROUTINE_PREVIEW}: ${state.preview.joinToString(", ")}", style = MaterialTheme.typography.bodyLarge)
             }
-            Button(onClick = onSave, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onSave, shape = ButtonShape, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 Text(Copy.ROUTINE_SAVE)
             }
+        }
+    }
+}
+
+/** 루틴 목록 화면(2차 다듬기 스펙 4.2): 전체 루틴 관리. 홈 패널의 [루틴 전체 보기]로 연다. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RoutinesScreen(navController: NavController) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                colors = appBarColors(),
+                title = { Text(Copy.ROUTINES) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+            RoutineList(onEdit = { navController.navigate(RoutineEditDest(it)) })
         }
     }
 }

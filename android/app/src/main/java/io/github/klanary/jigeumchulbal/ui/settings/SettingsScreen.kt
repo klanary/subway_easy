@@ -1,5 +1,8 @@
 package io.github.klanary.jigeumchulbal.ui.settings
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
+import androidx.compose.foundation.clickable
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
@@ -87,6 +90,7 @@ internal fun SettingsContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.SETTINGS) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -114,6 +118,8 @@ internal fun SettingsContent(
             item { SectionTitle(Copy.PERMISSIONS) }
             items(permissions) { row ->
                 ListItem(
+                    // 허용된 권한도 줄을 누르면 설정이 열린다(끄러 갈 길, 2차 다듬기 Task 4).
+                    modifier = Modifier.clickable { onOpenPermission(row) },
                     headlineContent = { Text(row.title) },
                     supportingContent = { Text(if (row.granted) Copy.GRANTED else Copy.NOT_GRANTED) },
                     // 허용된 권한은 ✓만, 허용 안 된 권한만 [설정 열기](Task 10 합의).
@@ -121,7 +127,7 @@ internal fun SettingsContent(
                         if (row.granted) {
                             Icon(Icons.Filled.Check, contentDescription = Copy.GRANTED, tint = MaterialTheme.colorScheme.primary)
                         } else {
-                            FilledTonalButton(onClick = { onOpenPermission(row) }) { Text(Copy.OPEN_SETTINGS) }
+                            FilledTonalButton(onClick = { onOpenPermission(row) }, shape = ButtonShape) { Text(Copy.OPEN_SETTINGS) }
                         }
                     },
                 )

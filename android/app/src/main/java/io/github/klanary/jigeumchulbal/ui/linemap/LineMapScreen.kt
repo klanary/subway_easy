@@ -1,5 +1,13 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.shape.CircleShape
+import io.github.klanary.jigeumchulbal.ui.home.toRouteGraph
+import io.github.klanary.jigeumchulbal.ui.home.todayRoutines
+import io.github.klanary.jigeumchulbal.ui.home.HomePanel
+import io.github.klanary.jigeumchulbal.ui.RoutinesDest
+import io.github.klanary.jigeumchulbal.routine.RoutineEntity
+import androidx.compose.material3.OutlinedCard
 import android.graphics.Picture
 import android.content.Context
 import android.content.Intent
@@ -91,9 +99,7 @@ import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.SettingsDest
 import io.github.klanary.jigeumchulbal.ui.OnPickResult
 import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
-import io.github.klanary.jigeumchulbal.ui.routine.RoutineList
 import io.github.klanary.jigeumchulbal.ui.routine.RoutineListViewModel
-import io.github.klanary.jigeumchulbal.ui.routine.nextRoutineLine
 import java.time.LocalDate
 import java.time.LocalTime
 import io.github.klanary.jigeumchulbal.ui.toGraph
@@ -157,13 +163,14 @@ fun LineMapScreen(
     }
     val snapshotImage = remember(snapshot) { snapshot?.image?.asImageBitmap() }
     // 화면(Activity)이 백그라운드로 갈 때만 저장한다. 홈에서 검색·설정으로 갈 때마다 저장하지 않는다(최종 리뷰).
+    val mapBackground = MaterialTheme.colorScheme.background.toArgb()
     val lifecycleOwner = LocalActivity.current as? LifecycleOwner ?: LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, picture) {
         val observer = LifecycleEventObserver { _, event ->
             val drawn = picture
             val transform = viewModel.savedTransform
             if (event == Lifecycle.Event.ON_STOP && drawn != null && transform != null) {
-                LineMapPictureLoader.saveSnapshot(snapshotStore, drawn, transform, viewModel.viewportWidth, viewModel.viewportHeight)
+                LineMapPictureLoader.saveSnapshot(snapshotStore, drawn, transform, viewModel.viewportWidth, viewModel.viewportHeight, mapBackground)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -179,9 +186,9 @@ fun LineMapScreen(
         snapshot = snapshotImage,
         initialTransform = viewModel.savedTransform,
         favoriteRoutes = homeState.favoriteRoutes,
-        nextRoutine = run {
+        todayRoutines = run {
             val now = LocalTime.now()
-            nextRoutineLine(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)
+            todayRoutines(routines, now.hour * 60 + now.minute, LocalDate.now().dayOfWeek)
         },
         showSessionBanner = session != SessionState.Idle,
         onFocusHandled = { station ->
@@ -210,7 +217,8 @@ fun LineMapScreen(
         onConsumeMessage = viewModel::consumeMessage,
         onFavorite = { navController.navigate(RouteFlowGraph(favoriteRouteId = it.id)) },
         sessionBanner = { SessionBanner(sessionViewModel) { navController.navigate(SessionDest) } },
-        routineList = { RoutineList(onEdit = { navController.navigate(RoutineEditDest(it)) }) },
+        onRoutine = { navController.navigate(it.toRouteGraph()) },
+        onAllRoutines = { navController.navigate(RoutinesDest) },
     )
     state.selected?.let { stationId ->
         StationSheet(stationId, state.draft, onRole = viewModel::setRole, onDismiss = viewModel::closeSheet)
@@ -229,7 +237,7 @@ internal fun LineMapContent(
     snapshot: ImageBitmap?,
     initialTransform: MapTransform?,
     favoriteRoutes: List<FavoriteRouteEntity>,
-    nextRoutine: String?,
+    todayRoutines: List<RoutineEntity>,
     showSessionBanner: Boolean,
     onFocusHandled: (MapStation) -> Unit = {},
     onStationTap: (MapStation) -> Unit = {},
@@ -244,10 +252,9 @@ internal fun LineMapContent(
     onCancelTrip: () -> Unit = {},
     onConsumeMessage: () -> Unit = {},
     onFavorite: (FavoriteRouteEntity) -> Unit = {},
+    onRoutine: (RoutineEntity) -> Unit = {},
+    onAllRoutines: () -> Unit = {},
     sessionBanner: @Composable () -> Unit = {},
-    routineList: @Composable () -> Unit = {},
-    panelExpanded: Boolean = false,
-    panelTab: Int = 0,
 ) {
     // Surface라야 안쪽 글자색이 테마를 따른다(Box 바탕만 칠하면 다크에서 검정 글자, 최종 리뷰).
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -275,15 +282,14 @@ internal fun LineMapContent(
                 onViewport = onViewport,
             )
         }
+        // 위에는 설정과 출발·도착 고르는 중 띠만(한 손 배치, 2차 다듬기 스펙 4.2).
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            TopBar(
-                onSearch = onSearch,
-                onLocate = onLocate,
-                onRoute = onRoute,
-                onSettings = onSettings,
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Surface(shape = CircleShape, shadowElevation = 2.dp) {
+                    IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = Copy.SETTINGS) }
+                }
+            }
             state.draft.banner()?.let { banner -> TripBanner(banner, onCancel = onCancelTrip) }
-            if (showSessionBanner) sessionBanner()
         }
         // 잠깐 뜨는 안내는 아래 패널 바로 위 스낵바(Task 3 합의).
         val snackbar = remember { SnackbarHostState() }
@@ -298,15 +304,19 @@ internal fun LineMapContent(
             if (result == SnackbarResult.ActionPerformed && action != null) onMessageAction(action)
             onConsumeMessage()
         }
+        // 아래: 스낵바 → 진행 중 알림 → 검색 패널(엄지 영역).
         Column(Modifier.align(Alignment.BottomCenter)) {
             SnackbarHost(snackbar)
-            BottomPanel(
-            favoriteRoutes = favoriteRoutes,
-            nextRoutine = nextRoutine,
-            onFavorite = onFavorite,
-            routineList = routineList,
-            initiallyExpanded = panelExpanded,
-            initialTab = panelTab,
+            if (showSessionBanner) Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) { sessionBanner() }
+            HomePanel(
+                todayRoutines = todayRoutines,
+                favorites = favoriteRoutes,
+                onSearch = onSearch,
+                onLocate = onLocate,
+                onRoute = onRoute,
+                onRoutine = onRoutine,
+                onAllRoutines = onAllRoutines,
+                onFavorite = onFavorite,
             )
         }
     }
@@ -408,88 +418,6 @@ private fun LineMapCanvas(
     }
 }
 
-@Composable
-private fun TopBar(onSearch: () -> Unit, onLocate: () -> Unit, onRoute: () -> Unit, onSettings: () -> Unit) {
-    Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 3.dp) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                Modifier.weight(1f).clickable(onClick = onSearch).padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(Icons.Filled.Search, contentDescription = null)
-                Text(Copy.SEARCH_HINT, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            TextButton(onClick = onRoute) { Text(Copy.FIND_ROUTE) }
-            IconButton(onClick = onLocate) { Icon(Icons.Filled.LocationOn, contentDescription = Copy.LOCATE) }
-            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = Copy.SETTINGS) }
-        }
-    }
-}
-
-/** 접히는 아래 패널: [루틴] [자주 가는 경로]. 접혀 있으면 오늘의 다음 루틴 한 줄을 보인다. */
-@Composable
-private fun BottomPanel(
-    favoriteRoutes: List<FavoriteRouteEntity>,
-    nextRoutine: String?,
-    onFavorite: (FavoriteRouteEntity) -> Unit,
-    routineList: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    initiallyExpanded: Boolean = false,
-    initialTab: Int = 0,
-) {
-    var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
-    var tab by rememberSaveable { mutableIntStateOf(initialTab) }
-    Surface(modifier.fillMaxWidth(), tonalElevation = 3.dp, shadowElevation = 6.dp) {
-        // 시스템 내비게이션 바 위에 탭이 보이게 한다(2026-11-12 실기기에서 가려짐).
-        Column(Modifier.navigationBarsPadding()) {
-            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
-                TabRow(selectedTabIndex = tab, modifier = Modifier.weight(1f)) {
-                    Tab(selected = tab == 0, onClick = { tab = 0; expanded = true }, text = { Text(Copy.ROUTINES) })
-                    Tab(selected = tab == 1, onClick = { tab = 1; expanded = true }, text = { Text(Copy.FAVORITE_ROUTES) })
-                }
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
-                        contentDescription = if (expanded) Copy.COLLAPSE else Copy.EXPAND,
-                    )
-                }
-            }
-            if (!expanded) {
-                nextRoutine?.let { line ->
-                    Text(line, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            if (expanded) {
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
-                    when (tab) {
-                        0 -> item { routineList() }
-                        else -> if (favoriteRoutes.isEmpty()) {
-                            item {
-                                StateMessage(
-                                    StateKind.Empty,
-                                    "${Copy.NO_FAVORITE_ROUTES}. ${Copy.NO_FAVORITE_ROUTES_HINT}",
-                                    StateSize.Inline,
-                                    onRetry = null,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                )
-                            }
-                        } else {
-                            items(favoriteRoutes, key = { it.id }) { route ->
-                                ListItem(
-                                    headlineContent = { Text(favoriteRouteTitle(route)) },
-                                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-                                    modifier = Modifier.clickable { onFavorite(route) },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /** "출발 → 도착", 경유지가 있으면 "출발 → 경유 → 도착". */
 fun favoriteRouteTitle(route: FavoriteRouteEntity): String =
     listOfNotNull(route.fromName, route.viaName, route.toName).joinToString(" → ")
@@ -505,7 +433,7 @@ private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
 
 @Composable
 internal fun SessionBannerCard(headline: String, onClick: () -> Unit) {
-    Card(
+    OutlinedCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),

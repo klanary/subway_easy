@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import io.github.klanary.jigeumchulbal.session.ACTION_OPEN_SESSION
 import io.github.klanary.jigeumchulbal.ui.AppNavHost
@@ -20,6 +21,8 @@ class MainActivity : ComponentActivity() {
     private val openSessionFlow = openSessionRequests.receiveAsFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 시작 화면(앱 아이콘 + 바탕색)을 보이고, 끝나면 Theme.App으로 바뀐다(2차 다듬기 Task 2). 다른 무엇보다 먼저.
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         // 노선도 해석은 오래 걸려 화면을 그리기 전에 시작한다. 알람·부팅으로만 깨어난 프로세스에서는 하지 않는다(최종 리뷰).

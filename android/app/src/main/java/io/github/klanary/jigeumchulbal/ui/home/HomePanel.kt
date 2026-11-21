@@ -70,7 +70,7 @@ internal fun HomePanel(
             // 손잡이
             Box(
                 Modifier.align(Alignment.CenterHorizontally).size(width = 36.dp, height = 4.dp)
-                    .background(MaterialTheme.colorScheme.outline, RoundedCornerShape(2.dp)),
+                    .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)),
             )
             Row(Modifier.padding(top = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                 SearchField(onSearch = onSearch, onRoute = onRoute, modifier = Modifier.weight(1f))

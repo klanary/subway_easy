@@ -13,7 +13,9 @@ import androidx.compose.ui.graphics.luminance
  */
 
 private val LightSurface = Color(0xFFFFFFFF)
-private val LightOutline = Color(0xFFE6E8EC)
+/** 테두리·스위치 등 글자 아닌 요소(3:1). 옅은 구분선은 outlineVariant(최종 리뷰). */
+private val LightOutline = Color(0xFF8A93A0)
+private val LightDivider = Color(0xFFE6E8EC)
 
 val LightColors: ColorScheme = lightColorScheme(
     primary = Color(0xFF2F5BEA),
@@ -37,7 +39,7 @@ val LightColors: ColorScheme = lightColorScheme(
     surfaceVariant = Color(0xFFF1F2F4),
     onSurfaceVariant = Color(0xFF5B6472),
     outline = LightOutline,
-    outlineVariant = LightOutline,
+    outlineVariant = LightDivider,
     inverseSurface = Color(0xFF111418),
     inverseOnSurface = Color(0xFFF2F4F7),
     inversePrimary = Color(0xFF7C9BFF),
@@ -52,7 +54,8 @@ val LightColors: ColorScheme = lightColorScheme(
 )
 
 private val DarkSurface = Color(0xFF171B22)
-private val DarkOutline = Color(0xFF2C3340)
+private val DarkOutline = Color(0xFF6B7480)
+private val DarkDivider = Color(0xFF2C3340)
 
 val DarkColors: ColorScheme = darkColorScheme(
     primary = Color(0xFF7C9BFF),
@@ -76,7 +79,7 @@ val DarkColors: ColorScheme = darkColorScheme(
     surfaceVariant = Color(0xFF232833),
     onSurfaceVariant = Color(0xFF9AA3AF),
     outline = DarkOutline,
-    outlineVariant = DarkOutline,
+    outlineVariant = DarkDivider,
     inverseSurface = Color(0xFFF2F4F7),
     inverseOnSurface = Color(0xFF111418),
     inversePrimary = Color(0xFF2F5BEA),

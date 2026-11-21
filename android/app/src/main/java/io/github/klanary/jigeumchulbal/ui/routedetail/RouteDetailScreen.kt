@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routedetail
 
+import io.github.klanary.jigeumchulbal.ui.common.StarOutlineIcon
 import androidx.compose.foundation.shape.RoundedCornerShape
 import io.github.klanary.jigeumchulbal.ui.common.ClockIcon
 import androidx.compose.material.icons.filled.Star
@@ -141,10 +142,11 @@ internal fun RouteDetailContent(
                 actions = {
                     route?.let { r ->
                         IconButton(onClick = onToggleFavorite) {
+                            // 넣은 상태는 채운 별·강조색, 아니면 빈 별(모양과 이름으로도 상태를 알린다)
                             Icon(
-                                Icons.Filled.Star,
-                                contentDescription = if (state.isFavorite) Copy.REMOVE_FAVORITE else Copy.ADD_FAVORITE,
-                                tint = if (state.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                if (state.isFavorite) Icons.Filled.Star else StarOutlineIcon,
+                                contentDescription = if (state.isFavorite) Copy.FAVORITE_REMOVE_ACTION else Copy.FAVORITE_ADD_ACTION,
+                                tint = if (state.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         if (r.hasTransit() && state.origin != null && state.dest != null) {

@@ -36,7 +36,7 @@ class RouteDetailActionsTest {
     @Test fun favoriteIconToggles() {
         var toggled = 0
         rule.setContent { AppTheme(darkTheme = false) { RouteDetailContent(state, onToggleFavorite = { toggled++ }) } }
-        rule.onNodeWithContentDescription(Copy.ADD_FAVORITE).performClick()
+        rule.onNodeWithContentDescription(Copy.FAVORITE_ADD_ACTION).performClick()
         assertEquals(1, toggled)
     }
 
@@ -45,5 +45,11 @@ class RouteDetailActionsTest {
         rule.setContent { AppTheme(darkTheme = false) { RouteDetailContent(state, onMakeRoutine = { made += it.id }) } }
         rule.onNodeWithContentDescription(Copy.MAKE_ROUTINE).performClick()
         assertEquals(listOf("r"), made)
+    }
+
+    /** 이미 넣은 경로는 "빼기"로 읽힌다(상태를 색이 아니라 모양·이름으로도 알린다, 최종 리뷰). */
+    @Test fun favoritedRouteOffersRemove() {
+        rule.setContent { AppTheme(darkTheme = false) { RouteDetailContent(state.copy(isFavorite = true)) } }
+        rule.onNodeWithContentDescription(Copy.FAVORITE_REMOVE_ACTION).assertExists()
     }
 }

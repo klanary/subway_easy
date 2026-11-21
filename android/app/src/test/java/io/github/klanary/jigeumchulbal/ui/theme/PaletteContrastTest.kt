@@ -20,6 +20,9 @@ class PaletteContrastTest {
         assertAA(c.onPrimaryContainer, c.primaryContainer, "$theme onPrimaryContainer")
         assertAA(c.onTertiaryContainer, c.tertiaryContainer, "$theme onTertiaryContainer")
         assertAA(c.primary, c.surface, "$theme primary text on surface")
+        // 스위치·버튼 테두리·꺼진 상태 표시는 글자가 아닌 요소라 3:1(WCAG 1.4.11, 최종 리뷰)
+        val r = contrastRatio(c.outline, c.surface)
+        assertTrue("$theme outline ${"%.2f".format(r)}", r >= 3.0)
     }
 
     @Test fun lightTextIsReadable() = checkAll(LightColors, "light")

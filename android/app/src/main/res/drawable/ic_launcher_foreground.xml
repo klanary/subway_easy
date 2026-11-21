@@ -15,6 +15,6 @@
     <path android:fillColor="#2F5BEA"
         android:pathData="M64,63m-3.5,0a3.5,3.5 0 1 0 7,0a3.5,3.5 0 1 0 -7,0" />
     <!-- 다리 -->
-    <path android:fillColor="#FFFFFF" android:pathData="M38,74l-6,9h6l6,-9z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M70,74l6,9h-6l-6,-9z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M38,74l-4,6h5l4,-6z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M70,74l4,6h-5l-4,-6z" />
 </vector>

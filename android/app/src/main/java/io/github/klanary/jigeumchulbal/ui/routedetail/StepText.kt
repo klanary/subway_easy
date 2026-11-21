@@ -100,3 +100,16 @@ fun pickTimes(train: CandidateDto): String =
 
 /** 열차 고르기 줄의 작은 글: "9501 · 급행". 없으면 빈 글. */
 fun pickMeta(train: CandidateDto): String = listOfNotNull(train.trainNo, "급행".takeIf { train.isExpress }).joinToString(" · ")
+
+/**
+ * 서버 안내 문구를 보일지. 지하철 단계는 새 단계 줄("1호선 · 시청 → 종로3가")과 같은 내용("1호선 (시청 > 종로3가)")이면
+ * 숨긴다(2차 다듬기 Task 4). 빈 문구도 숨긴다.
+ */
+fun shouldShowGuidance(step: StepDto): Boolean {
+    val text = step.guidance.trim()
+    if (text.isEmpty()) return false
+    if (step.mode != StepMode.SUBWAY) return true
+    val stops = step.stops.orEmpty()
+    if (stops.size < 2) return true
+    return !(text.contains(stops.first()) && text.contains(stops.last()))
+}

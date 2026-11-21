@@ -72,4 +72,11 @@ class StateViewsTest {
         val h = b.bottom - b.top
         assert(h <= 200.dp) { "inline height $h" }
     }
+    /** 오래된 정보 띠는 누르기 쉬운 높이(48dp 이상)여야 한다(2차 다듬기 Task 4). */
+    @Test fun staleNoticeIsTallEnoughToTap() {
+        set { StaleNotice(onRetry = {}, modifier = Modifier.testTag("stale")) }
+        val b = rule.onNodeWithTag("stale").getUnclippedBoundsInRoot()
+        val h = b.bottom - b.top
+        assert(h >= 48.dp) { "stale height $h" }
+    }
 }

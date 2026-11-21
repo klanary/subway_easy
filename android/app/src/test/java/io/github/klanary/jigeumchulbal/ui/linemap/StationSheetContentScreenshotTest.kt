@@ -33,11 +33,12 @@ class StationSheetContentScreenshotTest {
         unsupportedLines = emptyList(),
     )
 
-    private fun snap(name: String, state: UiState<StationSheetUi>, draft: TripDraft = TripDraft(), station: String = "시청") =
-        rule.snapBothThemes("sheet_$name") { Surface { StationSheetContent(station, state, draft) } } // 앱에서는 시트(Surface) 안
+    private fun snap(name: String, state: UiState<StationSheetUi>, draft: TripDraft = TripDraft(), station: String = "시청", fontScale: Float = 1f) =
+        rule.snapBothThemes("sheet_$name", fontScale) { Surface { StationSheetContent(station, state, draft) } } // 앱에서는 시트(Surface) 안
 
     @Test fun loading() = snap("loading", UiState.Loading)
     @Test fun realtime() = snap("realtime", UiState.Content(now))
+    @Test fun realtimeLargeFont() = snap("realtime_font130", UiState.Content(now), fontScale = 1.3f)
     @Test fun stale() = snap("stale", UiState.Content(now, stale = true))
     @Test fun error() = snap("error", UiState.Error(Copy.SERVER_PROBLEM))
     @Test fun offline() = snap("offline", UiState.Offline)

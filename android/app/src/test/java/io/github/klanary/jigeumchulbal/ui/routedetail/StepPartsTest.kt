@@ -28,4 +28,14 @@ class StepPartsTest {
         assertEquals("08:20 → 08:24", pickTimes(t))
         assertEquals("9501 · 급행", pickMeta(t))
     }
+    /** 서버 안내 문구가 새 단계 줄과 같은 내용이면 숨긴다(2차 다듬기 Task 4). */
+    @Test fun subwayGuidanceDuplicateIsHidden() {
+        val subwayStep = StepDto(
+            mode = StepMode.SUBWAY, durationSec = 240, distanceM = 0, lineName = "1호선",
+            stops = listOf("시청", "종각", "종로3가"), guidance = "1호선 (시청 > 종로3가)",
+        )
+        assertEquals(false, shouldShowGuidance(subwayStep))
+        val walk = StepDto(mode = StepMode.WALK, durationSec = 60, distanceM = 80, guidance = "환승 통로로 1분")
+        assertEquals(true, shouldShowGuidance(walk))
+    }
 }

@@ -1,5 +1,7 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import android.app.TimePickerDialog
 import androidx.compose.foundation.background
@@ -97,6 +99,7 @@ fun StationSheet(
  * 역 시트 안쪽을 그린다(상태만 받는다). 시트 틀·ViewModel·시각 고르기 대화상자는 [StationSheet]가 잇는다.
  * 화면 다듬기 Task 4 합의: 호선 색 배지 아래 방향을 묶고, 첫 열차의 남은 시간을 크게, 막차·급행·근거는 작은 표식.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun StationSheetContent(
     stationId: String,
@@ -134,7 +137,8 @@ internal fun StationSheetContent(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 큰 글꼴에서도 넘치지 않게 줄을 바꾼다(2차 다듬기 Task 4).
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(time == SheetTime.NOW, { onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
             FilterChip(time == SheetTime.PLUS_1H, { onTime(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
             FilterChip(time == SheetTime.PLUS_2H, { onTime(SheetTime.PLUS_2H) }, { Text(Copy.SHEET_PLUS_2H) })

@@ -256,7 +256,7 @@ private fun LazyListScope.stepItems(route: RouteDto, viaName: String?, pickRow: 
                 supportingContent = {
                     Column {
                         stepDetail(step)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        step.guidance.takeIf { it.isNotBlank() }?.let { Text(it) }
+                        step.guidance.takeIf { shouldShowGuidance(step) }?.let { Text(it) }
                         // 지하철 구간은 열차 고르기 줄(이전/다음·급행·고정·경고), 그 밖은 운행표 열차 줄
                         if (segments[i] >= 0) {
                             pickRow(segments[i])

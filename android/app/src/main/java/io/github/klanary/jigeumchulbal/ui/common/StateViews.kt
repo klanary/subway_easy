@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.common
 
+import androidx.compose.foundation.layout.heightIn
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -124,7 +125,8 @@ fun StateLoading(size: StateSize, modifier: Modifier = Modifier, text: String? =
 @Composable
 fun StaleNotice(onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier.fillMaxWidth()
+        // 누르기 쉬운 높이(48dp 이상, 2차 다듬기 Task 4)
+        modifier.fillMaxWidth().heightIn(min = 48.dp)
             .background(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.shapes.small)
             .clickable(onClick = onRetry)
             .padding(horizontal = 12.dp, vertical = 8.dp),

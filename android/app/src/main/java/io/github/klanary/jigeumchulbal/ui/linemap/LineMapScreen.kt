@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.shape.CircleShape
 import io.github.klanary.jigeumchulbal.ui.home.toRouteGraph
 import io.github.klanary.jigeumchulbal.ui.home.todayRoutines
@@ -162,13 +163,14 @@ fun LineMapScreen(
     }
     val snapshotImage = remember(snapshot) { snapshot?.image?.asImageBitmap() }
     // 화면(Activity)이 백그라운드로 갈 때만 저장한다. 홈에서 검색·설정으로 갈 때마다 저장하지 않는다(최종 리뷰).
+    val mapBackground = MaterialTheme.colorScheme.background.toArgb()
     val lifecycleOwner = LocalActivity.current as? LifecycleOwner ?: LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, picture) {
         val observer = LifecycleEventObserver { _, event ->
             val drawn = picture
             val transform = viewModel.savedTransform
             if (event == Lifecycle.Event.ON_STOP && drawn != null && transform != null) {
-                LineMapPictureLoader.saveSnapshot(snapshotStore, drawn, transform, viewModel.viewportWidth, viewModel.viewportHeight)
+                LineMapPictureLoader.saveSnapshot(snapshotStore, drawn, transform, viewModel.viewportWidth, viewModel.viewportHeight, mapBackground)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

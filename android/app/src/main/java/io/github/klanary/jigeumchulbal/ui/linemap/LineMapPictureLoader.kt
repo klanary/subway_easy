@@ -58,14 +58,15 @@ object LineMapPictureLoader {
     }
 
     /** 보던 화면을 [width]×[height] 그림으로 그려 [store]에 저장한다. 화면을 떠날 때 부른다(메인 스레드를 막지 않는다). */
-    fun saveSnapshot(store: LineMapSnapshotStore, picture: Picture, transform: MapTransform, width: Int, height: Int) {
+    fun saveSnapshot(store: LineMapSnapshotStore, picture: Picture, transform: MapTransform, width: Int, height: Int, background: Int = Color.WHITE) {
         if (width <= 0 || height <= 0) return
         scope.launch {
             saving.withLock {
             runCatching {
                 val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(bitmap)
-                canvas.drawColor(Color.WHITE)
+                // 테마 바탕색으로(다크에서 흰 여백이 번쩍이지 않게, 2차 다듬기 Task 4)
+                canvas.drawColor(background)
                 canvas.translate(transform.offsetX, transform.offsetY)
                 canvas.scale(transform.scale, transform.scale)
                 canvas.drawPicture(picture)

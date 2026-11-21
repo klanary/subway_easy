@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.settings
 
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -39,5 +40,21 @@ class SettingsContentTest {
         rule.onAllNodesWithText(Copy.OPEN_SETTINGS).assertCountEquals(1)
         rule.onAllNodesWithText(Copy.OPEN_SETTINGS)[0].performClick()
         assertEquals(listOf(Copy.PERMISSION_NOTIFICATIONS), opened)
+    }
+    /** 허용된 권한 줄도 줄 전체를 누르면 설정이 열린다(끄러 갈 길, 2차 다듬기 Task 4). */
+    @Test fun grantedRowOpensSettingsToo() {
+        val opened = mutableListOf<String>()
+        rule.setContent {
+            AppTheme(darkTheme = false) {
+                SettingsContent(
+                    SettingsUiState(AppSettings()),
+                    listOf(PermissionRow(Copy.PERMISSION_LOCATION, true)),
+                    onOpenPermission = { opened += it.title },
+                )
+            }
+        }
+        rule.onNode(hasScrollAction()).performScrollToNode(hasText(Copy.PERMISSION_LOCATION))
+        rule.onNodeWithText(Copy.PERMISSION_LOCATION).performClick()
+        assertEquals(listOf(Copy.PERMISSION_LOCATION), opened)
     }
 }

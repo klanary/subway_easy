@@ -25,10 +25,10 @@ class StationSheetContentScreenshotTest {
         name = "시청",
         lines = listOf("1호선", "2호선"),
         groups = listOf(
-            DirectionTrains("1호선", "상행", "종각", listOf(TrainLine("청량리", "곧 도착", isExpress = true), TrainLine("광운대", "1분"))),
-            DirectionTrains("2호선", "외선", "충정로", listOf(TrainLine("성수", "1분"), TrainLine("성수", "2분"))),
+            DirectionTrains("1호선", "상행", "종각", listOf(TrainLine("청량리", "곧 도착", isExpress = true), TrainLine("광운대", "1분")), prevStation = "서울역", nextStation = "종각", progress = 0.9f),
+            DirectionTrains("2호선", "외선", "충정로", listOf(TrainLine("성수", "1분", arriveAt = "19:01"), TrainLine("성수", "2분", arriveAt = "19:02")), prevStation = "을지로입구", nextStation = "충정로", progress = 0.5f),
             DirectionTrains("2호선", "내선", "을지로입구", listOf(TrainLine("성수", "곧 도착"), TrainLine("성수", "5분", isLast = true))),
-            DirectionTrains("1호선", "하행", "서울", listOf(TrainLine("인천", "1분", isLast = true), TrainLine("인천", "3분"))),
+            DirectionTrains("1호선", "하행", "서울", listOf(TrainLine("인천", "6분", isLast = true), TrainLine("인천", "9분")), prevStation = "종각", nextStation = "서울역", progress = 0f, farAway = "동묘앞"),
         ),
         unsupportedLines = emptyList(),
     )

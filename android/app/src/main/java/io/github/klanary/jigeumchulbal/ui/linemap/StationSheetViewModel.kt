@@ -50,6 +50,11 @@ data class DirectionTrains(
     val towards: String?,
     val trains: List<TrainLine>,
     val basis: String? = null,
+    /** 선로 그림(수동 검토 2026-11-22): 이전역·다음역, 첫 열차의 위치(0=이전역, 1=이번 역), 더 먼 곳이면 그 역. */
+    val prevStation: String? = null,
+    val nextStation: String? = null,
+    val progress: Float? = null,
+    val farAway: String? = null,
 ) {
     /** 글로 쓴 줄: "방화행 3분 · 그다음 11분" / "20:01 방화행, 20:05 방화행". */
     fun text(): String = if (trains.firstOrNull()?.clock == true) trains.joinToString(", ") { it.text() }
@@ -202,6 +207,10 @@ class StationSheetViewModel(
             TrainLine(train.destination, formatRemaining(train.remainingSec), isLast = train.isLast, isExpress = train.isExpress, arriveAt = at)
         },
         basis = basisOf(source),
+        prevStation = prevStation,
+        nextStation = nextStation,
+        progress = trains.firstOrNull()?.let { trainProgress(it.remainingSec, it.currentStation, prevStation, stationId) },
+        farAway = trains.firstOrNull()?.let { trainFarAway(it.currentStation, prevStation, stationId) },
     )
 
     private fun TimetableDto.toDirectionTrains(): DirectionTrains? {

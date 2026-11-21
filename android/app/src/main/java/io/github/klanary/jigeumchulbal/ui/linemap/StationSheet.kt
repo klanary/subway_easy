@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import io.github.klanary.jigeumchulbal.ui.common.lineColor
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -189,7 +190,7 @@ private fun SheetTrains(ui: StationSheetUi) {
         byLine.forEach { (line, groups) ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LineBadge(line)
-                groups.forEach { DirectionRow(it) }
+                groups.forEach { DirectionRow(it, ui.name) }
             }
         }
         (ui.noTimetableLines.map { it to Copy.NO_TIMETABLE_LINE } + ui.unsupportedLines.map { it to Copy.UNSUPPORTED_LINE })
@@ -203,13 +204,20 @@ private fun SheetTrains(ui: StationSheetUi) {
 }
 
 @Composable
-private fun DirectionRow(group: DirectionTrains) {
+private fun DirectionRow(group: DirectionTrains, here: String) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.padding(start = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val head = listOfNotNull(group.direction, group.towards?.let { "$it 방면" }).joinToString(" · ")
             Text(head, style = MaterialTheme.typography.labelLarge, color = muted)
             group.basis?.let { Tag(it, MaterialTheme.colorScheme.tertiary) }
+        }
+        // 이전역·이번 역·다음역과 다가오는 열차(수동 검토 2026-11-22)
+        if (group.prevStation != null || group.nextStation != null) {
+            TrainTrack(
+                group.prevStation, here, group.nextStation, group.progress, group.farAway,
+                Color(lineColor(group.line)), Modifier.padding(top = 2.dp, bottom = 6.dp),
+            )
         }
         val first = group.trains.firstOrNull() ?: return@Column
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

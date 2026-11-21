@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 앱 창 테마. 바탕을 Compose 테마 background와 맞춰 화면이 뜨기 전에도 번쩍이지 않게 한다. -->
+    <style name="Theme.App" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/app_background</item>
+    </style>
+
+    <!-- 시작 화면(core-splashscreen): 바탕색 + 앱 아이콘, 끝나면 Theme.App. -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/app_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.App</item>
+    </style>
+</resources>

@@ -2,15 +2,22 @@ package io.github.klanary.jigeumchulbal.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import io.github.klanary.jigeumchulbal.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * 앱 글꼴. Pretendard 파일을 res/font에 넣으면 여기서 바꾼다(스펙 6.2, 내려받기는 사용자 허락 뒤).
- * 그 전에는 시스템 글꼴을 쓴다.
+ * 앱 글꼴: Pretendard Std v1.3.9(SIL OFL, 라이선스는 android/third_party/pretendard/LICENSE.txt).
+ * 자주 쓰는 한글 2,780자 축소판이라 범위 밖 글자는 시스템 글꼴로 보인다(스펙 6.2).
  */
-val AppFont: FontFamily = FontFamily.Default
+val AppFont: FontFamily = FontFamily(
+    Font(R.font.pretendard_regular, FontWeight.Normal),
+    Font(R.font.pretendard_medium, FontWeight.Medium),
+    Font(R.font.pretendard_semibold, FontWeight.SemiBold),
+    Font(R.font.pretendard_bold, FontWeight.Bold),
+)
 
 /** 분이 바뀌어도 줄이 흔들리지 않게 숫자 폭을 고정한다. */
 private const val TABULAR = "tnum"

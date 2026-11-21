@@ -42,6 +42,10 @@ data class SearchDest(val slot: Slot? = null)
 @Serializable
 object SettingsDest
 
+/** 루틴 목록(관리): 홈 아래 패널의 [루틴 전체 보기](2차 다듬기 스펙 4.2). */
+@Serializable
+object RoutinesDest
+
 /** 루틴 등록·편집. [routineId]가 없으면 새 루틴(경로 상세의 [루틴으로 만들기]가 경로를 넘긴다). */
 @Serializable
 data class RoutineEditDest(val routineId: Long? = null)

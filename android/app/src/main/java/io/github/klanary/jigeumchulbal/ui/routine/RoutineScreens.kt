@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routine
 
+import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import io.github.klanary.jigeumchulbal.ui.common.StateSize
 import io.github.klanary.jigeumchulbal.ui.common.StateMessage
@@ -198,6 +199,28 @@ internal fun RoutineEditContent(
             Button(onClick = onSave, shape = ButtonShape, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 Text(Copy.ROUTINE_SAVE)
             }
+        }
+    }
+}
+
+/** 루틴 목록 화면(2차 다듬기 스펙 4.2): 전체 루틴 관리. 홈 패널의 [루틴 전체 보기]로 연다. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RoutinesScreen(navController: NavController) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(Copy.ROUTINES) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+            RoutineList(onEdit = { navController.navigate(RoutineEditDest(it)) })
         }
     }
 }

@@ -155,6 +155,8 @@ object Copy {
     const val MAP_PREPARING = "노선도를 준비하고 있어요"
     const val NO_FAVORITE_ROUTES_HINT = "경로를 찾은 뒤 ★를 눌러 추가해 보세요"
     const val ROUTINES = "루틴"
+    const val ALL_ROUTINES = "루틴 전체 보기"
+    const val HOME_EMPTY_HINT = "역을 검색하거나 노선도에서 역을 눌러 보세요"
     const val NO_ROUTINES = "등록한 루틴이 없어요"
     const val NO_ROUTINES_HINT = "등록한 루틴이 없어요. 경로 상세에서 [루틴으로 만들기]를 눌러 보세요"
     const val PASSED = "지남"

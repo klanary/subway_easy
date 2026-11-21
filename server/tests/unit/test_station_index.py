@@ -97,3 +97,11 @@ def test_real_table_resolves_position_api_names(raw, line, expected):
 
     station = StationIndex.load("data/stations.sqlite").resolve(raw, line)
     assert station is not None and station.id == expected and line in station.lines
+
+
+def test_real_neighbors_in_each_direction(real_index):
+    """역 시트의 이전역·다음역(수동 검토 2026-11-22): 반대 방향의 다음 역이 이전 역."""
+    assert real_index.neighbor("시청", "1호선", "상행") == "종각"
+    assert real_index.neighbor("시청", "1호선", "하행") == "서울"
+    assert real_index.neighbor("시청", "2호선", "내선") == "을지로입구"
+    assert real_index.neighbor("시청", "2호선", "모름") is None

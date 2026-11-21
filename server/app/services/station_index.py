@@ -132,6 +132,17 @@ class StationIndex:
         """서울시 시간표 API의 역 코드(STATION_CD). 없으면 None."""
         return self._codes.get((station_id, line))
 
+    def neighbor(self, station_id: str, line: str, direction: str) -> str | None:
+        """이 역에서 `direction` 방향으로 가면 닿는 바로 다음 역 id. 모르면 None.
+
+        역 시트의 이전역·다음역 표시에 쓴다(수동 검토 2026-11-22).
+        이전 역은 반대 방향의 다음 역이다.
+        """
+        for (sid, ln, next_id), d in self._directions.items():
+            if sid == station_id and ln == line and d == direction:
+                return next_id
+        return None
+
     def direction(self, station_id: str, line: str, next_id: str) -> str | None:
         """이 역에서 `next_id` 역 쪽으로 가는 열차의 방향(상행·하행·내선·외선). 모르면 None.
 

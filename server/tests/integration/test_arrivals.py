@@ -40,7 +40,15 @@ async def test_groups_and_trains(client, seoul):
     for g in body["groups"]:
         secs = [t["remainingSec"] for t in g["trains"]]
         assert len(secs) <= 2 and secs == sorted(secs, key=lambda s: (s is None, s or 0))
-        assert set(g) == {"line", "direction", "towards", "trains", "source"}
+        assert set(g) == {
+            "line",
+            "direction",
+            "towards",
+            "trains",
+            "source",
+            "prevStation",
+            "nextStation",
+        }
     train = body["groups"][0]["trains"][0]
     assert {"destination", "remainingSec", "message", "isLast", "isExpress", "trainNo"} <= set(
         train
@@ -284,3 +292,22 @@ async def test_arrivals_fill_uses_measured_group_source(client, seoul, respx_moc
     body = (await client.get("/v1/stations/강남/arrivals", params={"line": "신분당선"})).json()
     sources = {g["direction"]: g["source"] for g in body["groups"]}
     assert sources == {"상행": "measured", "하행": "measured"}
+
+
+async def test_groups_carry_neighbors_and_train_position(
+    client, seoul, timetable_mock, clock, respx_mock
+):
+    """역 시트의 이전역·현재역·다음역과 열차 위치(수동 검토 2026-11-22)."""
+    clock.set(CITYHALL_TIME.timestamp())
+    respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
+        return_value=fixture_response("seoul_realtime_cityhall.json")
+    )
+    groups = (await client.get(ARRIVALS.format("시청"))).json()["groups"]
+    by_dir = {(g["line"], g["direction"]): g for g in groups}
+    up = by_dir[("1호선", "상행")]
+    assert (up["prevStation"], up["nextStation"]) == ("서울역", "종각")
+    assert up["trains"][0]["currentStation"]  # 실시간 열차는 지금 있는 역 이름이 온다
+    down = by_dir[("1호선", "하행")]
+    assert (down["prevStation"], down["nextStation"]) == ("종각", "서울역")
+    outer = by_dir[("2호선", "외선")]
+    assert (outer["prevStation"], outer["nextStation"]) == ("을지로입구", "충정로")

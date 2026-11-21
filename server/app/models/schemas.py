@@ -56,6 +56,8 @@ class Train(ApiModel):
     is_express: bool
     # 열차 번호. 열차 위치정보와 같은 열차를 잇는 열쇠다(위치 결합 스펙 6.3).
     train_no: str | None = None
+    # 열차가 지금 있는 역 이름(arvlMsg3). 역 시트의 열차 위치 표시에 쓴다(수동 검토 2026-11-22).
+    current_station: str | None = None
 
 
 class ArrivalGroup(ApiModel):
@@ -66,6 +68,9 @@ class ArrivalGroup(ApiModel):
     # 열차 정보의 출처(재설계 스펙 5.1): 실시간, 시간표(실시간이 없는 방향), 없음(비서울 노선)
     # measured: 시간표 API가 없는 노선을 VM 실측 시간표로 채운 것(설계 2026-11-17)
     source: Literal["realtime", "timetable", "measured", "none"] = "realtime"
+    # 이 방향으로 볼 때 바로 앞(열차가 오는 쪽)·바로 뒤(가는 쪽) 역 이름(수동 검토 2026-11-22)
+    prev_station: str | None = None
+    next_station: str | None = None
 
 
 class ArrivalsResponse(ApiModel):

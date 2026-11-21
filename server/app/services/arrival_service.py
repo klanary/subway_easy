@@ -87,6 +87,7 @@ class ArrivalService:
         groups += await self._fill_missing(groups, station, wanted)
         if towards:
             groups = [g for g in groups if self._heads_towards(g, station, towards, wanted)]
+        groups = [self._with_neighbors(g, station) for g in groups]
         response = ArrivalsResponse(
             station_id=station.id,
             updated_at=kst_from_epoch(cached.fetched_at),
@@ -121,6 +122,7 @@ class ArrivalService:
                     is_last=is_last(item),
                     is_express=is_express(item),
                     train_no=str(item.get("btrainNo") or "") or None,
+                    current_station=readable(item.get("arvlMsg3")),
                 )
             )
         result = []
@@ -136,6 +138,27 @@ class ArrivalService:
                     )
                 )
         return result
+
+    def _with_neighbors(self, group: ArrivalGroup, station: Station) -> ArrivalGroup:
+        """열차가 오는 쪽 역(반대 방향의 다음 역)과 가는 쪽 역을 붙인다. 모르면 비워 둔다."""
+        if group.direction is None:
+            return group
+        pair = directions(group.line)
+        if group.direction not in pair:
+            return group
+        opposite = pair[1] if group.direction == pair[0] else pair[0]
+
+        def name(station_id: str | None) -> str | None:
+            found = self._index.get(station_id) if station_id else None
+            # 세 역을 한 줄에 놓으므로 괄호 속 부기명(충정로(경기대입구))은 뺀다
+            return re.sub(r"\(.*\)$", "", found.name) if found else station_id
+
+        return group.model_copy(
+            update={
+                "prev_station": name(self._index.neighbor(station.id, group.line, opposite)),
+                "next_station": name(self._index.neighbor(station.id, group.line, group.direction)),
+            }
+        )
 
     def _heads_towards(
         self, group: ArrivalGroup, station: Station, towards: str, line: str | None

@@ -35,6 +35,8 @@ data class TrainLine(
     val clock: Boolean = false,
     val isLast: Boolean = false,
     val isExpress: Boolean = false,
+    /** 실시간 열차의 도착 시각("19:03"). 남은 시간 옆에 함께 보인다(수동 검토 2026-11-22). */
+    val arriveAt: String? = null,
 ) {
     /** 글로 쓴 한 줄: "방화행 3분" / "20:01 방화행". */
     fun text(): String = if (clock) listOfNotNull(time, destination?.let { "${it}행" }).joinToString(" ")
@@ -195,7 +197,10 @@ class StationSheetViewModel(
         line = line,
         direction = direction,
         towards = towards,
-        trains = trains.take(2).map { TrainLine(it.destination, formatRemaining(it.remainingSec), isLast = it.isLast, isExpress = it.isExpress) },
+        trains = trains.take(2).map { train ->
+            val at = train.remainingSec?.let { CLOCK.format(Instant.ofEpochMilli(clock()).plusSeconds(it.toLong()).atZone(SEOUL)) }
+            TrainLine(train.destination, formatRemaining(train.remainingSec), isLast = train.isLast, isExpress = train.isExpress, arriveAt = at)
+        },
         basis = basisOf(source),
     )
 

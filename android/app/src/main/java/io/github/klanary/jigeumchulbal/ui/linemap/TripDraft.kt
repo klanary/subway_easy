@@ -17,9 +17,8 @@ data class TripDraft(val from: StationRef? = null, val via: StationRef? = null, 
 
     val isEmpty: Boolean get() = from == null && via == null && to == null
 
-    /** 이 역을 이 역할로 정할 수 있는지. 경유는 출발·도착이 정해진 뒤에만, 셋은 서로 달라야 한다. */
+    /** 이 역을 이 역할로 정할 수 있는지. 셋은 서로 달라야 한다(경유는 언제든, 수동 검토 2026-11-22). */
     fun canSet(role: TripRole, station: StationRef): Boolean {
-        if (role == TripRole.VIA && (from == null || to == null)) return false
         val others = when (role) {
             TripRole.FROM -> listOf(via, to)
             TripRole.VIA -> listOf(from, to)
@@ -45,6 +44,7 @@ data class TripDraft(val from: StationRef? = null, val via: StationRef? = null, 
             from != null && to != null -> listOfNotNull(from.name, via?.name, to.name).joinToString(" → ")
             from != null -> "${from.name}에서 출발 · 도착역을 눌러 주세요"
             to != null -> "${to.name}까지 · 출발역을 눌러 주세요"
+            via != null -> "${via.name} 경유 · 출발역을 눌러 주세요"
             else -> null
         }
     }

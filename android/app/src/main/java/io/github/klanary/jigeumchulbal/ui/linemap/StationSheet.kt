@@ -1,5 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import io.github.klanary.jigeumchulbal.ui.common.TimeWheelDialog
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
@@ -72,6 +76,15 @@ fun StationSheet(
     }
     val context = LocalContext.current
     val station = StationRef(stationId, stationId)
+    // 시각 고르기: 지금 시각에서 시·분을 굴려 맞춘다(수동 검토 2026-11-22)
+    var picking by remember { mutableStateOf(false) }
+    if (picking) {
+        val now = LocalTime.now()
+        TimeWheelDialog(now.hour, now.minute, onConfirm = { h, m ->
+            picking = false
+            viewModel.select(SheetTime.CUSTOM, pickedTime(h, m))
+        }, onDismiss = { picking = false })
+    }
 
     // 반만 열리면 버튼이 시스템 내비게이션 바에 가려진다(2026-11-12 실기기). 처음부터 다 연다.
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -83,13 +96,7 @@ fun StationSheet(
             onRole = { role -> onRole(role, station) },
             onRetry = viewModel::retry,
             onTime = { viewModel.select(it) },
-            onPickTime = {
-                val now = LocalTime.now()
-                TimePickerDialog(context, { _, h, m ->
-                    val at = pickedTime(h, m)
-                    viewModel.select(SheetTime.CUSTOM, at)
-                }, now.hour, now.minute, true).show()
-            },
+            onPickTime = { picking = true },
             onDismiss = onDismiss,
         )
     }
@@ -128,13 +135,12 @@ internal fun StationSheetContent(
             Button(onClick = { onRole(TripRole.FROM) }, shape = ButtonShape, enabled = draft.canSet(TripRole.FROM, station)) {
                 Text(Copy.AS_FROM)
             }
+            // 출발로 · 경유로 · 도착으로(경유는 언제든 고를 수 있다, 수동 검토 2026-11-22)
+            OutlinedButton(onClick = { onRole(TripRole.VIA) }, shape = ButtonShape, enabled = draft.canSet(TripRole.VIA, station)) {
+                Text(Copy.AS_VIA)
+            }
             Button(onClick = { onRole(TripRole.TO) }, shape = ButtonShape, enabled = draft.canSet(TripRole.TO, station)) {
                 Text(Copy.AS_TO)
-            }
-            if (draft.from != null && draft.to != null) {
-                OutlinedButton(onClick = { onRole(TripRole.VIA) }, shape = ButtonShape, enabled = draft.canSet(TripRole.VIA, station)) {
-                    Text(Copy.AS_VIA)
-                }
             }
         }
         // 큰 글꼴에서도 넘치지 않게 줄을 바꾼다(2차 다듬기 Task 4).
@@ -213,13 +219,15 @@ private fun DirectionRow(group: DirectionTrains) {
             } else {
                 first.destination?.let { Text("${it}행", style = MaterialTheme.typography.bodyLarge) }
                 Text(first.time, style = MaterialTheme.typography.headlineMedium)
+                // 남은 시간 옆 도착 시각(수동 검토 2026-11-22)
+                first.arriveAt?.let { Text(it + " " + Copy.ARRIVES, style = MaterialTheme.typography.bodySmall, color = muted) }
             }
             if (first.isLast) Tag(Copy.LAST_TRAIN, MaterialTheme.colorScheme.error)
             if (first.isExpress) Tag(Copy.EXPRESS, MaterialTheme.colorScheme.primary)
         }
         val rest = group.trains.drop(1)
         if (rest.isNotEmpty()) {
-            val text = if (first.clock) rest.joinToString(" · ") { it.text() } else rest.joinToString(" · ") { "그다음 ${it.time}" }
+            val text = if (first.clock) rest.joinToString(" · ") { it.text() } else rest.joinToString(" · ") { t -> "그다음 " + t.time + (t.arriveAt?.let { "($it)" } ?: "") }
             val marks = rest.flatMap { listOfNotNull(Copy.LAST_TRAIN.takeIf { _ -> it.isLast }, Copy.EXPRESS.takeIf { _ -> it.isExpress }) }.distinct()
             Text(
                 (listOf(text) + marks.map { "($it 포함)" }).joinToString(" "),

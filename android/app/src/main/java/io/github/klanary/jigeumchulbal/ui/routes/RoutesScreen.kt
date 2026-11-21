@@ -1,5 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.routes
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import io.github.klanary.jigeumchulbal.ui.common.TimeWheelDialog
 import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.foundation.background
@@ -64,17 +68,20 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
         }
     }
     val context = LocalContext.current
+    var picking by remember { mutableStateOf(false) }
+    if (picking) {
+        val base = java.time.LocalTime.now()
+        TimeWheelDialog(base.hour, base.minute, onConfirm = { h, m ->
+            picking = false
+            viewModel.setDepartAt(pickedTime(h, m))
+        }, onDismiss = { picking = false })
+    }
     RoutesContent(
         state = state,
         now = now,
         onBack = { navController.popBackStack() },
         onDepartNow = { viewModel.setDepartAt(null) },
-        onPickTime = {
-            val base = java.time.LocalTime.now()
-            TimePickerDialog(context, { _, h, m ->
-                viewModel.setDepartAt(pickedTime(h, m))
-            }, base.hour, base.minute, true).show()
-        },
+        onPickTime = { picking = true },
         onRetry = viewModel::search,
         onRoute = { id ->
             viewModel.select(id)

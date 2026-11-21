@@ -227,4 +227,11 @@ class StationSheetViewModelTest {
         advanceUntilIdle()
         assertEquals(UiState.Error(Copy.NETWORK_ERROR), vm.state.value)
     }
+
+    /** 남은 시간 옆에 도착 시각(지금 19:00 KST + 3분 → 19:03, 수동 검토 2026-11-22). */
+    @Test fun realtimeTrainShowsArrivalClock() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        assertEquals("19:03", content(vm).groups.first().trains.first().arriveAt)
+    }
 }

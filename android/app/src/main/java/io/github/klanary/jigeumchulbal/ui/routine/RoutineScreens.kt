@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routine
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import io.github.klanary.jigeumchulbal.ui.RoutineEditDest
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import io.github.klanary.jigeumchulbal.ui.common.StateSize
@@ -156,6 +157,7 @@ internal fun RoutineEditContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.ROUTINE_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -210,6 +212,7 @@ fun RoutinesScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.ROUTINES) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {

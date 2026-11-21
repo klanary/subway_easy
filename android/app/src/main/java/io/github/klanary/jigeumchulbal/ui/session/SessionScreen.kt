@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.session
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.ListItemDefaults
@@ -138,6 +139,7 @@ internal fun SessionContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.SESSION_TITLE) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

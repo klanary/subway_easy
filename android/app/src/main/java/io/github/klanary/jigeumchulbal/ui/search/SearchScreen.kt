@@ -1,5 +1,10 @@
 package io.github.klanary.jigeumchulbal.ui.search
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.icons.filled.Search
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,6 +95,7 @@ internal fun SearchContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Copy.BACK)
@@ -101,7 +107,16 @@ internal fun SearchContent(
                         onValueChange = onQueryChange,
                         placeholder = { Text(Copy.SEARCH_HINT) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        // 홈 검색 칸과 같은 모양(둥근 회색 칸 + 돋보기, 2차 다듬기 Task 4 합의)
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        shape = ButtonShape,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(end = 12.dp).focusRequester(focus),
                     )
                 },
             )

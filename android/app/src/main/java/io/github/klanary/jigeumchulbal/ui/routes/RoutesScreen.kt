@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routes
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -100,6 +101,7 @@ internal fun RoutesContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.settings
 
+import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import androidx.compose.foundation.clickable
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.material3.FilledTonalButton
@@ -89,6 +90,7 @@ internal fun SettingsContent(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appBarColors(),
                 title = { Text(Copy.SETTINGS) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routes
 
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -135,10 +136,10 @@ internal fun RoutesContent(
 
 @Composable
 private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(ui.totalText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(ui.totalText, style = MaterialTheme.typography.headlineMedium)
                 Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             // 탈 호선을 순서대로(Task 6 합의)

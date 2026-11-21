@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routine
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import io.github.klanary.jigeumchulbal.ui.common.StateSize
 import io.github.klanary.jigeumchulbal.ui.common.StateMessage
 import io.github.klanary.jigeumchulbal.ui.common.StateKind
@@ -176,7 +177,7 @@ internal fun RoutineEditContent(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Copy.ROUTINE_TIME, Modifier.weight(1f))
-                OutlinedButton(onClick = onPickTime) { Text(minuteLabel(state.minuteOfDay)) }
+                OutlinedButton(onClick = onPickTime, shape = ButtonShape) { Text(minuteLabel(state.minuteOfDay)) }
             }
             Column {
                 Text("${Copy.ROUTINE_WALK} ${state.walkMin}분")
@@ -194,7 +195,7 @@ internal fun RoutineEditContent(
             if (state.preview.isNotEmpty()) {
                 Text("${Copy.ROUTINE_PREVIEW}: ${state.preview.joinToString(", ")}", style = MaterialTheme.typography.bodyLarge)
             }
-            Button(onClick = onSave, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onSave, shape = ButtonShape, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 Text(Copy.ROUTINE_SAVE)
             }
         }

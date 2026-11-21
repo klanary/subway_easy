@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.settings
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.Arrangement
@@ -121,7 +122,7 @@ internal fun SettingsContent(
                         if (row.granted) {
                             Icon(Icons.Filled.Check, contentDescription = Copy.GRANTED, tint = MaterialTheme.colorScheme.primary)
                         } else {
-                            FilledTonalButton(onClick = { onOpenPermission(row) }) { Text(Copy.OPEN_SETTINGS) }
+                            FilledTonalButton(onClick = { onOpenPermission(row) }, shape = ButtonShape) { Text(Copy.OPEN_SETTINGS) }
                         }
                     },
                 )

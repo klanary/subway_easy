@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -121,14 +122,14 @@ internal fun StationSheetContent(
         Text(stationId, style = MaterialTheme.typography.headlineSmall)
         if (lines.isNotEmpty()) LineBadges(lines)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onRole(TripRole.FROM) }, enabled = draft.canSet(TripRole.FROM, station)) {
+            Button(onClick = { onRole(TripRole.FROM) }, shape = ButtonShape, enabled = draft.canSet(TripRole.FROM, station)) {
                 Text(Copy.AS_FROM)
             }
-            Button(onClick = { onRole(TripRole.TO) }, enabled = draft.canSet(TripRole.TO, station)) {
+            Button(onClick = { onRole(TripRole.TO) }, shape = ButtonShape, enabled = draft.canSet(TripRole.TO, station)) {
                 Text(Copy.AS_TO)
             }
             if (draft.from != null && draft.to != null) {
-                OutlinedButton(onClick = { onRole(TripRole.VIA) }, enabled = draft.canSet(TripRole.VIA, station)) {
+                OutlinedButton(onClick = { onRole(TripRole.VIA) }, shape = ButtonShape, enabled = draft.canSet(TripRole.VIA, station)) {
                     Text(Copy.AS_VIA)
                 }
             }
@@ -203,11 +204,11 @@ private fun DirectionRow(group: DirectionTrains) {
         val first = group.trains.firstOrNull() ?: return@Column
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (first.clock) {
-                Text(first.time, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(first.time, style = MaterialTheme.typography.headlineMedium)
                 first.destination?.let { Text("${it}행", style = MaterialTheme.typography.bodyLarge) }
             } else {
                 first.destination?.let { Text("${it}행", style = MaterialTheme.typography.bodyLarge) }
-                Text(first.time, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(first.time, style = MaterialTheme.typography.headlineMedium)
             }
             if (first.isLast) Tag(Copy.LAST_TRAIN, MaterialTheme.colorScheme.error)
             if (first.isExpress) Tag(Copy.EXPRESS, MaterialTheme.colorScheme.primary)

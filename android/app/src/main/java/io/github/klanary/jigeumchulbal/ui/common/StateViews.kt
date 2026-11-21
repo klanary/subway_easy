@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.common
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -84,7 +85,7 @@ fun StateMessage(kind: StateKind, text: String, size: StateSize, onRetry: (() ->
             }
             if (retry != null) {
                 Spacer(Modifier.size(24.dp))
-                Button(onClick = retry) { Text(Copy.RETRY) }
+                Button(onClick = retry, shape = ButtonShape) { Text(Copy.RETRY) }
             }
         }
         StateSize.Inline -> Row(
@@ -94,7 +95,7 @@ fun StateMessage(kind: StateKind, text: String, size: StateSize, onRetry: (() ->
             Icon(kind.icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            if (retry != null) TextButton(onClick = retry) { Text(Copy.RETRY) }
+            if (retry != null) TextButton(onClick = retry, shape = ButtonShape) { Text(Copy.RETRY) }
         }
     }
 }

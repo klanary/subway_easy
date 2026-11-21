@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.session
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.foundation.shape.CircleShape
@@ -185,11 +186,11 @@ private fun WaitingSection(state: SessionState.Waiting, now: Long, onBoarded: ()
     val content = ongoingContent(state, now, exactAlarms = true) ?: return
     Text(content.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     // 남은 시간을 크게, [탑승했어요]는 화면 폭 큰 버튼(Task 9 합의).
-    Text(content.text, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-    Button(onClick = onBoarded, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+    Text(content.text, style = MaterialTheme.typography.headlineMedium)
+    Button(onClick = onBoarded, shape = ButtonShape, modifier = Modifier.fillMaxWidth().height(56.dp)) {
         Text(SessionAction.BOARDED.label, style = MaterialTheme.typography.titleMedium)
     }
-    OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(SessionAction.CANCEL.label) }
+    OutlinedButton(onClick = onCancel, shape = ButtonShape, modifier = Modifier.fillMaxWidth()) { Text(SessionAction.CANCEL.label) }
 }
 
 /** 하차·환승 지점마다 이름과 하차 예정 시각. 지난 지점은 ✓, 다음 지점은 강조(Task 9 합의). */
@@ -222,7 +223,7 @@ private fun RidingSection(state: SessionState.Riding, onCancel: () -> Unit) {
             )
         }
     }
-    OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(SessionAction.CANCEL.label) }
+    OutlinedButton(onClick = onCancel, shape = ButtonShape, modifier = Modifier.fillMaxWidth()) { Text(SessionAction.CANCEL.label) }
 }
 
 /** 앱 안 모드 알림의 진동 한 번. 보통 모드에서는 알림 채널이 진동을 맡는다. */

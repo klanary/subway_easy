@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import androidx.compose.material3.OutlinedCard
 import android.graphics.Picture
 import android.content.Context
 import android.content.Intent
@@ -505,7 +506,7 @@ private fun SessionBanner(viewModel: SessionViewModel, onClick: () -> Unit) {
 
 @Composable
 internal fun SessionBannerCard(headline: String, onClick: () -> Unit) {
-    Card(
+    OutlinedCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),

@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routedetail
 
+import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -204,6 +205,7 @@ private fun SessionButtons(route: RouteDto, hasPicks: Boolean, startSession: ((A
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
+                shape = ButtonShape,
                 enabled = waitStart != null,
                 onClick = {
                     waitStart?.let { start ->
@@ -218,6 +220,7 @@ private fun SessionButtons(route: RouteDto, hasPicks: Boolean, startSession: ((A
                 },
             ) { Text(Copy.PRE_BOARDING_ALERT) }
             Button(
+                shape = ButtonShape,
                 enabled = vibration,
                 onClick = { startSession { settings -> SessionEvent.StartRiding(route.withoutPaths(), settings) } },
             ) { Text(Copy.START_ALIGHT_ALERT) }

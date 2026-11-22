@@ -42,7 +42,7 @@ class RecordingApiService : ApiService {
 
     override suspend fun health(): Map<String, String> = error("not used")
     override suspend fun searchStations(q: String, limit: Int): StationSearchDto = error("not used")
-    override suspend fun arrivals(id: String, line: String?, towards: String?): ArrivalsDto = error("not used")
+    override suspend fun arrivals(id: String, line: String?, towards: String?, at: String?): ArrivalsDto = error("not used")
 }
 
 class RouteRepositoryTest {

@@ -89,4 +89,25 @@ class StationSheetContentScreenshotTest {
         UiState.Content(now),
         draft = TripDraft(from = StationRef("마포", "마포"), to = StationRef("강남", "강남")),
     )
+
+    // 열차마다 근거 표식(설계 2026-11-22): 위치 계산 열차와 시간표로 채운 열차가 섞인 [시각 선택]
+    @Test fun positionBasis() = snap(
+        "position_basis",
+        UiState.Content(
+            now.copy(
+                time = SheetTime.CUSTOM,
+                customLabel = "19:30",
+                groups = listOf(
+                    DirectionTrains(
+                        "1호선", "상행", "종각",
+                        listOf(
+                            TrainLine("청량리", "19:31", clock = true, basis = Copy.BY_POSITION),
+                            TrainLine("광운대", "19:36", clock = true, basis = Copy.BY_POSITION),
+                            TrainLine("청량리", "19:44", clock = true, basis = Copy.BY_TIMETABLE),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
 }

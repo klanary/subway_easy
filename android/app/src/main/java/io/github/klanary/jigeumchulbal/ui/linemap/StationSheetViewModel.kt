@@ -10,6 +10,7 @@ import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.UiState
 import io.github.klanary.jigeumchulbal.ui.common.formatRemaining
 import io.github.klanary.jigeumchulbal.ui.common.toUiState
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -37,6 +38,8 @@ data class TrainLine(
     val isExpress: Boolean = false,
     /** 실시간 열차의 도착 시각("19:03"). 남은 시간 옆에 함께 보인다(수동 검토 2026-11-22). */
     val arriveAt: String? = null,
+    /** 이 열차 시각의 근거 표식(위치 계산·시간표·운행 기록). 실시간이면 null(2026-11-22). */
+    val basis: String? = null,
 ) {
     /** 글로 쓴 한 줄: "방화행 3분" / "20:01 방화행". */
     fun text(): String = if (clock) listOfNotNull(time, destination?.let { "${it}행" }).joinToString(" ")
@@ -147,6 +150,7 @@ class StationSheetViewModel(
         val failure = lookupFailure
         val result = when {
             requested == SheetTime.NOW -> loadNow()
+            requested == SheetTime.CUSTOM && withinPositionWindow() -> loadAt(startAt())
             lineNames.isEmpty() && failure != null -> failure.toUiState()
             else -> loadTimetable(startAt())
         }
@@ -171,6 +175,37 @@ class StationSheetViewModel(
         val unsupported = dto.groups.filter { it.source == "none" }.map { it.line } + lineNames.filter { it in NON_SEOUL_LINES }
         val groups = dto.groups.filter { it.source != "none" && it.trains.isNotEmpty() }.map { it.toDirectionTrains() }
         return sheet(groups, unsupported.distinct(), stale = dto.stale)
+    }
+
+    /** 고른 시각이 60분 안이면 서버가 실시간·열차 위치로 계산한다(설계 2026-11-22). */
+    private fun withinPositionWindow(): Boolean {
+        val at = custom ?: return false
+        return Duration.between(Instant.ofEpochMilli(clock()), at) <= POSITION_WINDOW
+    }
+
+    private suspend fun loadAt(at: Instant): UiState<StationSheetUi> {
+        val dto = when (val result = stations.arrivals(stationId, at = at)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Err -> return result.toUiState()
+        }
+        val now = Instant.ofEpochMilli(clock())
+        val unsupported = dto.groups.filter { it.source == "none" }.map { it.line } + lineNames.filter { it in NON_SEOUL_LINES }
+        val groups = dto.groups.filter { it.source != "none" && it.trains.isNotEmpty() }.map { g ->
+            DirectionTrains(
+                line = g.line,
+                direction = g.direction,
+                towards = g.towards,
+                trains = g.trains.take(TIMETABLE_COUNT).map { t ->
+                    val time = t.remainingSec?.let { CLOCK.format(now.plusSeconds(it.toLong()).atZone(SEOUL)) } ?: "?"
+                    TrainLine(t.destination, time, clock = true, isLast = t.isLast, isExpress = t.isExpress, basis = trainBasis(t.basis))
+                },
+                prevStation = g.prevStation,
+                nextStation = g.nextStation,
+            )
+        }
+        val withTrains = groups.map { it.line }.toSet()
+        val seoul = lineNames.filter { it !in NON_SEOUL_LINES }
+        return sheet(groups, unsupported.distinct(), noTimetable = seoul.filter { it !in withTrains }, stale = dto.stale)
     }
 
     private suspend fun loadTimetable(from: Instant): UiState<StationSheetUi> = coroutineScope {
@@ -204,7 +239,7 @@ class StationSheetViewModel(
         towards = towards,
         trains = trains.take(2).map { train ->
             val at = train.remainingSec?.let { CLOCK.format(Instant.ofEpochMilli(clock()).plusSeconds(it.toLong()).atZone(SEOUL)) }
-            TrainLine(train.destination, formatRemaining(train.remainingSec), isLast = train.isLast, isExpress = train.isExpress, arriveAt = at)
+            TrainLine(train.destination, formatRemaining(train.remainingSec), isLast = train.isLast, isExpress = train.isExpress, arriveAt = at, basis = trainBasis(train.basis))
         },
         basis = basisOf(source),
         prevStation = prevStation,
@@ -224,6 +259,14 @@ class StationSheetViewModel(
         )
     }
 
+    /** 열차 근거 → 열차 줄의 표식. 실시간이면 null. */
+    private fun trainBasis(basis: String): String? = when (basis) {
+        "position" -> Copy.BY_POSITION
+        "timetable" -> Copy.BY_TIMETABLE
+        "measured" -> Copy.BY_MEASURED
+        else -> null
+    }
+
     /** 출처 → 방향 줄의 근거 표식. 실시간이면 null. */
     private fun basisOf(source: String): String? = when (source) {
         "timetable", "official" -> Copy.BY_TIMETABLE
@@ -236,5 +279,6 @@ class StationSheetViewModel(
         val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         const val REFRESH_MS = 30_000L
         const val TIMETABLE_COUNT = 4
+        val POSITION_WINDOW: Duration = Duration.ofMinutes(60)
     }
 }

@@ -17,6 +17,8 @@ interface ApiService {
         @Path("id") id: String,
         @Query("line") line: String?,
         @Query("towards") towards: String?,
+        /** 고른 시각(ISO). 60분 안이면 실시간·열차 위치 계산으로 답한다(2026-11-22). */
+        @Query("at") at: String? = null,
     ): ArrivalsDto
 
     /** 반경 2km 안의 가장 가까운 역(재설계 스펙 6). */

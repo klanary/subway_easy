@@ -27,6 +27,8 @@ data class TrainDto(
     val trainNo: String? = null,
     /** 열차가 지금 있는 역 이름. 예전 서버에는 없다(수동 검토 2026-11-22). */
     val currentStation: String? = null,
+    /** 시각의 근거: realtime, position(열차 위치 계산), timetable, measured. 예전 서버에는 없다(2026-11-22). */
+    val basis: String = "realtime",
 )
 
 @Serializable

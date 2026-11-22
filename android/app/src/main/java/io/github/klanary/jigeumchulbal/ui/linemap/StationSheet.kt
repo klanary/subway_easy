@@ -230,12 +230,15 @@ private fun DirectionRow(group: DirectionTrains, here: String) {
                 // 남은 시간 옆 도착 시각(수동 검토 2026-11-22)
                 first.arriveAt?.let { Text(it + " " + Copy.ARRIVES, style = MaterialTheme.typography.bodySmall, color = muted) }
             }
+            // 열차마다 근거(위치 계산·시간표 등). 방향 줄에 이미 같은 표식이 있으면 되풀이하지 않는다(2026-11-22).
+            first.basis?.takeIf { it != group.basis }?.let { Tag(it, MaterialTheme.colorScheme.tertiary) }
             if (first.isLast) Tag(Copy.LAST_TRAIN, MaterialTheme.colorScheme.error)
             if (first.isExpress) Tag(Copy.EXPRESS, MaterialTheme.colorScheme.primary)
         }
         val rest = group.trains.drop(1)
         if (rest.isNotEmpty()) {
-            val text = if (first.clock) rest.joinToString(" · ") { it.text() } else rest.joinToString(" · ") { t -> "그다음 " + t.time + (t.arriveAt?.let { "($it)" } ?: "") }
+            fun mark(t: TrainLine) = t.basis?.takeIf { it != group.basis }?.let { " [$it]" } ?: ""
+            val text = if (first.clock) rest.joinToString(" · ") { it.text() + mark(it) } else rest.joinToString(" · ") { t -> "그다음 " + t.time + (t.arriveAt?.let { "($it)" } ?: "") + mark(t) }
             val marks = rest.flatMap { listOfNotNull(Copy.LAST_TRAIN.takeIf { _ -> it.isLast }, Copy.EXPRESS.takeIf { _ -> it.isExpress }) }.distinct()
             Text(
                 (listOf(text) + marks.map { "($it 포함)" }).joinToString(" "),

@@ -234,4 +234,46 @@ class StationSheetViewModelTest {
         advanceUntilIdle()
         assertEquals("19:03", content(vm).groups.first().trains.first().arriveAt)
     }
+
+    // --- 열차 위치 계산(설계 2026-11-22): 고른 시각 60분 안은 arrivals?at=, 열차마다 근거 ---
+
+    @Test fun customWithin60MinutesUsesArrivalsAt() = runTest {
+        stations.arrivalsResult = ApiResult.Ok(
+            ArrivalsDto(
+                "영등포구청", "2026-11-13T19:00:00+09:00",
+                groups = listOf(ArrivalGroupDto("5호선", "상행", null, listOf(TrainDto("방화", 1800, basis = "position"), TrainDto("방화", 2400, basis = "timetable")))),
+            ),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        val at = now.plusSeconds(1500)
+        vm.select(SheetTime.CUSTOM, at)
+        advanceUntilIdle()
+        assertEquals(listOf(at), stations.arrivalAtCalls)
+        val trains = content(vm).groups.first().trains
+        assertEquals(listOf("19:30", "19:40"), trains.map { it.time })
+        assertEquals(listOf(Copy.BY_POSITION, Copy.BY_TIMETABLE), trains.map { it.basis })
+        assertTrue(trains.all { it.clock })
+    }
+
+    @Test fun customBeyond60MinutesUsesTimetable() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.select(SheetTime.CUSTOM, now.plusSeconds(5400))
+        advanceUntilIdle()
+        assertTrue(stations.arrivalAtCalls.isEmpty())
+        assertTrue(stations.timetableCalls.isNotEmpty())
+    }
+
+    @Test fun nowModeShowsPositionBasisPerTrain() = runTest {
+        stations.arrivalsResult = ApiResult.Ok(
+            ArrivalsDto(
+                "영등포구청", "2026-11-13T19:00:00+09:00",
+                groups = listOf(ArrivalGroupDto("5호선", "상행", null, listOf(TrainDto("방화", 90, basis = "position"), TrainDto("방화", 300)))),
+            ),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        assertEquals(listOf(Copy.BY_POSITION, null), content(vm).groups.first().trains.map { it.basis })
+    }
 }

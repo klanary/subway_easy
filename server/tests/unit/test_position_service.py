@@ -98,3 +98,23 @@ async def test_cached_for_20_seconds(positions, respx_mock, clock):
     await positions.positions("2호선")
     assert route.call_count == 2
     assert SEOUL_REALTIME_BASE in str(route.calls.last.request.url)
+
+
+def test_default_enabled_lines_match_eval():
+    """켜는 노선은 되돌려 보기 결과(시험 3일)의 제안과 같다.
+
+    [시각 선택]은 아무 노선도 켜지 않는다.
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    from app.core.config import Settings
+
+    doc = (Path(__file__).parents[3] / "docs/ml/2026-11-22-position-eval.md").read_text(
+        encoding="utf-8"
+    )
+    suggested = json.loads(re.search(r"position_now_lines = (\[.*\])", doc).group(1))
+    defaults = Settings(_env_file=None)
+    assert defaults.position_now_lines == suggested
+    assert defaults.position_at_lines == []

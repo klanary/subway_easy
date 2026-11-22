@@ -31,8 +31,17 @@ class Settings(BaseSettings):
     # 서울시가 빈 응답을 줄 때 쓰는 공식 시간표 사본(1호선, 2026-11-22)
     official_snapshot_path: str = "data/official_snapshot.json.gz"
     # 열차 위치로 도착을 계산하는 노선(설계 2026-11-22). 되돌려 보기에서 이긴 노선만 넣는다.
-    position_now_lines: list[str] = []  # [지금]: barvlDt가 0인 열차를 위치로 계산
-    position_at_lines: list[str] = []  # [시각 선택] 60분 안
+    # [지금]: barvlDt가 0인 열차를 위치로 계산. 2026-11-22 되돌려 보기(시험 3일)의 제안 그대로
+    # (docs/ml/2026-11-22-position-eval.md).
+    # 서울교통공사 노선은 초 단위 값이 와서 거의 바뀌지 않는다.
+    position_now_lines: list[str] = [
+        "1호선", "3호선", "4호선", "5호선", "6호선", "7호선", "8호선", "GTX-A", "경강선",
+        "경의중앙선", "경춘선", "공항철도", "서해선", "수인분당선", "신림선", "신분당선",
+        "우이신설선",
+    ]  # fmt: skip
+    # [시각 선택] 60분 안: 2026-11-22 평가에서 모든 시점에 시간표를 이긴 노선이 없어
+    # 비워 둔다.
+    position_at_lines: list[str] = []
     fixtures_dir: str = "tests/fixtures"
     upstream_timeout_sec: float = 5.0
     upstream_retry_delay_sec: float = 0.5

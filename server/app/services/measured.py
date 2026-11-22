@@ -54,6 +54,8 @@ class MeasuredData:
     cells: Mapping[Key, tuple[_Entry, ...]]
     statn_of: Mapping[tuple[str, str], str]  # (호선, 우리 역 id) → statn_id
     hops: Mapping[str, Mapping[str, float]] = field(default_factory=dict)  # 표 이름 → 키 → 중앙값
+    # 변경 의심·재학습으로 뺀 단위(요일|호선|방향 코드|시). 그 시간대는 "모름"이다.
+    excluded: frozenset[str] = frozenset()
 
     @classmethod
     def from_artifacts(cls, b1: dict, b2: dict | None) -> "MeasuredData":
@@ -99,6 +101,7 @@ class MeasuredData:
             cells=cells,
             statn_of=statn_of,
             hops=hops,
+            excluded=frozenset(excluded),
         )
 
     def departures(
@@ -106,13 +109,24 @@ class MeasuredData:
     ) -> list[TimetableTrain]:
         """`after` 이후 그 역을 떠나는 실측 열차 `count`대. 모자라면 다음 운행일에서 채운다."""
         days = [day for day, _ in service_days(after)]
+        if not any(self.cells.get((week_tag(d), line, direction, station_id)) for d in days):
+            # 오늘 요일 구분의 실측이 없다(주말 실측이 아직 없을 때 등). 다음 날 첫차를 다음 열차로
+            # 주지 않는다(2026-11-22 일요일 낮에 "05:00 출발"이 다음 열차로 보였다).
+            return []
         found = self._departures_on(days, station_id, line, direction, after)
-        if len(found) < count:
+        if len(found) < count and not self._excluded_ahead(days[-1], line, direction, after):
+            # 막차가 지난 밤에만 다음 날 첫차로 채운다. 앞으로의 시간대가 빠져 있으면 모르는 것이다.
             found += self._departures_on(
                 [days[-1] + timedelta(days=1)], station_id, line, direction, after
             )
         found.sort(key=lambda t: t.departs_at)
         return found[:count]
+
+    def _excluded_ahead(self, day: date, line: str, direction: str, after: datetime) -> bool:
+        start = datetime.combine(day, time(0), tzinfo=KST)
+        hour = max(0, int((after - start).total_seconds() // 3600))
+        code = direction_code(direction)
+        return any(f"{week_tag(day)}|{line}|{code}|{h}" in self.excluded for h in range(hour, 30))
 
     def _departures_on(
         self, days: list[date], station_id: str, line: str, direction: str, after: datetime

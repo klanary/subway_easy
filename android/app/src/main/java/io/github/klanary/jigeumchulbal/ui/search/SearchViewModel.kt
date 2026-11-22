@@ -1,5 +1,10 @@
 package io.github.klanary.jigeumchulbal.ui.search
 
+import kotlinx.coroutines.launch
+import io.github.klanary.jigeumchulbal.data.repository.RecentRouteRepository
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteStationRepository
+import io.github.klanary.jigeumchulbal.data.local.RecentRouteEntity
+import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
@@ -33,6 +38,9 @@ data class SearchUiState(
     val query: String = "",
     val recents: List<RecentSearchEntity> = emptyList(),
     val stations: UiState<List<StationDto>> = UiState.Empty,
+    /** 즐겨찾는 역·최근 경로(수동 검토 2026-11-22). */
+    val favorites: List<FavoriteStationEntity> = emptyList(),
+    val recentRoutes: List<RecentRouteEntity> = emptyList(),
 )
 
 /**
@@ -44,6 +52,8 @@ class SearchViewModel(
     private val slot: Slot?,
     private val stations: StationRepository,
     private val recents: RecentSearchRepository,
+    private val favoriteStations: FavoriteStationRepository? = null,
+    private val recentRoutes: RecentRouteRepository? = null,
 ) : ViewModel() {
     private val query = MutableStateFlow("")
     private val retries = MutableSharedFlow<String>(extraBufferCapacity = 1)
@@ -66,10 +76,23 @@ class SearchViewModel(
         query,
         recents.recent,
         results.onStart { emit(UiState.Empty) },
-    ) { q, recent, found ->
+        favoriteStations?.favorites ?: flowOf(emptyList()),
+        recentRoutes?.recent ?: flowOf(emptyList()),
+    ) { q, recent, found, favorites, routes ->
         val key = q.trim()
-        SearchUiState(query = q, recents = recent.filter { key.isEmpty() || key in it.name }, stations = found)
+        SearchUiState(
+            query = q,
+            recents = recent.filter { key.isEmpty() || key in it.name },
+            stations = found,
+            favorites = favorites,
+            recentRoutes = routes,
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SearchUiState())
+
+    fun toggleFavorite(station: StationRef) {
+        val repo = favoriteStations ?: return
+        viewModelScope.launch { repo.toggle(station) }
+    }
 
     fun onQueryChange(q: String) {
         query.value = q

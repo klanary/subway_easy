@@ -87,7 +87,7 @@ private fun routeFlowEntry(navController: NavController, entry: NavBackStackEntr
 
 @Composable
 private fun routeFlowViewModel(flow: NavBackStackEntry): RouteFlowViewModel =
-    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.stationRepository, it.locationProvider, it.favoriteRepository) }
+    appViewModel(flow) { RouteFlowViewModel(it.routeRepository, it.stationRepository, it.locationProvider, it.favoriteRepository, it.recentRouteRepository) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

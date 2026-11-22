@@ -14,6 +14,7 @@ import io.github.klanary.jigeumchulbal.data.remote.StepMode
 import io.github.klanary.jigeumchulbal.data.remote.NearestStationDto
 import io.github.klanary.jigeumchulbal.fakes.FakeFavoriteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeLocationProvider
+import io.github.klanary.jigeumchulbal.fakes.FakeRecentRouteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeRouteRepository
 import io.github.klanary.jigeumchulbal.fakes.FakeStationRepository
 import io.github.klanary.jigeumchulbal.location.LocationProvider
@@ -328,5 +329,15 @@ class RouteFlowViewModelTest {
         advanceUntilIdle()
         assertEquals(3, vm.state.value.selectedRoute!!.legs.flatMap { it.steps }[0].candidates!!.size)
         assertFalse(vm.state.value.loadingMore)
+    }
+
+    @Test fun searchRecordsRecentRoute() = runTest { // 최근 경로(수동 검토 2026-11-22)
+        val recent = FakeRecentRouteRepository()
+        val vm = RouteFlowViewModel(routes, stations, FakeLocationProvider(false, null), favorites, recent) { 1_000L }
+        vm.apply(PickResult(Slot.ORIGIN, StationRef("마포", "마포")))
+        vm.apply(PickResult(Slot.DEST, StationRef("홍대입구", "홍대입구")))
+        vm.search()
+        advanceUntilIdle()
+        assertEquals(listOf(Triple("마포", null, "홍대입구")), recent.recorded)
     }
 }

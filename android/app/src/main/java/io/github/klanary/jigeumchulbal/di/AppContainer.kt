@@ -1,5 +1,10 @@
 package io.github.klanary.jigeumchulbal.di
 
+import io.github.klanary.jigeumchulbal.data.repository.RecentRouteRepository
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteStationRepository
+import io.github.klanary.jigeumchulbal.data.repository.DefaultRecentRouteRepository
+import io.github.klanary.jigeumchulbal.data.repository.DefaultFavoriteStationRepository
+import io.github.klanary.jigeumchulbal.data.local.MIGRATION_3_4
 import android.app.AlarmManager
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -83,6 +88,7 @@ class AppContainer(context: Context) {
     // 기기 저장소: 자주 가는 경로·최근 검색은 기기에만 둔다(스펙 5.4).
     // 배포 전이라 버전이 바뀌면 옛 데이터를 지운다(재설계 스펙 7).
     val database: AppDatabase = Room.databaseBuilder(appContext, AppDatabase::class.java, "jigeumchulbal.db")
+        .addMigrations(MIGRATION_3_4)
         .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
 
@@ -90,6 +96,8 @@ class AppContainer(context: Context) {
 
     val favoriteRepository: FavoriteRepository = DefaultFavoriteRepository(database.favoriteRouteDao())
     val recentSearchRepository: RecentSearchRepository = DefaultRecentSearchRepository(database.recentSearchDao())
+    val favoriteStationRepository: FavoriteStationRepository = DefaultFavoriteStationRepository(database.favoriteStationDao())
+    val recentRouteRepository: RecentRouteRepository = DefaultRecentRouteRepository(database.recentRouteDao())
 
     val locationProvider: LocationProvider = FusedLocationProvider(appContext)
 

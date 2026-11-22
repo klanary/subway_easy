@@ -1,5 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.routes
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import io.github.klanary.jigeumchulbal.ui.common.TimeWheelDialog
 import io.github.klanary.jigeumchulbal.ui.common.appBarColors
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.foundation.background
@@ -64,17 +68,20 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
         }
     }
     val context = LocalContext.current
+    var picking by remember { mutableStateOf(false) }
+    if (picking) {
+        val base = java.time.LocalTime.now(java.time.ZoneId.of("Asia/Seoul"))
+        TimeWheelDialog(base.hour, base.minute, onConfirm = { h, m ->
+            picking = false
+            viewModel.setDepartAt(pickedTime(h, m))
+        }, onDismiss = { picking = false })
+    }
     RoutesContent(
         state = state,
         now = now,
         onBack = { navController.popBackStack() },
         onDepartNow = { viewModel.setDepartAt(null) },
-        onPickTime = {
-            val base = java.time.LocalTime.now()
-            TimePickerDialog(context, { _, h, m ->
-                viewModel.setDepartAt(pickedTime(h, m))
-            }, base.hour, base.minute, true).show()
-        },
+        onPickTime = { picking = true },
         onRetry = viewModel::search,
         onRoute = { id ->
             viewModel.select(id)
@@ -143,6 +150,10 @@ private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(ui.totalText, style = MaterialTheme.typography.headlineMedium)
                 Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            // 호선·환승 시간을 나눠 적는다(합이 위의 총 시간, 수동 검토 2026-11-22)
+            ui.breakdownText?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             // 탈 호선을 순서대로(Task 6 합의)
             if (ui.lines.isNotEmpty()) LineBadges(ui.lines, arrow = true)

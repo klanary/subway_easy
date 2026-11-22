@@ -76,6 +76,9 @@ fun move(route: RouteDto, choices: List<SegmentChoice>, segment: Int, delta: Int
     val filtered = picked.step.candidateList().filter { choice.filter.accepts(it) }
     val at = filtered.indexOfFirst { it.same(current) }
     val target = filtered.getOrNull(at + delta)?.takeIf { at >= 0 } ?: return choices
+    // 원래(자동으로 맞춘) 열차로 돌아왔으면 고정할 것이 없다(수동 검토 2026-11-22).
+    val auto = pickTrains(route, unpin(choices, segment)).getOrNull(segment)?.train
+    if (auto != null && target.same(auto)) return unpin(choices, segment)
     return choices.with(route, segment) { it.copy(pinned = target) }
 }
 

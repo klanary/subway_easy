@@ -1,9 +1,16 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import io.github.klanary.jigeumchulbal.ui.common.StarOutlineIcon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.Icons
+import io.github.klanary.jigeumchulbal.ui.common.lineColor
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import io.github.klanary.jigeumchulbal.ui.common.InlineTimeWheels
+import androidx.compose.runtime.mutableStateOf
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
-import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +45,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -63,16 +69,17 @@ fun StationSheet(
     onRole: (TripRole, StationRef) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val viewModel = appViewModel(key = "sheet-$stationId") { StationSheetViewModel(stationId, it.stationRepository) }
+    val viewModel = appViewModel(key = "sheet-$stationId") {
+        StationSheetViewModel(stationId, it.stationRepository, favorites = it.favoriteStationRepository)
+    }
+    val favorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val lines by viewModel.lines.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.runAutoRefresh() }
     }
-    val context = LocalContext.current
     val station = StationRef(stationId, stationId)
-
     // 반만 열리면 버튼이 시스템 내비게이션 바에 가려진다(2026-11-12 실기기). 처음부터 다 연다.
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         StationSheetContent(
@@ -83,14 +90,10 @@ fun StationSheet(
             onRole = { role -> onRole(role, station) },
             onRetry = viewModel::retry,
             onTime = { viewModel.select(it) },
-            onPickTime = {
-                val now = LocalTime.now()
-                TimePickerDialog(context, { _, h, m ->
-                    val at = pickedTime(h, m)
-                    viewModel.select(SheetTime.CUSTOM, at)
-                }, now.hour, now.minute, true).show()
-            },
+            onPickTime = { h, m -> viewModel.select(SheetTime.CUSTOM, pickedTime(h, m)) },
             onDismiss = onDismiss,
+            isFavorite = favorite,
+            onToggleFavorite = viewModel::toggleFavorite,
         )
     }
 }
@@ -99,7 +102,7 @@ fun StationSheet(
  * 역 시트 안쪽을 그린다(상태만 받는다). 시트 틀·ViewModel·시각 고르기 대화상자는 [StationSheet]가 잇는다.
  * 화면 다듬기 Task 4 합의: 호선 색 배지 아래 방향을 묶고, 첫 열차의 남은 시간을 크게, 막차·급행·근거는 작은 표식.
  */
-@OptIn(ExperimentalLayoutApi::class)
+
 @Composable
 internal fun StationSheetContent(
     stationId: String,
@@ -108,9 +111,12 @@ internal fun StationSheetContent(
     lines: List<String> = (state as? UiState.Content)?.data?.lines.orEmpty(),
     onRole: (TripRole) -> Unit = {},
     onTime: (SheetTime) -> Unit = {},
-    onPickTime: () -> Unit = {},
+    onPickTime: (hour: Int, minute: Int) -> Unit = { _, _ -> },
+    nowTime: () -> LocalTime = { LocalTime.now(java.time.ZoneId.of("Asia/Seoul")) }, // 열차 시각은 늘 서울 시각
     onRetry: () -> Unit = {},
     onDismiss: () -> Unit = {},
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
 ) {
     val station = StationRef(stationId, stationId)
     val content = (state as? UiState.Content)?.data
@@ -122,28 +128,53 @@ internal fun StationSheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // 역 이름 아래에 호선 배지(줄바꿈). 한 줄에 몰면 호선이 많은 역·큰 글꼴에서 넘쳤다(최종 리뷰).
-        Text(stationId, style = MaterialTheme.typography.headlineSmall)
+        // 역 이름 옆 별: 즐겨찾는 역에 넣고 뺀다(수동 검토 2026-11-22)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stationId, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            if (onToggleFavorite != null) {
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        if (isFavorite) Icons.Filled.Star else StarOutlineIcon,
+                        contentDescription = if (isFavorite) Copy.REMOVE_FAVORITE_STATION else Copy.ADD_FAVORITE_STATION,
+                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
         if (lines.isNotEmpty()) LineBadges(lines)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onRole(TripRole.FROM) }, shape = ButtonShape, enabled = draft.canSet(TripRole.FROM, station)) {
                 Text(Copy.AS_FROM)
             }
+            // 출발로 · 경유로 · 도착으로(경유는 언제든 고를 수 있다, 수동 검토 2026-11-22)
+            OutlinedButton(onClick = { onRole(TripRole.VIA) }, shape = ButtonShape, enabled = draft.canSet(TripRole.VIA, station)) {
+                Text(Copy.AS_VIA)
+            }
             Button(onClick = { onRole(TripRole.TO) }, shape = ButtonShape, enabled = draft.canSet(TripRole.TO, station)) {
                 Text(Copy.AS_TO)
             }
-            if (draft.from != null && draft.to != null) {
-                OutlinedButton(onClick = { onRole(TripRole.VIA) }, shape = ButtonShape, enabled = draft.canSet(TripRole.VIA, station)) {
-                    Text(Copy.AS_VIA)
+        }
+        // 시각(수동 검토 2026-11-22): [지금] [시각 선택]. 시각 선택을 누르면 이 자리에서 오전·오후·시·분 휠이 열리고,
+        // [적용]을 눌러야 그 시각으로 다시 불러온다(스크롤하다 휠을 건드려도 바뀌지 않게).
+        var picking by remember { mutableStateOf(false) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(time == SheetTime.NOW, { picking = false; onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
+            val picked = content?.customLabel?.takeIf { time == SheetTime.CUSTOM }
+            FilterChip(time == SheetTime.CUSTOM || picking, { picking = !picking }, { Text(picked?.let { "$it ${Copy.SHEET_AT}" } ?: Copy.SHEET_PICK_TIME) })
+        }
+        if (picking) {
+            val start = remember { content?.customLabel?.takeIf { time == SheetTime.CUSTOM }?.let(LocalTime::parse) ?: nowTime() }
+            var chosen by remember { mutableStateOf(start.hour to start.minute) }
+            Row(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, ButtonShape).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                InlineTimeWheels(start.hour, start.minute, onChange = { h, m -> chosen = h to m }, Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Button(onClick = { picking = false; onPickTime(chosen.first, chosen.second) }, shape = ButtonShape) { Text(Copy.APPLY) }
+                    TextButton(onClick = { picking = false }) { Text(Copy.CANCEL) }
                 }
             }
-        }
-        // 큰 글꼴에서도 넘치지 않게 줄을 바꾼다(2차 다듬기 Task 4).
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(time == SheetTime.NOW, { onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
-            FilterChip(time == SheetTime.PLUS_1H, { onTime(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
-            FilterChip(time == SheetTime.PLUS_2H, { onTime(SheetTime.PLUS_2H) }, { Text(Copy.SHEET_PLUS_2H) })
-            val picked = content?.customLabel?.takeIf { time == SheetTime.CUSTOM }
-            FilterChip(time == SheetTime.CUSTOM, onPickTime, { Text(picked?.let { "$it ${Copy.SHEET_AT}" } ?: Copy.SHEET_PICK_TIME) })
         }
         when (state) {
             UiState.Loading -> StateLoading(StateSize.Inline)
@@ -183,7 +214,7 @@ private fun SheetTrains(ui: StationSheetUi) {
         byLine.forEach { (line, groups) ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LineBadge(line)
-                groups.forEach { DirectionRow(it) }
+                groups.forEach { DirectionRow(it, ui.name) }
             }
         }
         (ui.noTimetableLines.map { it to Copy.NO_TIMETABLE_LINE } + ui.unsupportedLines.map { it to Copy.UNSUPPORTED_LINE })
@@ -197,13 +228,20 @@ private fun SheetTrains(ui: StationSheetUi) {
 }
 
 @Composable
-private fun DirectionRow(group: DirectionTrains) {
+private fun DirectionRow(group: DirectionTrains, here: String) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.padding(start = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val head = listOfNotNull(group.direction, group.towards?.let { "$it 방면" }).joinToString(" · ")
             Text(head, style = MaterialTheme.typography.labelLarge, color = muted)
             group.basis?.let { Tag(it, MaterialTheme.colorScheme.tertiary) }
+        }
+        // 이전역·이번 역·다음역과 다가오는 열차(수동 검토 2026-11-22)
+        if (group.prevStation != null || group.nextStation != null) {
+            TrainTrack(
+                group.prevStation, here, group.nextStation, group.progress, group.farAway,
+                Color(lineColor(group.line)), Modifier.padding(top = 2.dp, bottom = 6.dp),
+            )
         }
         val first = group.trains.firstOrNull() ?: return@Column
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -213,13 +251,18 @@ private fun DirectionRow(group: DirectionTrains) {
             } else {
                 first.destination?.let { Text("${it}행", style = MaterialTheme.typography.bodyLarge) }
                 Text(first.time, style = MaterialTheme.typography.headlineMedium)
+                // 남은 시간 옆 도착 시각(수동 검토 2026-11-22)
+                first.arriveAt?.let { Text(it + " " + Copy.ARRIVES, style = MaterialTheme.typography.bodySmall, color = muted) }
             }
+            // 열차마다 근거(위치 계산·시간표 등). 방향 줄에 이미 같은 표식이 있으면 되풀이하지 않는다(2026-11-22).
+            first.basis?.takeIf { it != group.basis }?.let { Tag(it, MaterialTheme.colorScheme.tertiary) }
             if (first.isLast) Tag(Copy.LAST_TRAIN, MaterialTheme.colorScheme.error)
             if (first.isExpress) Tag(Copy.EXPRESS, MaterialTheme.colorScheme.primary)
         }
         val rest = group.trains.drop(1)
         if (rest.isNotEmpty()) {
-            val text = if (first.clock) rest.joinToString(" · ") { it.text() } else rest.joinToString(" · ") { "그다음 ${it.time}" }
+            fun mark(t: TrainLine) = t.basis?.takeIf { it != group.basis }?.let { " [$it]" } ?: ""
+            val text = if (first.clock) rest.joinToString(" · ") { it.text() + mark(it) } else rest.joinToString(" · ") { t -> "그다음 " + t.time + (t.arriveAt?.let { "($it)" } ?: "") + mark(t) }
             val marks = rest.flatMap { listOfNotNull(Copy.LAST_TRAIN.takeIf { _ -> it.isLast }, Copy.EXPRESS.takeIf { _ -> it.isExpress }) }.distinct()
             Text(
                 (listOf(text) + marks.map { "($it 포함)" }).joinToString(" "),

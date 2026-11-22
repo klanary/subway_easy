@@ -42,7 +42,11 @@ class RecordingApiService : ApiService {
 
     override suspend fun health(): Map<String, String> = error("not used")
     override suspend fun searchStations(q: String, limit: Int): StationSearchDto = error("not used")
-    override suspend fun arrivals(id: String, line: String?, towards: String?): ArrivalsDto = error("not used")
+    var lastArrivalsAt: String? = null
+    override suspend fun arrivals(id: String, line: String?, towards: String?, at: String?): ArrivalsDto {
+        lastArrivalsAt = at
+        return ArrivalsDto(id, "2026-11-13T19:00:00+09:00", groups = emptyList())
+    }
 }
 
 class RouteRepositoryTest {
@@ -55,6 +59,11 @@ class RouteRepositoryTest {
     @Test fun sendsStationIds() = runTest {
         DefaultRouteRepository(api, caller).routes(mapo, hongdae, via = gongdeok)
         assertEquals(RoutesArgs("마포", "홍대입구", "공덕", null), api.lastRoutes)
+    }
+
+    @Test fun arrivalsAtIsKstIsoWithSeconds() = runTest { // 다른 시각 인자와 같은 형식(isoKst)
+        DefaultStationRepository(api, caller).arrivals("시청", at = java.time.Instant.parse("2026-11-13T10:30:00Z"))
+        assertEquals("2026-11-13T19:30:00+09:00", api.lastArrivalsAt)
     }
 
     @Test fun departAtIsKstIso() = runTest {

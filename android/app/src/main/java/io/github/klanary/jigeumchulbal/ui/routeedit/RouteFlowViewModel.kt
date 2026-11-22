@@ -1,5 +1,6 @@
 package io.github.klanary.jigeumchulbal.ui.routeedit
 
+import io.github.klanary.jigeumchulbal.data.repository.RecentRouteRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.klanary.jigeumchulbal.data.model.StationRef
@@ -86,6 +87,7 @@ class RouteFlowViewModel(
     private val stations: StationRepository,
     private val location: LocationProvider,
     private val favorites: FavoriteRepository,
+    private val recentRoutes: RecentRouteRepository? = null,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RouteFlowState())
@@ -170,7 +172,10 @@ class RouteFlowViewModel(
         searchJob = viewModelScope.launch {
             val result = routes.routes(origin, dest, current.via, current.departAt)
             val at = clock()
-            if (result is ApiResult.Ok) favorites.recordUsageIfFavorite(origin, current.via, dest, at)
+            if (result is ApiResult.Ok) {
+                favorites.recordUsageIfFavorite(origin, current.via, dest, at)
+                recentRoutes?.record(origin, current.via, dest) // 역 검색의 [최근 경로](수동 검토 2026-11-22)
+            }
             val favorite = favorites.find(origin, current.via, dest) != null
             _state.update {
                 it.copy(

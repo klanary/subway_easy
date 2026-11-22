@@ -47,3 +47,27 @@ data class RecentSearchEntity(
     val name: String,
     val usedAt: Long,
 )
+
+/** 즐겨찾는 역(수동 검토 2026-11-22에 다시 넣음). */
+@Entity(tableName = "favorite_stations")
+data class FavoriteStationEntity(
+    @PrimaryKey val stationId: String,
+    val name: String,
+    val createdAt: Long,
+)
+
+/**
+ * 최근 찾아본 경로(출발 → [경유 →] 도착), 최대 20개(수동 검토 2026-11-22).
+ * 경유가 없으면 viaId·viaName은 ""다(유일 색인은 NULL끼리 다르게 보아 같은 경로가 쌓인다).
+ */
+@Entity(tableName = "recent_routes", indices = [Index(value = ["fromId", "viaId", "toId"], unique = true)])
+data class RecentRouteEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val fromId: String,
+    val fromName: String,
+    val viaId: String,
+    val viaName: String,
+    val toId: String,
+    val toName: String,
+    val usedAt: Long,
+)

@@ -15,9 +15,11 @@ class TripDraftTest {
 
     @Test fun viaMustDifferFromEnds() = assertFalse(TripDraft(mapo, to = gongdeok).canSet(TripRole.VIA, gongdeok))
 
-    @Test fun viaOnlyAfterBothEnds() {
-        assertFalse(TripDraft(from = mapo).canSet(TripRole.VIA, hongdae))
-        assertTrue(TripDraft(from = mapo, to = gongdeok).canSet(TripRole.VIA, hongdae))
+    /** 경유는 언제든 고를 수 있다(출발로·도착으로 사이 버튼, 수동 검토 2026-11-22). */
+    @Test fun viaAnytime() {
+        assertTrue(TripDraft().canSet(TripRole.VIA, hongdae))
+        assertTrue(TripDraft(from = mapo).canSet(TripRole.VIA, hongdae))
+        assertEquals("홍대입구 경유 · 출발역을 눌러 주세요", TripDraft(via = hongdae).banner())
     }
 
     @Test fun readyNeedsDistinctEnds() {

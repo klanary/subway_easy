@@ -25,16 +25,16 @@ class StationSheetContentScreenshotTest {
         name = "시청",
         lines = listOf("1호선", "2호선"),
         groups = listOf(
-            DirectionTrains("1호선", "상행", "종각", listOf(TrainLine("청량리", "곧 도착", isExpress = true), TrainLine("광운대", "1분"))),
-            DirectionTrains("2호선", "외선", "충정로", listOf(TrainLine("성수", "1분"), TrainLine("성수", "2분"))),
+            DirectionTrains("1호선", "상행", "종각", listOf(TrainLine("청량리", "곧 도착", isExpress = true), TrainLine("광운대", "1분")), prevStation = "서울역", nextStation = "종각", progress = 0.9f),
+            DirectionTrains("2호선", "외선", "충정로", listOf(TrainLine("성수", "1분", arriveAt = "19:01"), TrainLine("성수", "2분", arriveAt = "19:02")), prevStation = "을지로입구", nextStation = "충정로", progress = 0.5f),
             DirectionTrains("2호선", "내선", "을지로입구", listOf(TrainLine("성수", "곧 도착"), TrainLine("성수", "5분", isLast = true))),
-            DirectionTrains("1호선", "하행", "서울", listOf(TrainLine("인천", "1분", isLast = true), TrainLine("인천", "3분"))),
+            DirectionTrains("1호선", "하행", "서울", listOf(TrainLine("인천", "6분", isLast = true), TrainLine("인천", "9분")), prevStation = "종각", nextStation = "서울역", progress = 0f, farAway = "동묘앞"),
         ),
         unsupportedLines = emptyList(),
     )
 
     private fun snap(name: String, state: UiState<StationSheetUi>, draft: TripDraft = TripDraft(), station: String = "시청", fontScale: Float = 1f) =
-        rule.snapBothThemes("sheet_$name", fontScale) { Surface { StationSheetContent(station, state, draft) } } // 앱에서는 시트(Surface) 안
+        rule.snapBothThemes("sheet_$name", fontScale) { Surface { StationSheetContent(station, state, draft, nowTime = { java.time.LocalTime.of(8, 30) }) } } // 앱에서는 시트(Surface) 안
 
     @Test fun loading() = snap("loading", UiState.Loading)
     @Test fun realtime() = snap("realtime", UiState.Content(now))
@@ -88,5 +88,26 @@ class StationSheetContentScreenshotTest {
         "via",
         UiState.Content(now),
         draft = TripDraft(from = StationRef("마포", "마포"), to = StationRef("강남", "강남")),
+    )
+
+    // 열차마다 근거 표식(설계 2026-11-22): 위치 계산 열차와 시간표로 채운 열차가 섞인 [시각 선택]
+    @Test fun positionBasis() = snap(
+        "position_basis",
+        UiState.Content(
+            now.copy(
+                time = SheetTime.CUSTOM,
+                customLabel = "19:30",
+                groups = listOf(
+                    DirectionTrains(
+                        "1호선", "상행", "종각",
+                        listOf(
+                            TrainLine("청량리", "19:31", clock = true, basis = Copy.BY_POSITION),
+                            TrainLine("광운대", "19:36", clock = true, basis = Copy.BY_POSITION),
+                            TrainLine("청량리", "19:44", clock = true, basis = Copy.BY_TIMETABLE),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
 }

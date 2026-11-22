@@ -25,6 +25,10 @@ data class TrainDto(
     val isExpress: Boolean = false,
     /** 열차 번호. 예전 서버에는 없다. */
     val trainNo: String? = null,
+    /** 열차가 지금 있는 역 이름. 예전 서버에는 없다(수동 검토 2026-11-22). */
+    val currentStation: String? = null,
+    /** 시각의 근거: realtime, position(열차 위치 계산), timetable, measured. 예전 서버에는 없다(2026-11-22). */
+    val basis: String = "realtime",
 )
 
 @Serializable
@@ -36,6 +40,9 @@ data class ArrivalGroupDto(
     val trains: List<TrainDto>,
     /** 열차 정보 출처(재설계 스펙 5.1): "realtime", "timetable"(실시간이 없는 방향), "none"(비서울 노선). */
     val source: String = "realtime",
+    /** 이 방향으로 볼 때 이전역·다음역 이름. 예전 서버에는 없다(수동 검토 2026-11-22). */
+    val prevStation: String? = null,
+    val nextStation: String? = null,
 )
 
 @Serializable

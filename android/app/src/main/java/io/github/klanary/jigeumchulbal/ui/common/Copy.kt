@@ -55,8 +55,14 @@ object Copy {
     // 구간별 열차 고르기(열차 고르기 설계 2026-11-18)
     const val PREV_TRAIN = "◀ 이전"
     const val NEXT_TRAIN = "다음 ▶"
-    const val PINNED = "📌 고정됨"
-    const val UNPIN = "고정 풀기"
+    // 즐겨찾는 역·최근 경로(수동 검토 2026-11-22). FAVORITE_STATIONS는 아래에 있다.
+    const val ADD_FAVORITE_STATION = "즐겨찾기에 추가"
+    const val REMOVE_FAVORITE_STATION = "즐겨찾기에서 빼기"
+    const val RECENT_ROUTES = "최근 경로"
+    const val FIND_STATION = "역 찾기"
+    const val NO_RECENT_ROUTES = "아직 찾아본 경로가 없어요. 출발·도착을 고르면 여기에 남아요."
+    const val PINNED = "📌 직접 고른 열차"
+    const val UNPIN = "가장 빠른 열차로"
     const val DEPARTED = "이미 떠남"
     const val LOAD_LATER = "더 늦은 열차 불러오기"
     const val NO_LATER_TRAIN = "이 시각 뒤 열차 정보가 없어요"
@@ -145,6 +151,9 @@ object Copy {
     const val START_NEW = "새로 시작"
     const val CANCEL = "취소"
     const val OK = "확인"
+    const val APPLY = "적용"
+    const val ARRIVES = "도착"
+    const val PICK_TIME_TITLE = "시각 선택"
     const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'·" +
         "'서울시 지하철역 시간표'·'서울시 지하철 실시간 열차 위치정보'를 사용합니다."
     // 노선도 홈(재설계 스펙 4.1)
@@ -170,6 +179,7 @@ object Copy {
     const val NO_TRAIN_INFO = "열차 정보가 없어요"
     const val UNSUPPORTED_LINE = "실시간 정보를 제공하지 않는 노선이에요"
     const val BY_TIMETABLE = "시간표"
+    const val BY_POSITION = "위치 계산"
     const val BY_MEASURED = "운행 기록"
     const val NO_TIMETABLE_LINE = "시간표를 제공하지 않는 노선이에요"
     const val SHEET_NOW = "지금"

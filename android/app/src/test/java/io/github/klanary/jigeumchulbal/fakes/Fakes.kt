@@ -69,7 +69,11 @@ class FakeStationRepository : StationRepository {
     /** 도착 조회 응답을 늦춘다(밀리초). */
     var arrivalsDelayMs = 0L
 
-    override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> {
+    /** [시각 선택] 60분 안 도착 조회(at)의 시각 기록. */
+    val arrivalAtCalls = mutableListOf<Instant>()
+
+    override suspend fun arrivals(stationId: String, line: String?, towards: String?, at: Instant?): ApiResult<ArrivalsDto> {
+        if (at != null) arrivalAtCalls += at
         arrivalCalls += Triple(stationId, line, towards)
         if (arrivalsDelayMs > 0) delay(arrivalsDelayMs)
         return arrivalsByStation[stationId] ?: arrivalsResult
@@ -256,3 +260,13 @@ class FakeLauncher : SessionServiceLauncher {
     }
 }
 
+
+
+/** 최근 경로 기록(수동 검토 2026-11-22). */
+class FakeRecentRouteRepository : io.github.klanary.jigeumchulbal.data.repository.RecentRouteRepository {
+    val recorded = mutableListOf<Triple<String, String?, String>>()
+    override val recent = kotlinx.coroutines.flow.MutableStateFlow(emptyList<io.github.klanary.jigeumchulbal.data.local.RecentRouteEntity>())
+    override suspend fun record(from: StationRef, via: StationRef?, to: StationRef) {
+        recorded += Triple(from.id, via?.id, to.id)
+    }
+}

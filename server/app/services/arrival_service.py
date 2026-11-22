@@ -31,6 +31,8 @@ logger = logging.getLogger("app.arrivals")
 
 ARRIVALS_TTL_SEC = 20
 TRAINS_PER_GROUP = 2
+# [지금]은 이보다 오래된 위치를 쓰지 않는다(문구 어림이 더 낫다, 최종 리뷰 사소한 것).
+NOW_POSITION_MAX_AGE_SEC = 120
 AT_TRAINS_PER_GROUP = 4  # [시각 선택]은 시간표처럼 4대(설계 2026-11-22 §7)
 AT_POSITION_WINDOW = timedelta(minutes=60)  # 이보다 먼 시각은 시간표만
 # 시간표 열차가 실시간·위치 열차와 이만큼 안이면 같은 열차로 보고 뺀다.
@@ -136,10 +138,13 @@ class ArrivalService:
                 continue
             answers.append((name, lines, extra.value))
         wanted = normalize_line(line) if line else None
-        groups = self._group(answers, station)
-        groups = await self._apply_positions(groups, station)
+        # 자르기 전에 위치로 고쳐 다시 정렬한다(앞당겨진 세 번째 열차도 보이게). 묻지 않은 호선은
+        # 위치를 받지 않도록 호선을 먼저 거른다(최종 리뷰 사소한 것).
+        groups = self._group(answers, station, limit=None)
         if wanted:
             groups = [g for g in groups if g.line == wanted]
+        groups = await self._apply_positions(groups, station)
+        groups = [g.model_copy(update={"trains": g.trains[:TRAINS_PER_GROUP]}) for g in groups]
         # 호선을 거른 뒤에 채운다: 묻지 않은 호선의 시간표는 부르지 않는다.
         groups += await self._fill_missing(groups, station, wanted)
         if towards:
@@ -166,6 +171,7 @@ class ArrivalService:
         status, stale, fetched_at = "miss", False, self._clock()
         picked: dict[tuple[str, str], list[tuple[datetime, Train]]] = {}
         towards_of: dict[tuple[str, str], str | None] = {}
+        exact_nos: dict[tuple[str, str], set[str]] = {}
         if at - now <= AT_POSITION_WINDOW:
             try:
                 answers, cached = await self._fetch_answers(station)
@@ -182,12 +188,14 @@ class ArrivalService:
                 towards_of.setdefault(key, group.towards)
                 for train in group.trains:
                     if train.exact and train.remaining_sec is not None:
+                        # 고른 시각 전에 오는 열차도 번호를 기억한다: 위치 계산으로 다시 나오지 않게
+                        exact_nos.setdefault(key, set()).add(_bare_no(train.train_no))
                         when = now + timedelta(seconds=train.remaining_sec)
                         if when >= at:
                             picked.setdefault(key, []).append(
                                 (when, _at_train(train, when, "realtime"))
                             )
-            await self._pick_positions(picked, station, lines, at, now)
+            await self._pick_positions(picked, station, lines, at, now, exact_nos)
         groups = []
         for x in lines:
             if not StationIndex.realtime_supported(x):
@@ -215,6 +223,7 @@ class ArrivalService:
         lines: list[str],
         at: datetime,
         now: datetime,
+        exact_nos: dict[tuple[str, str], set[str]],
     ) -> None:
         """켠 노선의 열차 위치로 계산한 도착(고른 시각 이후)을 더한다.
 
@@ -230,7 +239,9 @@ class ArrivalService:
                 continue
             for pos in await self._positions.positions(x):
                 key = (x, pos.direction)
-                taken = {_bare_no(t.train_no) for _, t in picked.get(key, [])}
+                taken = exact_nos.get(key, set()) | {
+                    _bare_no(t.train_no) for _, t in picked.get(key, [])
+                }
                 if _bare_no(pos.train_no) in taken:
                     continue
                 when = estimate_arrival(pos, station.id, trips=trips, measured=data, now=now)
@@ -408,6 +419,11 @@ class ArrivalService:
             trains = []
             for train in group.trains:
                 pos = None if train.exact else by_no.get(_bare_no(train.train_no))
+                if (
+                    pos is not None
+                    and (now - pos.seen_at).total_seconds() > NOW_POSITION_MAX_AGE_SEC
+                ):
+                    pos = None  # 오래된 위치는 "곧 도착"을 너무 이르게 보일 수 있다
                 eta = (
                     estimate_arrival(pos, station.id, trips=trips, measured=data, now=now)
                     if pos is not None

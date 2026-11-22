@@ -11,6 +11,7 @@
 """
 
 from datetime import datetime, timedelta
+from functools import lru_cache
 
 from app.core.clock import KST
 from app.services.measured import MeasuredData
@@ -40,7 +41,7 @@ def day_type_at(now: datetime) -> int:
     return week_tag(day)
 
 
-def path_between(
+def _find_path(
     day: DayTrips,
     line: str,
     direction: str,
@@ -74,6 +75,38 @@ def path_between(
         return None
     (stops,) = found
     return [day.station_id(s) for s in stops]
+
+
+@lru_cache(maxsize=8192)
+def _cached_path(
+    day: DayTrips,
+    line: str,
+    direction: str,
+    from_id: str,
+    to_id: str,
+    dest_name: str | None,
+    express: bool,
+) -> list[str] | None:
+    return _find_path(day, line, direction, from_id, to_id, dest_name=dest_name, express=express)
+
+
+def path_between(
+    day: DayTrips,
+    line: str,
+    direction: str,
+    from_id: str,
+    to_id: str,
+    *,
+    dest_name: str | None,
+    express: bool,
+) -> list[str] | None:
+    """`from_id` → `to_id` 정차 목록(양 끝 포함). 없거나 갈래로 갈리면 None.
+
+    요청마다 노선의 열차 수만큼 부르므로 같은 질문은 기억해 둔다.
+    운행표가 바뀌면 다른 DayTrips라 새로 찾는다.
+    돌려준 목록은 고치지 않는다.
+    """
+    return _cached_path(day, line, direction, from_id, to_id, dest_name, express)
 
 
 def estimate_arrival(

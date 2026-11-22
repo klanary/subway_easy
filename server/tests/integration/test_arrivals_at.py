@@ -133,3 +133,14 @@ async def test_timetable_train_between_live_trains_is_kept(at_client, respx_mock
         (await at_client.get(URL, params={"at": "2026-11-03T08:01:00+09:00"})).json()
     )
     assert [t["basis"] for t in trains] == ["position", "timetable", "position", "timetable"]
+
+
+async def test_realtime_train_before_at_not_repeated_by_position(at_client, respx_mock):
+    """고른 시각 전에 오는 실시간 열차가 위치 계산으로 다시 나오지 않는다(최종 리뷰 사소한 것)."""
+    answer_arrivals(respx_mock, [arrival(barvl="30", msg="곧 도착", no="0145")])
+    row = position_row("0145")
+    row["trainSttus"] = "3"  # 전역출발로 잡혀 위치 계산은 08:03 무렵이 된다
+    answer_positions(respx_mock, [row])
+    timetable(respx_mock, [])
+    body = (await at_client.get(URL, params={"at": "2026-11-03T08:01:00+09:00"})).json()
+    assert all(t["trainNo"] != "0145" for g in body["groups"] for t in g["trains"])

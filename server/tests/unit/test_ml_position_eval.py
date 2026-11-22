@@ -72,3 +72,31 @@ def test_combined_scores_same_questions_as_timetable():
     line = scores["9호선"]
     for h in (5, 15):
         assert line[("combined", h)]["n"] == line[("timetable", h)]["n"]
+
+
+def test_default_hours_cover_after_midnight():
+    """자정 넘은 운행(24:05)도 평가한다(최종 리뷰 사소한 것: 07~22시만 보면 자정 전후를 못 본다)."""
+    train_day, test_day = weekdays(2)
+    events = []
+    for day in (train_day, test_day):
+        for k in range(10):
+            events += trip(day, 24 * 3600 + 300 * k, train_no=str(500 + k))
+    runs = build_runs(events)
+    train = [r for r in runs if r.service_date == train_day]
+    test = [r for r in runs if r.service_date == test_day]
+    statn = {("9호선", s): f"S-{s}" for s in "ABCD"}
+    scores = evaluate(test, measured=measured_from_runs(train, statn), trips=_trips(),
+                      statn_to_station=statn, timetable_first=lambda *a: None)  # fmt: skip
+    assert scores["9호선"][("position", 0)]["n"] > 0
+
+
+def test_timetable_comes_from_training_days_only():
+    """실측 시간표 비교는 학습 날짜로 만든다(시험 날짜가 섞이면 시간표가 유리해진다)."""
+    from datetime import date as _date
+
+    from ml.position_eval import timetable_from_runs
+
+    train_day, _ = weekdays(2)
+    first = timetable_from_runs(_runs([train_day]), {("9호선", s): f"S-{s}" for s in "ABCD"})
+    got = first("9호선", "상행", "S-A", _date(2026, 11, 10), H7)
+    assert got == H7 + 30  # 첫 열차 07:00 도착 + 정차 30초 출발

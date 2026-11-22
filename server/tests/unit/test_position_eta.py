@@ -102,3 +102,13 @@ def test_express_uses_express_pattern_and_hops():
 
 def test_never_earlier_than_now():
     assert eta(pos(seen=T - timedelta(seconds=500)), "C", now=T) == T
+
+
+def test_path_between_is_cached():
+    """같은 질문의 경로는 다시 찾지 않는다(요청마다 열차 수 × 패턴을 돌지 않게)."""
+    from app.services.position_eta import path_between
+
+    day = LINE.day(1)
+    first = path_between(day, "2호선", "내선", "A", "C", dest_name="D", express=False)
+    again = path_between(day, "2호선", "내선", "A", "C", dest_name="D", express=False)
+    assert first == ["A", "B", "C"] and again is first

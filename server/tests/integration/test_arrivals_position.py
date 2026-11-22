@@ -136,3 +136,48 @@ async def test_position_outage_keeps_today_behavior(pos_client, respx_mock, outa
     )
     assert train["basis"] == "realtime"
     assert train["remainingSec"] == 120  # 지금의 문구 어림([1]번째 전역 × 120초)
+
+
+async def test_only_asked_line_fetches_positions(pos_client, respx_mock):
+    """line=2호선만 물으면 1호선 위치는 받지 않는다(최종 리뷰 사소한 것)."""
+    item = arrival(subway="1002", updn="내선", msg="[2]번째 전역 (충정로)")
+    item["trainLineNm"], item["bstatnNm"] = "성수행 - 을지로입구방면", "성수"
+    answer_arrivals(respx_mock, [arrival(), item])
+    route = answer_positions(respx_mock, [position_row()])
+    await pos_client.get("/v1/stations/시청/arrivals", params={"line": "2호선"})
+    assert route.call_count == 0
+
+
+async def test_resorted_before_two_train_cut(pos_client, respx_mock):
+    """위치 계산으로 앞당겨진 세 번째 열차도 보인다(자르기 전에 정렬)."""
+    answer_arrivals(
+        respx_mock,
+        [
+            arrival(msg="[1]번째 전역 (서울)", no="0145"),
+            arrival(msg="[2]번째 전역 (남영)", no="0147"),
+            arrival(msg="[3]번째 전역 (용산)", no="0149"),
+        ],
+    )
+    late = position_row("0149")
+    late["statnNm"], late["trainSttus"] = "시청", "0"  # 진입: 20초 뒤 도착
+    answer_positions(respx_mock, [late])
+    body = (await pos_client.get("/v1/stations/시청/arrivals")).json()
+    trains = first_group(body, "1호선", "상행")["trains"]
+    assert trains[0]["trainNo"] == "0149" and trains[0]["basis"] == "position"
+    assert len(trains) == 2
+
+
+async def test_old_position_not_used_for_now(pos_client, respx_mock):
+    """[지금]은 2분 넘게 지난 위치를 쓰지 않는다(곧 도착을 너무 이르게 보이지 않게)."""
+    answer_arrivals(respx_mock, [arrival()])
+    old = position_row()
+    old["recptnDt"] = (NOW - timedelta(seconds=300)).strftime(STAMP)
+    answer_positions(respx_mock, [old])
+    train = first_train(
+        (await pos_client.get("/v1/stations/시청/arrivals")).json(), "1호선", "상행"
+    )
+    assert train["basis"] == "realtime"
+
+
+def first_group(body, line, direction):
+    return next(g for g in body["groups"] if (g["line"], g["direction"]) == (line, direction))

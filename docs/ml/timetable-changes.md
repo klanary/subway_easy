@@ -175,4 +175,4 @@ sudo systemctl daemon-reload
 
 ## 10. 서버로 내보내기 (2026-11-18)
 
-밤 작업이 만든 실측 시간표는 수·일 03:30에 GitHub 릴리스 `measured-timetable`로 나가고, 서버가 받아 시간표 API가 없는 노선에 쓴다. 변경 의심(`suspect`)·재학습 중(`retraining`)인 단위는 서버가 내지 않는다. 운영 방법과 토큰은 `docs/ml/collector.md`의 "실측 결과물 내보내기".
+밤 작업이 만든 실측 시간표는 수·일 03:30에 GitHub 릴리스 `measured-timetable`로 나가고, 서버가 받아 시간표 API가 없는 노선에 쓴다. 재학습 중(`retraining`)인 단위는 서버가 내지 않는다. 변경 의심(`suspect`)은 확정 전이라 지난 실측 시각을 그대로 낸다(2026-11-22 바꿈: 11-20 하루 지연이 의심으로 잡혀 GTX-A 평일 6~24시가 통째로 빠졌다. 그날 관찰 모드인데도 의심 단위가 서비스에서 빠지고 있었다). 운영 방법과 토큰은 `docs/ml/collector.md`의 "실측 결과물 내보내기".

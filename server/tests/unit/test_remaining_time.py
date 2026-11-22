@@ -100,3 +100,25 @@ def test_all_fixture_messages_are_understood():
             assert compute_remaining_sec(it, now) is not None or is_departed(it["arvlMsg2"]), it[
                 "arvlMsg2"
             ]
+
+
+def test_arrival_code_when_message_unreadable():
+    """코레일 원천은 barvlDt가 대부분 0이다(관리자 안내). 문구로 못 읽으면 arvlCd로 추정한다."""
+    from datetime import datetime
+
+    from app.core.clock import KST
+    from app.services.remaining_time import compute_remaining_sec
+
+    now = datetime(2026, 11, 22, 12, 0, tzinfo=KST)
+    base = {"barvlDt": "0", "arvlMsg2": "알 수 없는 문구", "recptnDt": "2026-11-22 11:59:55"}
+    assert compute_remaining_sec({**base, "arvlCd": "1"}, now) == 0  # 도착
+    assert compute_remaining_sec({**base, "arvlCd": "0"}, now) == 30  # 진입
+    assert compute_remaining_sec({**base, "arvlCd": "4"}, now) == 150  # 전역 진입
+    assert compute_remaining_sec({**base, "arvlCd": "5"}, now) == 120  # 전역 도착
+    assert compute_remaining_sec({**base, "arvlCd": "3"}, now) == 90  # 전역 출발
+    assert compute_remaining_sec({**base, "arvlCd": "99"}, now) is None  # 운행중만으로는 모른다
+    # 문구를 읽을 수 있으면 문구가 먼저다(안양 실제 응답: arvlCd 99, "[2]번째 전역 (금정)")
+    assert (
+        compute_remaining_sec({**base, "arvlCd": "99", "arvlMsg2": "[2]번째 전역 (금정)"}, now)
+        == 240
+    )

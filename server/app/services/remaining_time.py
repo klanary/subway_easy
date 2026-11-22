@@ -16,6 +16,9 @@ _MIN = re.compile(r"(\d+)분\s*후")
 _TRAIN_LINE_NM = re.compile(r"(.+?)행\s*-\s*(.+?)방면")
 
 _SEC_PER_PREVIOUS_STATION = 120
+# 도착 코드(arvlCd) → 남은 초. 0 진입, 1 도착, 3 전역 출발, 4 전역 진입, 5 전역 도착.
+# 2(출발)는 이미 떠난 열차, 99(운행중)는 어디쯤인지 모른다.
+_ARRIVAL_CODE_SEC = {"0": 30, "1": 0, "3": 90, "4": 150, "5": 120}
 # 이보다 오래전에 만든 정보는 버린다. recptnDt가 18분 늦게 온 적이 있다(위치 결합 스펙 4.2).
 STALE_SEC = 600
 
@@ -68,7 +71,12 @@ def compute_remaining_sec(item: dict, now: datetime) -> int | None:
         elapsed = max(0.0, (now - generated).total_seconds()) if generated is not None else 0
         sec: int | None = round(barvl - elapsed)
     else:
+        # 코레일 원천(1호선·경의중앙선·수인분당선 등)은 barvlDt가 대부분 0이다(서울시 관리자 안내,
+        # 2026-11-22 실제 응답으로도 확인). 문구(arvlMsg2)를 먼저 읽고,
+        # 못 읽으면 도착 코드로 추정한다.
         sec = _parse_message(item.get("arvlMsg2"))
+        if sec is None:
+            sec = _ARRIVAL_CODE_SEC.get(str(item.get("arvlCd") or "").strip())
     if sec is None:
         return None
     return max(sec, 0)

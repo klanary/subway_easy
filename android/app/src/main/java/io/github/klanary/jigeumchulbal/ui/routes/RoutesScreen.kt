@@ -70,7 +70,7 @@ fun RoutesScreen(viewModel: RouteFlowViewModel, navController: NavController) {
     val context = LocalContext.current
     var picking by remember { mutableStateOf(false) }
     if (picking) {
-        val base = java.time.LocalTime.now()
+        val base = java.time.LocalTime.now(java.time.ZoneId.of("Asia/Seoul"))
         TimeWheelDialog(base.hour, base.minute, onConfirm = { h, m ->
             picking = false
             viewModel.setDepartAt(pickedTime(h, m))

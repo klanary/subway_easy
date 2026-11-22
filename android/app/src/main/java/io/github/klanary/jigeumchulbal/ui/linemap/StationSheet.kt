@@ -3,12 +3,9 @@ package io.github.klanary.jigeumchulbal.ui.linemap
 import io.github.klanary.jigeumchulbal.ui.common.lineColor
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import io.github.klanary.jigeumchulbal.ui.common.InlineTimeWheels
 import androidx.compose.runtime.mutableStateOf
-import io.github.klanary.jigeumchulbal.ui.common.TimeWheelDialog
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
-import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,7 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -75,18 +71,7 @@ fun StationSheet(
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.runAutoRefresh() }
     }
-    val context = LocalContext.current
     val station = StationRef(stationId, stationId)
-    // 시각 고르기: 지금 시각에서 시·분을 굴려 맞춘다(수동 검토 2026-11-22)
-    var picking by remember { mutableStateOf(false) }
-    if (picking) {
-        val now = LocalTime.now()
-        TimeWheelDialog(now.hour, now.minute, onConfirm = { h, m ->
-            picking = false
-            viewModel.select(SheetTime.CUSTOM, pickedTime(h, m))
-        }, onDismiss = { picking = false })
-    }
-
     // 반만 열리면 버튼이 시스템 내비게이션 바에 가려진다(2026-11-12 실기기). 처음부터 다 연다.
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         StationSheetContent(
@@ -97,7 +82,7 @@ fun StationSheet(
             onRole = { role -> onRole(role, station) },
             onRetry = viewModel::retry,
             onTime = { viewModel.select(it) },
-            onPickTime = { picking = true },
+            onPickTime = { h, m -> viewModel.select(SheetTime.CUSTOM, pickedTime(h, m)) },
             onDismiss = onDismiss,
         )
     }
@@ -107,7 +92,7 @@ fun StationSheet(
  * 역 시트 안쪽을 그린다(상태만 받는다). 시트 틀·ViewModel·시각 고르기 대화상자는 [StationSheet]가 잇는다.
  * 화면 다듬기 Task 4 합의: 호선 색 배지 아래 방향을 묶고, 첫 열차의 남은 시간을 크게, 막차·급행·근거는 작은 표식.
  */
-@OptIn(ExperimentalLayoutApi::class)
+
 @Composable
 internal fun StationSheetContent(
     stationId: String,
@@ -116,7 +101,8 @@ internal fun StationSheetContent(
     lines: List<String> = (state as? UiState.Content)?.data?.lines.orEmpty(),
     onRole: (TripRole) -> Unit = {},
     onTime: (SheetTime) -> Unit = {},
-    onPickTime: () -> Unit = {},
+    onPickTime: (hour: Int, minute: Int) -> Unit = { _, _ -> },
+    nowTime: () -> LocalTime = { LocalTime.now(java.time.ZoneId.of("Asia/Seoul")) }, // 열차 시각은 늘 서울 시각
     onRetry: () -> Unit = {},
     onDismiss: () -> Unit = {},
 ) {
@@ -144,13 +130,27 @@ internal fun StationSheetContent(
                 Text(Copy.AS_TO)
             }
         }
-        // 큰 글꼴에서도 넘치지 않게 줄을 바꾼다(2차 다듬기 Task 4).
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(time == SheetTime.NOW, { onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
-            FilterChip(time == SheetTime.PLUS_1H, { onTime(SheetTime.PLUS_1H) }, { Text(Copy.SHEET_PLUS_1H) })
-            FilterChip(time == SheetTime.PLUS_2H, { onTime(SheetTime.PLUS_2H) }, { Text(Copy.SHEET_PLUS_2H) })
+        // 시각(수동 검토 2026-11-22): [지금] [시각 선택]. 시각 선택을 누르면 이 자리에서 오전·오후·시·분 휠이 열리고,
+        // [적용]을 눌러야 그 시각으로 다시 불러온다(스크롤하다 휠을 건드려도 바뀌지 않게).
+        var picking by remember { mutableStateOf(false) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(time == SheetTime.NOW, { picking = false; onTime(SheetTime.NOW) }, { Text(Copy.SHEET_NOW) })
             val picked = content?.customLabel?.takeIf { time == SheetTime.CUSTOM }
-            FilterChip(time == SheetTime.CUSTOM, onPickTime, { Text(picked?.let { "$it ${Copy.SHEET_AT}" } ?: Copy.SHEET_PICK_TIME) })
+            FilterChip(time == SheetTime.CUSTOM || picking, { picking = !picking }, { Text(picked?.let { "$it ${Copy.SHEET_AT}" } ?: Copy.SHEET_PICK_TIME) })
+        }
+        if (picking) {
+            val start = remember { content?.customLabel?.takeIf { time == SheetTime.CUSTOM }?.let(LocalTime::parse) ?: nowTime() }
+            var chosen by remember { mutableStateOf(start.hour to start.minute) }
+            Row(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, ButtonShape).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                InlineTimeWheels(start.hour, start.minute, onChange = { h, m -> chosen = h to m }, Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Button(onClick = { picking = false; onPickTime(chosen.first, chosen.second) }, shape = ButtonShape) { Text(Copy.APPLY) }
+                    TextButton(onClick = { picking = false }) { Text(Copy.CANCEL) }
+                }
+            }
         }
         when (state) {
             UiState.Loading -> StateLoading(StateSize.Inline)

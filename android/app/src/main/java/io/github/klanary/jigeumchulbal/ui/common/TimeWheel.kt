@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 
 private val ROW = 48.dp
 
@@ -42,9 +44,9 @@ fun TimeWheelDialog(initialHour: Int, initialMinute: Int, onConfirm: (hour: Int,
         title = { Text(Copy.PICK_TIME_TITLE) },
         text = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Wheel(count = 24, initial = initialHour, onSelected = { hour = it }, tag = "wheel-hour")
+                Wheel(List(24) { "%02d".format(it) }, initialHour, { hour = it }, "wheel-hour")
                 Text(":", style = MaterialTheme.typography.headlineMedium)
-                Wheel(count = 60, initial = initialMinute, onSelected = { minute = it }, tag = "wheel-minute")
+                Wheel(List(60) { "%02d".format(it) }, initialMinute, { minute = it }, "wheel-minute")
             }
         },
         confirmButton = { TextButton(onClick = { onConfirm(hour, minute) }) { Text(Copy.OK) } },
@@ -52,26 +54,57 @@ fun TimeWheelDialog(initialHour: Int, initialMinute: Int, onConfirm: (hour: Int,
     )
 }
 
+/**
+ * 화면 안 시각 휠(수동 검토 2026-11-22): 오전·오후, 시(12시간), 분을 위아래로 굴린다.
+ * 처음에는 [initialHour]:[initialMinute](0~23시)에서 시작하고, 바뀔 때마다 [onChange]로 24시간 값을 넘긴다.
+ * 고른 값을 실제로 쓰는 건 부르는 쪽의 [적용] 버튼이다(굴리기만으로 다시 불러오지 않는다).
+ */
 @Composable
-private fun Wheel(count: Int, initial: Int, onSelected: (Int) -> Unit, tag: String) {
+fun InlineTimeWheels(initialHour: Int, initialMinute: Int, onChange: (hour: Int, minute: Int) -> Unit, modifier: Modifier = Modifier) {
+    var pm by remember { mutableIntStateOf(if (initialHour >= 12) 1 else 0) }
+    var hour12 by remember { mutableIntStateOf(initialHour % 12) }
+    var minute by remember { mutableIntStateOf(initialMinute) }
+    val hour = hour12 + pm * 12
+    LaunchedEffect(hour, minute) { onChange(hour, minute) }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Wheel(listOf("오전", "오후"), pm, { pm = it }, "inline-ampm", INLINE_ROW, 56.dp, MaterialTheme.typography.titleMedium)
+        Wheel(List(12) { if (it == 0) "12" else "$it" }, hour12, { hour12 = it }, "inline-hour", INLINE_ROW, 44.dp, MaterialTheme.typography.titleMedium)
+        Text(":", style = MaterialTheme.typography.titleMedium)
+        Wheel(List(60) { "%02d".format(it) }, initialMinute, { minute = it }, "inline-minute", INLINE_ROW, 44.dp, MaterialTheme.typography.titleMedium)
+    }
+}
+
+private val INLINE_ROW = 36.dp
+
+@Composable
+private fun Wheel(
+    labels: List<String>,
+    initial: Int,
+    onSelected: (Int) -> Unit,
+    tag: String,
+    row: Dp = ROW,
+    width: Dp = 72.dp,
+    bigStyle: TextStyle = MaterialTheme.typography.headlineMedium,
+) {
+    val count = labels.size
     val state = rememberLazyListState(initialFirstVisibleItemIndex = initial)
-    val rowPx = with(LocalDensity.current) { ROW.toPx() }
+    val rowPx = with(LocalDensity.current) { row.toPx() }
     // 위아래 여백이 한 줄씩이라 맨 위에 보이는 줄이 곧 가운데 줄이다.
     val centered by remember {
         derivedStateOf { state.firstVisibleItemIndex + if (state.firstVisibleItemScrollOffset > rowPx / 2) 1 else 0 }
     }
     LaunchedEffect(centered) { onSelected(centered.coerceIn(0, count - 1)) }
     LazyColumn(
-        Modifier.width(72.dp).height(ROW * 3).testTag(tag),
+        Modifier.width(width).height(row * 3).testTag(tag),
         state = state,
         flingBehavior = rememberSnapFlingBehavior(state),
-        contentPadding = PaddingValues(vertical = ROW),
+        contentPadding = PaddingValues(vertical = row),
     ) {
         items(count) { i ->
-            Box(Modifier.fillMaxWidth().height(ROW), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(row), contentAlignment = Alignment.Center) {
                 Text(
-                    "%02d".format(i),
-                    style = if (i == centered) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.bodyLarge,
+                    labels[i],
+                    style = if (i == centered) bigStyle else MaterialTheme.typography.bodyLarge,
                     color = if (i == centered) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

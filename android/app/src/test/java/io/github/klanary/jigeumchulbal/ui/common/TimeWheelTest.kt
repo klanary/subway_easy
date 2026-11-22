@@ -35,4 +35,16 @@ class TimeWheelTest {
         rule.onNodeWithText(Copy.OK).performClick()
         assertEquals(19 to 45, got)
     }
+
+    @Test fun inlineWheelsReportTwentyFourHourTime() {
+        var got: Pair<Int, Int>? = null
+        rule.setContent { AppTheme(darkTheme = false) { InlineTimeWheels(8, 30, onChange = { h, m -> got = h to m }) } }
+        rule.onNodeWithTag("inline-ampm").performScrollToIndex(1)
+        rule.onNodeWithTag("inline-hour").performScrollToIndex(7)
+        rule.onNodeWithTag("inline-minute").performScrollToIndex(45)
+        rule.waitForIdle()
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
+        assertEquals(19 to 45, got)
+    }
 }

@@ -145,6 +145,7 @@ object Copy {
     const val START_NEW = "새로 시작"
     const val CANCEL = "취소"
     const val OK = "확인"
+    const val APPLY = "적용"
     const val ARRIVES = "도착"
     const val PICK_TIME_TITLE = "시각 선택"
     const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'·" +

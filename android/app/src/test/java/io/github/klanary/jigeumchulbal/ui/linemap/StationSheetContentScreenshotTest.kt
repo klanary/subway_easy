@@ -34,7 +34,7 @@ class StationSheetContentScreenshotTest {
     )
 
     private fun snap(name: String, state: UiState<StationSheetUi>, draft: TripDraft = TripDraft(), station: String = "시청", fontScale: Float = 1f) =
-        rule.snapBothThemes("sheet_$name", fontScale) { Surface { StationSheetContent(station, state, draft) } } // 앱에서는 시트(Surface) 안
+        rule.snapBothThemes("sheet_$name", fontScale) { Surface { StationSheetContent(station, state, draft, nowTime = { java.time.LocalTime.of(8, 30) }) } } // 앱에서는 시트(Surface) 안
 
     @Test fun loading() = snap("loading", UiState.Loading)
     @Test fun realtime() = snap("realtime", UiState.Content(now))

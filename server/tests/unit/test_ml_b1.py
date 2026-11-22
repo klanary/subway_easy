@@ -372,3 +372,24 @@ def test_pass_visits_do_not_pull_down_the_line_dwell():
         20,
     )
     assert line_dwell(runs, fallback=30) == {"9호선": 60}
+
+
+def test_departure_seen_before_arrival_is_not_trusted():
+    """위치 API는 이동 중인 열차를 다음 역 '출발'로 먼저 잡기도 한다(관리자: 원천 수정 어려움).
+
+    "시청 출발 → 시청 진입 → 시청 도착" 순서면 출발 시각이 도착보다 앞선다.
+    2026-11-20 실제: 2호선 18,057번 가운데 256번, 3호선 25번, 1호선 10번. 도착 + 정차로 대신한다.
+    """
+    from ml.dataset import Run, Visit
+
+    run = Run(
+        MON, 1, "9호선", 0, "100", 0, "D", "D행",
+        (
+            Visit("A", arr=H8, dep=H8 + 40),
+            Visit("B", arr=H8 + 200, dep=H8 + 100),
+            Visit("D", arr=H8 + 400),
+        ),
+    )  # fmt: skip
+    by_station = {p.statn_id: p for p in departure_points([run], fallback_dwell=30)}
+    assert (by_station["A"].secs, by_station["A"].estimated) == (H8 + 40, False)
+    assert by_station["B"].estimated and by_station["B"].secs > H8 + 200

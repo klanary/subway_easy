@@ -144,7 +144,9 @@ def departure_points(
         for v in run.visits:
             if v.statn_id == run.dest_statn_id or is_pass(run, v, passed):
                 continue
-            if v.dep is not None:
+            # 출발이 도착보다 앞서면 이동 중인 열차를 이 역 출발로 먼저 잡은 것이다
+            # (위치 API 원천 문제, 2026-11-20 2호선 1.4%). 믿지 않고 도착 + 정차로 대신한다.
+            if v.dep is not None and (v.arr is None or v.dep >= v.arr):
                 secs, estimated = v.dep, False
             elif v.arr is not None:
                 secs, estimated = v.arr + dwell.get(run.line, fallback_dwell), True

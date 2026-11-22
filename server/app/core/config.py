@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 60
     mock_upstream: bool = False
     stations_db_path: str = "data/stations.sqlite"
+    # 서울시가 빈 응답을 줄 때 쓰는 공식 시간표 사본(1호선, 2026-11-22)
+    official_snapshot_path: str = "data/official_snapshot.json.gz"
     fixtures_dir: str = "tests/fixtures"
     upstream_timeout_sec: float = 5.0
     upstream_retry_delay_sec: float = 0.5

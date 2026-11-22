@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     stations_db_path: str = "data/stations.sqlite"
     # 서울시가 빈 응답을 줄 때 쓰는 공식 시간표 사본(1호선, 2026-11-22)
     official_snapshot_path: str = "data/official_snapshot.json.gz"
+    # 열차 위치로 도착을 계산하는 노선(설계 2026-11-22). 되돌려 보기에서 이긴 노선만 넣는다.
+    position_now_lines: list[str] = []  # [지금]: barvlDt가 0인 열차를 위치로 계산
+    position_at_lines: list[str] = []  # [시각 선택] 60분 안
     fixtures_dir: str = "tests/fixtures"
     upstream_timeout_sec: float = 5.0
     upstream_retry_delay_sec: float = 0.5

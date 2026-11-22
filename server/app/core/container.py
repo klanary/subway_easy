@@ -8,6 +8,7 @@ from fastapi import Request
 
 from app.cache.quota_guard import QuotaGuard
 from app.cache.ttl_cache import TtlCache
+from app.clients.seoul_position import SeoulPositionClient
 from app.clients.seoul_subway import SeoulSubwayClient
 from app.clients.seoul_timetable import SeoulTimetableClient
 from app.core.clock import now_kst
@@ -17,6 +18,7 @@ from app.core.rate_limit import SlidingWindowRateLimiter
 from app.services.arrival_service import ARRIVALS_TTL_SEC, ArrivalService
 from app.services.measured_store import MeasuredStore
 from app.services.official_snapshot import OfficialSnapshot
+from app.services.position_service import POSITIONS_TTL_SEC, PositionService
 from app.services.route_service import RouteService
 from app.services.station_index import StationIndex
 from app.services.timetable_service import TIMETABLE_TTL_SEC, TimetableService
@@ -35,6 +37,7 @@ class AppServices:
     timetable: TimetableService
     routes: RouteService
     measured: MeasuredStore
+    positions: PositionService
 
 
 def build_quotas(settings: Settings, clock: Callable[[], float]) -> dict[str, QuotaGuard]:
@@ -84,6 +87,18 @@ def build_services(
         clock,
         timetable,
     )
+    # 열차 위치(설계 2026-11-22): 도착 API와 같은 키·한도를 쓴다.
+    positions = PositionService(
+        SeoulPositionClient(http, seoul_guard, settings),
+        stations,
+        TtlCache(
+            POSITIONS_TTL_SEC,
+            clock=clock,
+            metrics=metrics,
+            ttl_multiplier=seoul_guard.ttl_multiplier,
+        ),
+        clock,
+    )
     routes = RouteService(stations, measured, clock)
     return AppServices(
         settings=settings,
@@ -97,6 +112,7 @@ def build_services(
         timetable=timetable,
         routes=routes,
         measured=measured,
+        positions=positions,
     )
 
 

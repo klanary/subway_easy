@@ -117,3 +117,34 @@ def test_prune_removes_old_days(db, store):
     assert store.prune(D2) > 0
     assert store.dates("9호선", 1, upto=D3, n=5) == [D2, D3]
     assert store.coverage("9호선", D1) is None
+
+
+def _snap(raw, at, n, code="INFO-000"):
+    import json
+
+    body = json.dumps({"realtimePositionList": [{"trainNo": str(i)} for i in range(n)]})
+    raw.add_snapshot("9호선", at, code, body)
+
+
+def test_coverage_skips_partial_answers_and_hours_with_a_hole(db, store):
+    """위치 API는 노선 일부·전체가 잠깐 빠진다(2026-11-18 6호선 07:02~07:12 INFO-200·3대).
+
+    빈약한 응답(그 시간대 중앙값의 절반 미만)은 정상으로 세지 않고, 3분 넘게 연달아 빠진 시간대는
+    판단하지 않도록 0으로 둔다. 그날 6호선 07시는 99/120으로 기준(96)을 넘겨 변경 의심이 났다.
+    """
+    raw = Store(db)
+    seven = datetime(D2.year, D2.month, D2.day, 7, 0, tzinfo=KST)
+    eight = seven + timedelta(hours=1)
+    for i in range(120):  # 07시: 07:05~07:10 구멍(11번 연달아 빈 응답) + 빈약한 응답 1번
+        at = seven + timedelta(seconds=30 * i)
+        if 10 <= i < 21:
+            _snap(raw, at, 0, "INFO-200")
+        else:
+            _snap(raw, at, 3 if i == 30 else 20)
+    for i in range(120):  # 08시: 빈약한 응답 2번만(구멍 아님)
+        _snap(raw, eight + timedelta(seconds=30 * i), 4 if i in (5, 50) else 20)
+    raw.close()
+    store.extract_day(db, D2)
+    cov = store.coverage("9호선", D2)
+    assert cov.get(7, 0) == 0  # 0인 시간대는 읽을 때 빠지고, 판정은 빠진 시간대를 건너뛴다
+    assert cov[8] == 118

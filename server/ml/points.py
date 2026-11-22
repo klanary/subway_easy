@@ -8,8 +8,11 @@
 14일 뒤에는 다시 만들 수 없다. 이 파일을 지우면 그보다 오래된 날의 수집 횟수는 "모름"이 된다.
 """
 
+import json
 import sqlite3
-from collections import Counter
+import statistics
+import zlib
+from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -40,6 +43,33 @@ def _service_day_bounds(day: date) -> tuple[datetime, datetime, datetime]:
     midnight = datetime.combine(day, time(0, 0), tzinfo=KST)
     start = midnight + timedelta(hours=SERVICE_DAY_START_HOUR)
     return midnight, start, start + timedelta(days=1)
+
+
+# 위치 API는 노선 일부·전체가 잠깐 빠진다
+# (2026-11-18 6호선 07:02~07:12 INFO-200, 관리자: 원천 연계 누락).
+# 그 시간대 중앙값의 절반 미만인 응답은 정상으로 세지 않고, 연달아 이만큼 빠지면(30초 간격 3분)
+# 그 시간대는 판단하지 않도록 0으로 둔다.
+PARTIAL_RATIO = 0.5
+HOLE_SNAPSHOTS = 6
+
+
+def _train_count(body: bytes) -> int:
+    try:
+        rows = json.loads(zlib.decompress(body)).get("realtimePositionList")
+    except (zlib.error, ValueError, AttributeError):
+        return 0
+    return len(rows) if isinstance(rows, list) else 0
+
+
+def _ok_in_band(snaps: list[tuple[str, int]]) -> int:
+    ok_counts = [n for code, n in snaps if code == CODE_OK]
+    median = statistics.median(ok_counts) if ok_counts else 0
+    good = [code == CODE_OK and n >= median * PARTIAL_RATIO for code, n in snaps]
+    run = longest = 0
+    for g in good:
+        run = 0 if g else run + 1
+        longest = max(longest, run)
+    return 0 if longest >= HOLE_SNAPSHOTS else sum(good)
 
 
 class PointStore:
@@ -129,19 +159,19 @@ class PointStore:
         con = _open_ro(db_path)
         try:
             rows = con.execute(
-                "SELECT received_at, code FROM raw_snapshots"
-                " WHERE line = ? AND received_at >= ? AND received_at < ?",
+                "SELECT received_at, code, body FROM raw_snapshots"
+                " WHERE line = ? AND received_at >= ? AND received_at < ? ORDER BY received_at",
                 (line, start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")),
             ).fetchall()
         finally:
             con.close()
         if not rows:
             return None
-        counts: Counter[int] = Counter()
-        for received_at, code in rows:
+        bands: dict[int, list[tuple[str, int]]] = defaultdict(list)
+        for received_at, code, body in rows:
             band = band_of((datetime.fromisoformat(received_at) - midnight).total_seconds())
-            counts[band] += int(code == CODE_OK)
-        return dict(counts)
+            bands[band].append((code, _train_count(body) if code == CODE_OK else 0))
+        return {band: _ok_in_band(snaps) for band, snaps in bands.items()}
 
     def set_coverage(self, line: str, day: date, counts: dict[int, int]) -> None:
         self._con.execute(

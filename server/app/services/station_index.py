@@ -52,6 +52,13 @@ def _rank(key: str, q: str) -> int | None:
     return 2 if q in key else None
 
 
+# (역 id, 호선) → 그 호선만의 실시간 조회 이름(2026-11-22 실제 응답으로 확인).
+LINE_API_NAMES: dict[tuple[str, str], str] = {
+    ("서울", "GTX-A"): "서울역",
+    ("신촌", "경의중앙선"): "신촌(경의중앙선)",
+}
+
+
 class StationIndex:
     def __init__(
         self,
@@ -213,6 +220,22 @@ class StationIndex:
             if distance <= max_m and (best is None or distance < best[1]):
                 best = (station, distance)
         return (best[0], round(best[1])) if best else None
+
+    def realtime_queries(self, station: Station) -> list[tuple[str, frozenset[str] | None]]:
+        """실시간 조회 이름과 그 응답에서 받을 호선(None이면 모두).
+
+        같은 역도 노선마다 조회 이름이 다르다(2026-11-22 실제 응답): 서울역 GTX-A는 "서울역",
+        신촌 경의중앙선은 "신촌(경의중앙선)"으로만 온다.
+        """
+        special = {
+            line: name
+            for (sid, line), name in LINE_API_NAMES.items()
+            if sid == station.id and line in station.lines
+        }
+        if not special:
+            return [(station.api_name, None)]
+        rest = frozenset(x for x in station.lines if x not in special)
+        return [(station.api_name, rest)] + [(n, frozenset({x})) for x, n in special.items()]
 
     def shares_api_name(self, station: Station) -> bool:
         """같은 조회 이름을 쓰는 역이 또 있는지(양평). 실시간 응답에서 호선으로 걸러야 한다."""

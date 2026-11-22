@@ -1,6 +1,7 @@
 """실시간 도착 API. 서울시 샘플은 공식 샘플 키로 받은 '서울'역의 실제 응답이다(4개 호선, 5행)."""
 
 from datetime import datetime
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -97,18 +98,22 @@ async def test_unknown_station_404_without_call(client, respx_mock):
 
 async def test_cached_for_20_seconds(client, seoul, clock):
     route = seoul(SAMPLE)
+
+    def base_calls():  # 서울역은 GTX-A를 "서울역"으로 따로 묻는다. "서울" 조회만 센다.
+        return sum(str(c.request.url).endswith("/" + quote("서울")) for c in route.calls)
+
     await client.get(ARRIVALS.format("서울"))
     clock.advance(19)
     await client.get(ARRIVALS.format("서울"))
-    assert route.call_count == 1
+    assert base_calls() == 1
     clock.advance(2)
     await client.get(ARRIVALS.format("서울"))
-    assert route.call_count == 2
+    assert base_calls() == 2
 
 
 async def test_stale_after_failure(client, respx_mock, clock):
     respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(
-        side_effect=[fixture_response(SAMPLE), httpx.Response(500), httpx.Response(500)]
+        side_effect=[fixture_response(SAMPLE)] + [httpx.Response(500)] * 8
     )
     first = (await client.get(ARRIVALS.format("서울"))).json()
     clock.advance(21)
@@ -148,6 +153,7 @@ async def test_separate_station_keeps_only_own_lines(sample_client, respx_mock):
     def as_yangpyeong(body):  # 같은 이름의 두 역(5호선·경의중앙선) 열차가 섞인 응답을 만든다
         for i, item in enumerate(body["realtimeArrivalList"]):
             item["subwayId"] = "1005" if i % 2 == 0 else "1063"
+            item["statnNm"] = "양평"  # 실제 응답은 조회한 이름을 역 이름으로 준다
             item["arvlMsg2"] = "전역 도착"
 
     respx_mock.get(url__startswith=SEOUL_REALTIME_BASE).mock(

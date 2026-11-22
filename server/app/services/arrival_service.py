@@ -27,6 +27,13 @@ logger = logging.getLogger("app.arrivals")
 
 ARRIVALS_TTL_SEC = 20
 TRAINS_PER_GROUP = 2
+# (역, 호선) → 그 역을 지나지 않는 행선지. 서울시 관리자 안내: 경의중앙선 서울역·신촌 지선에
+# 덕소·팔당·용문·지평·청량리·용산행 본선 열차가 섞여 온다(2026-11-22 실제 응답으로도 확인).
+_GYEONGUI_MAINLINE = frozenset({"덕소", "팔당", "용문", "지평", "청량리", "용산"})
+BRANCH_SKIP: dict[tuple[str, str], frozenset[str]] = {
+    ("서울", "경의중앙선"): _GYEONGUI_MAINLINE,
+    ("신촌", "경의중앙선"): _GYEONGUI_MAINLINE,
+}
 FILL_BUDGET_SEC = 3.0  # 시간표 대체 전체에 쓰는 시간 상한
 
 
@@ -76,11 +83,24 @@ class ArrivalService:
         if station is None:
             raise NotFound()
         # 같은 조회 이름을 쓰는 역(양평)은 한 번만 부르도록 조회 이름을 캐시 키로 쓴다.
+        queries = self._index.realtime_queries(station)
+        base_name = queries[0][0]
         cached = await self._cache.get_or_fetch(
-            station.api_name, lambda: self._client.fetch_arrivals(station.api_name)
+            base_name, lambda: self._client.fetch_arrivals(base_name)
         )
+        answers = [(base_name, queries[0][1], cached.value)]
+        for name, lines in queries[1:]:
+            # 노선 전용 이름(서울역 GTX-A 등)은 실패해도 나머지 노선은 보인다.
+            try:
+                extra = await self._cache.get_or_fetch(
+                    name, lambda n=name: self._client.fetch_arrivals(n)
+                )
+            except UpstreamFailure as e:
+                logger.warning("노선 전용 조회 실패 %s: %s", name, e)
+                continue
+            answers.append((name, lines, extra.value))
         wanted = normalize_line(line) if line else None
-        groups = self._group(cached.value, station)
+        groups = self._group(answers, station)
         if wanted:
             groups = [g for g in groups if g.line == wanted]
         # 호선을 거른 뒤에 채운다: 묻지 않은 호선의 시간표는 부르지 않는다.
@@ -96,27 +116,42 @@ class ArrivalService:
         )
         return response, cached.status
 
-    def _group(self, items: list[dict], station: Station) -> list[ArrivalGroup]:
+    def _group(
+        self, answers: list[tuple[str, frozenset[str] | None, list[dict]]], station: Station
+    ) -> list[ArrivalGroup]:
         now = kst_from_epoch(self._clock())
         own_lines = set(station.lines) if self._index.shares_api_name(station) else None
         grouped: dict[tuple[str, str, str | None], list[Train]] = {}
-        for item in items:
-            line = SUBWAY_ID_TO_LINE.get(str(item.get("subwayId")))
-            if line is None:
-                logger.warning("모르는 subwayId라 뺐어요: %s", item.get("subwayId"))
-                continue
-            if own_lines is not None and line not in own_lines:
-                continue
-            destination, towards = parse_train_line_nm(item.get("trainLineNm"))
-            trains = grouped.setdefault((line, str(item.get("updnLine") or ""), towards), [])
-            message = str(item.get("arvlMsg2") or "")
-            if is_departed(message):
-                continue  # 이미 이 역을 떠난 열차(스펙 6.7 규칙 5)
-            if is_stale(item, now):
-                continue  # 너무 오래전에 만든 정보: 이미 지나간 열차일 수 있다
-            trains.append(
-                Train(
-                    destination=readable(destination) or readable(item.get("bstatnNm")),
+        # 같은 열차가 두 행(도착·출발 등)으로 오면 가장 최근에 만든 행 하나만 둔다.
+        latest: dict[tuple[str, str, str], tuple[str, list[Train], int]] = {}
+        for name, lines, items in answers:
+            for item in items:
+                line = SUBWAY_ID_TO_LINE.get(str(item.get("subwayId")))
+                if line is None:
+                    logger.warning("모르는 subwayId라 뺐어요: %s", item.get("subwayId"))
+                    continue
+                if own_lines is not None and line not in own_lines:
+                    continue
+                if lines is not None and line not in lines:
+                    continue  # 노선 전용 이름으로 받을 호선은 그 이름의 응답에서만 받는다
+                statn = item.get("statnNm")
+                if statn and statn != name:
+                    continue  # 조회한 역이 아닌 역의 행(인천 예술회관에서 김포공항·신창 열차)
+                destination, towards = parse_train_line_nm(item.get("trainLineNm"))
+                dest = readable(destination) or readable(item.get("bstatnNm"))
+                if dest and self._index.same_station(dest, station.id):
+                    continue  # 이 역에서 끝나는 열차는 탈 수 없다(서울역 공항철도 "서울행")
+                if dest in BRANCH_SKIP.get((station.id, line), frozenset()):
+                    continue  # 이 역을 지나지 않는 본선 열차(관리자 안내)
+                key = (line, str(item.get("updnLine") or ""), towards)
+                trains = grouped.setdefault(key, [])
+                message = str(item.get("arvlMsg2") or "")
+                if is_departed(message):
+                    continue  # 이미 이 역을 떠난 열차(스펙 6.7 규칙 5)
+                if is_stale(item, now):
+                    continue  # 너무 오래전에 만든 정보: 이미 지나간 열차일 수 있다
+                train = Train(
+                    destination=dest,
                     remaining_sec=compute_remaining_sec(item, now),
                     message=message,
                     is_last=is_last(item),
@@ -124,7 +159,17 @@ class ArrivalService:
                     train_no=str(item.get("btrainNo") or "") or None,
                     current_station=readable(item.get("arvlMsg3")),
                 )
-            )
+                made = str(item.get("recptnDt") or "")
+                if train.train_no:
+                    seen_key = (key[0], key[1], train.train_no)
+                    seen = latest.get(seen_key)
+                    if seen is not None:
+                        if seen[0] < made:  # 더 최근 행으로 바꾼다
+                            seen[1][seen[2]] = train
+                            latest[seen_key] = (made, seen[1], seen[2])
+                        continue
+                    latest[seen_key] = (made, trains, len(trains))
+                trains.append(train)
         result = []
         for (line, direction, towards), trains in grouped.items():
             trains.sort(key=lambda t: (t.remaining_sec is None, t.remaining_sec or 0))

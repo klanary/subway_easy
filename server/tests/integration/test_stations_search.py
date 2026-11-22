@@ -24,3 +24,9 @@ async def test_search_default_limit_is_20(client):
 async def test_search_uses_the_configured_db(sample_client):
     r = await sample_client.get("/v1/stations/search", params={"q": "서울"})
     assert [i["id"] for i in r.json()["items"]] == ["서울", "서울대입구", "서울숲", "강변"]
+
+
+async def test_old_name_dangogae_finds_buramsan(client):
+    """당고개 → 불암산 역명 변경(관리자 안내). 옛 이름으로도 찾는다."""
+    r = await client.get("/v1/stations/search", params={"q": "당고개"})
+    assert [s["id"] for s in r.json()["items"]][:1] == ["불암산"]

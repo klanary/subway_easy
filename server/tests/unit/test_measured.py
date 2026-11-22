@@ -147,3 +147,28 @@ def test_after_last_train_next_day_first_trains_still_come():
     data = _gtx_like({})
     got = data.departures("서울", "GTX-A", "상행", at("2026-11-18T13:00"), 2)
     assert [t.departs_at.isoformat()[:16] for t in got] == ["2026-11-19T05:00", "2026-11-19T05:30"]
+
+
+def test_hops_work_for_lines_without_cells():
+    """칸이 없는 호선(1~9호선)도 역 연결이 있으면 구간 시간을 찾는다."""
+    data = MeasuredData.from_artifacts(
+        {
+            "kind": "b1-server",
+            "version": 1,
+            "as_of": "2026-11-21",
+            "built_at": "",
+            "modes": {},
+            "dests": [],
+            "cells": {},
+            "stations": {
+                "2호선|A": {"station_id": "시청", "name": "시청"},
+                "2호선|B": {"station_id": "을지로입구", "name": "을지로입구"},
+            },
+            "scopes": {},
+        },
+        {"kind": "b2-server", "version": 1, "hops": {"2호선|0|A|B|0": 95}},
+    )
+    got = data.hop_seconds(
+        "2호선", "내선", "시청", "을지로입구", express=False, at=at("2026-11-18T08:00")
+    )
+    assert got == 95.0

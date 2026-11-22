@@ -7,12 +7,12 @@
 - 시간표: t+h 이후 첫 시간표 출발(1~9호선 공식, 그 밖은 실측 B1).
 - 실제: 그 역·방향의 도착(1) 가운데 t+h 이후 첫 것(이 역이 종착인 열차는 뺀다).
 
-구간 시간(B2)은 앞 날짜로 배우고 뒤 날짜로 평가한다. 수집 DB는 읽기만 한다.
+구간 시간(B2)과 실측 시간표(1~9호선 밖)는 앞 날짜로 배우고 뒤 날짜로 평가한다.
+1~9호선 시간표는 공식 시간표 캐시다. 수집 DB는 읽기만 한다. 05시~다음 날 01시를 본다.
 
 사용법 (VM server/에서):
     python -m ml.position_eval --db ml_data/collector.sqlite --trips <운행표 결과물> \\
-        --b1 ml_data/artifacts/measured_timetable.json --timetable-cache ml_data/timetable_cache \\
-        --out ml_data/position_eval.md
+        --timetable-cache ml_data/timetable_cache --out ml_data/position_eval.md
 """
 
 import argparse
@@ -33,10 +33,11 @@ from app.services.station_index import StationIndex
 from app.services.timetable import OFFICIAL_LINES, week_tag
 from app.services.trips import TripsData
 from ml.b0 import B0, TimetableCache, station_codes
+from ml.b1 import build_b1
 from ml.b2 import build_b2
 from ml.dataset import Run, build_runs, load_events, station_ids
 from ml.evaluate import NotEnoughDates, metrics, split_by_date
-from ml.publish import server_b1, server_b2
+from ml.publish import server_b2
 
 HORIZONS = (0, 5, 15, 30, 60)  # 분
 TEXT_SEC_PER_STOP = 120  # 지금 서버의 문구 어림(remaining_time._SEC_PER_PREVIOUS_STATION)
@@ -120,7 +121,7 @@ def evaluate(
     trips: TripsData,
     statn_to_station: dict[tuple[str, str], str],
     timetable_first: TimetableFirst,
-    hours: tuple[int, int] = (7, 22),
+    hours: tuple[int, int] = (5, 25),  # 자정 넘은 막차까지(운행일 0시부터 시)
     horizons: tuple[int, ...] = HORIZONS,
     stations_per_line: int = STATIONS_PER_LINE,
     step_sec: int = STEP_SEC,
@@ -236,6 +237,29 @@ def render(scores: Scores, *, note: str) -> str:
     return "\n".join(lines)
 
 
+def timetable_from_runs(
+    train: list[Run], statn_to_station: dict[tuple[str, str], str]
+) -> TimetableFirst:
+    """학습 날짜로만 만든 실측 시간표의 "그 뒤 첫 출발"(시험 날짜가 섞이지 않게, 최종 리뷰).
+
+    결과물(measured_timetable.json)은 시험 날짜까지 배운 것이라 시간표 쪽이 유리해진다.
+    """
+    cells = build_b1(train, min_days=1)["cells"]
+    statn_of = {(line, sid): statn for (line, statn), sid in statn_to_station.items() if sid}
+    table: dict[str, list[int]] = {
+        key: sorted(int(e["secs"]) for e in entries) for key, entries in cells.items()
+    }
+
+    def first(line: str, direction: str, station_id: str, day: date, after: int) -> int | None:
+        statn = statn_of.get((line, station_id))
+        if statn is None:
+            return None
+        code = 0 if direction in ("상행", "내선") else 1
+        return _first_at_or_after(table.get(f"{week_tag(day)}|{line}|{code}|{statn}", []), after)
+
+    return first
+
+
 def _load_json(path: str | Path) -> dict:
     raw = Path(path).read_bytes()
     if raw[:2] == b"\x1f\x8b":
@@ -243,36 +267,22 @@ def _load_json(path: str | Path) -> dict:
     return json.loads(raw.decode("utf-8"))
 
 
-def _timetable_first(
-    db: str, stations_db: str, cache_dir: str, b1_path: str | None
-) -> TimetableFirst:
+def _official_first(db: str, stations_db: str, cache_dir: str) -> TimetableFirst:
+    """1~9호선 공식 시간표(VM 캐시)의 "그 뒤 첫 출발"."""
     codes = station_codes(db, StationIndex.load(stations_db))
     b0 = B0(TimetableCache(Path(cache_dir)), codes) if Path(cache_dir).is_dir() else None
     statn_of: dict[str, dict[str, str]] = defaultdict(dict)
     for (line, statn), sid in station_ids(db).items():
         if sid:
             statn_of[line][sid] = statn
-    measured = (
-        MeasuredData.from_artifacts(server_b1(_load_json(b1_path)), None)
-        if b1_path and Path(b1_path).is_file()
-        else None
-    )
 
     def first(line: str, direction: str, station_id: str, day: date, after: int) -> int | None:
-        start = datetime.combine(day, time(0), tzinfo=KST)
-        if line in OFFICIAL_LINES:
-            statn = statn_of[line].get(station_id)
-            if b0 is None or statn is None:
-                return None
-            code = 0 if direction in ("상행", "내선") else 1
-            deps = [dep for _, dep in b0.departures(week_tag(day), line, code, statn)]
-            return _first_at_or_after(deps, after)
-        if measured is None:
+        statn = statn_of[line].get(station_id)
+        if b0 is None or statn is None:
             return None
-        found = measured.departures(
-            station_id, line, direction, start + timedelta(seconds=after), 1
-        )
-        return int((found[0].departs_at - start).total_seconds()) if found else None
+        code = 0 if direction in ("상행", "내선") else 1
+        deps = [dep for _, dep in b0.departures(week_tag(day), line, code, statn)]
+        return _first_at_or_after(deps, after)
 
     return first
 
@@ -281,17 +291,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="위치 계산 되돌려 보기")
     parser.add_argument("--db", default="ml_data/collector.sqlite")
     parser.add_argument("--trips", required=True, help="운행표 결과물(trips-server, json 또는 gz)")
-    parser.add_argument("--b1", default="ml_data/artifacts/measured_timetable.json")
     parser.add_argument("--timetable-cache", default="ml_data/timetable_cache")
     parser.add_argument("--stations-db", default="data/stations.sqlite")
     parser.add_argument("--test-days", type=int, default=None)
     parser.add_argument("--out", default="ml_data/position_eval.md")
     args = parser.parse_args(argv)
     trips = TripsData.from_artifact(_load_json(args.trips))
-    first = _timetable_first(args.db, args.stations_db, args.timetable_cache, args.b1)
+    official = _official_first(args.db, args.stations_db, args.timetable_cache)
     all_ids = station_ids(args.db)
     scores: Scores = {}
-    span = ""
+    train_dates: set[date] = set()
+    test_dates: set[date] = set()
     for line in sorted({line for line, _ in all_ids}):
         runs = build_runs(load_events(args.db, line=line))
         try:
@@ -300,15 +310,20 @@ def main(argv: list[str] | None = None) -> int:
             continue
         statn = {key: sid for key, sid in all_ids.items() if key[0] == line and sid}
         measured = measured_from_runs(train, statn)
+        first = official if line in OFFICIAL_LINES else timetable_from_runs(train, statn)
         scores.update(
             evaluate(
                 test, measured=measured, trips=trips, statn_to_station=statn, timetable_first=first
             )  # fmt: skip
         )
-        span = (
-            f"학습 ~{max(r.service_date for r in train)}, 시험 {min(r.service_date for r in test)}~"
-        )
+        train_dates |= {r.service_date for r in train}
+        test_dates |= {r.service_date for r in test}
         print(f"{line}: 시험 운행 {len(test)}", file=sys.stderr)
+    span = (
+        f"학습 {min(train_dates)}~{max(train_dates)}, 시험 {min(test_dates)}~{max(test_dates)}"
+        if train_dates and test_dates
+        else "평가할 날짜 없음"
+    )
     Path(args.out).write_text(render(scores, note=span), encoding="utf-8")
     now_lines, at_lines = suggest(scores)
     print(f"[지금] {now_lines}\n[시각 선택] {at_lines}\n→ {args.out}")

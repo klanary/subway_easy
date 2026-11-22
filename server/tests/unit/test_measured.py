@@ -94,3 +94,47 @@ def test_hop_seconds_prefers_hour_then_day_then_all(data):
 
 def test_as_of_is_read(data):
     assert data.as_of == date(2026, 11, 17)
+
+
+def test_no_cells_for_todays_day_type_means_unknown(data):
+    """공덕 경의중앙선은 평일 칸만 있다. 일요일 낮에 다음 날(월) 첫차를 다음 열차로 주지 않는다.
+
+    2026-11-22(일) 실제: 주말 실측이 아직 없어 서울역 경의중앙선 다음 열차가
+    "05:00 출발"(17시간 뒤)로 보였다.
+    """
+    assert data.departures("공덕", "경의중앙선", "하행", at("2026-11-22T12:00"), 2) == []
+
+
+def _gtx_like(scopes: dict) -> MeasuredData:
+    """평일 GTX-A 서울역 상행: 05시 두 대만 남고 06시부터는 변경 의심으로 빠진 칸.
+
+    2026-11-22 실제 결과물의 모양이다.
+    """
+    return MeasuredData.from_artifacts(
+        {
+            "kind": "b1-server",
+            "version": 1,
+            "as_of": "2026-11-21",
+            "built_at": "2026-11-22T03:30:04+09:00",
+            "modes": {"GTX-A": "train_no"},
+            "dests": ["운정중앙"],
+            "cells": {
+                "1|GTX-A|0|G1": [[18000, "G1", 0, 0], [19800, "G2", 0, 0], [43200, "G3", 0, 0]]
+            },
+            "stations": {"GTX-A|G1": {"station_id": "서울", "name": "서울역"}},
+            "scopes": scopes,
+        },
+        None,
+    )
+
+
+def test_excluded_hours_ahead_mean_unknown_not_next_day():
+    data = _gtx_like({f"1|GTX-A|0|{h}": "suspect" for h in range(6, 25)})
+    assert data.departures("서울", "GTX-A", "상행", at("2026-11-18T11:00"), 2) == []
+
+
+def test_after_last_train_next_day_first_trains_still_come():
+    """빠진 시간대가 없으면 막차 뒤에는 다음 날 첫차를 준다(밤늦게)."""
+    data = _gtx_like({})
+    got = data.departures("서울", "GTX-A", "상행", at("2026-11-18T13:00"), 2)
+    assert [t.departs_at.isoformat()[:16] for t in got] == ["2026-11-19T05:00", "2026-11-19T05:30"]

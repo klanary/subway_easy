@@ -11,9 +11,13 @@ from app.clients.seoul_subway import SeoulSubwayClient
 from app.core.clock import kst_from_epoch
 from app.core.errors import NotFound, UpstreamFailure
 from app.models.schemas import ArrivalGroup, ArrivalsResponse, TimetableTrain, Train
+from app.services.measured_store import MeasuredStore
 from app.services.normalize import SUBWAY_ID_TO_LINE, normalize_line
+from app.services.position_eta import estimate_arrival
+from app.services.position_service import PositionService
 from app.services.remaining_time import (
     compute_remaining_sec,
+    has_exact_seconds,
     is_departed,
     is_express,
     is_last,
@@ -49,8 +53,9 @@ def readable(name: str | None) -> str | None:
     return None
 
 
-def timetable_train(t: TimetableTrain, now: datetime) -> Train:
+def timetable_train(t: TimetableTrain, now: datetime, basis: str = "timetable") -> Train:
     return Train(
+        basis=basis,
         destination=t.destination,
         remaining_sec=max(0, int((t.departs_at - now).total_seconds())),
         message=f"{t.departs_at:%H:%M} 출발",
@@ -58,6 +63,11 @@ def timetable_train(t: TimetableTrain, now: datetime) -> Train:
         is_express=t.is_express,
         train_no=t.train_no,
     )
+
+
+def _bare_no(train_no: str | None) -> str:
+    """도착 API와 위치 API의 열차 번호를 앞 0을 떼고 견준다("0145" = "145")."""
+    return (train_no or "").lstrip("0")
 
 
 class ArrivalService:
@@ -68,8 +78,15 @@ class ArrivalService:
         cache: TtlCache[list[dict]],
         clock: Callable[[], float],
         timetable: TimetableService | None = None,
+        positions: PositionService | None = None,
+        measured: MeasuredStore | None = None,
+        now_lines: frozenset[str] = frozenset(),
     ):
         self._timetable = timetable
+        # 열차 위치 계산(설계 2026-11-22): now_lines 노선의 barvlDt 0 열차만 위치로 바꾼다.
+        self._positions = positions
+        self._measured = measured
+        self._now_lines = now_lines
         self._client = client
         self._index = index
         self._cache = cache
@@ -101,6 +118,7 @@ class ArrivalService:
             answers.append((name, lines, extra.value))
         wanted = normalize_line(line) if line else None
         groups = self._group(answers, station)
+        groups = await self._apply_positions(groups, station)
         if wanted:
             groups = [g for g in groups if g.line == wanted]
         # 호선을 거른 뒤에 채운다: 묻지 않은 호선의 시간표는 부르지 않는다.
@@ -158,6 +176,7 @@ class ArrivalService:
                     is_express=is_express(item),
                     train_no=str(item.get("btrainNo") or "") or None,
                     current_station=readable(item.get("arvlMsg3")),
+                    exact=has_exact_seconds(item),
                 )
                 made = str(item.get("recptnDt") or "")
                 if train.train_no:
@@ -183,6 +202,48 @@ class ArrivalService:
                     )
                 )
         return result
+
+    async def _apply_positions(
+        self, groups: list[ArrivalGroup], station: Station
+    ) -> list[ArrivalGroup]:
+        """켠 노선에서 초 단위 값이 없는 열차의 남은 시간을 열차 위치로 계산한다.
+
+        위치를 못 받거나 계산하지 못하면 그 열차는 그대로(문구 어림, realtime)다.
+        """
+        if self._positions is None or self._measured is None:
+            return groups
+        lines = {
+            g.line
+            for g in groups
+            if g.line in self._now_lines and any(not t.exact and t.train_no for t in g.trains)
+        }
+        data, trips = self._measured.current(), self._measured.current_trips()
+        if not lines or data is None or trips is None:
+            return groups
+        now = kst_from_epoch(self._clock())
+        out = []
+        for group in groups:
+            if group.line not in lines:
+                out.append(group)
+                continue
+            by_no = {_bare_no(p.train_no): p for p in await self._positions.positions(group.line)}
+            trains = []
+            for train in group.trains:
+                pos = None if train.exact else by_no.get(_bare_no(train.train_no))
+                eta = (
+                    estimate_arrival(pos, station.id, trips=trips, measured=data, now=now)
+                    if pos is not None
+                    else None
+                )
+                if eta is not None:
+                    remaining = int((eta - now).total_seconds())
+                    train = train.model_copy(
+                        update={"remaining_sec": remaining, "basis": "position"}
+                    )
+                trains.append(train)
+            trains.sort(key=lambda t: (t.remaining_sec is None, t.remaining_sec or 0))
+            out.append(group.model_copy(update={"trains": trains}))
+        return out
 
     def _with_neighbors(self, group: ArrivalGroup, station: Station) -> ArrivalGroup:
         """열차가 오는 쪽 역(반대 방향의 다음 역)과 가는 쪽 역을 붙인다. 모르면 비워 둔다."""
@@ -267,7 +328,12 @@ class ArrivalService:
                         line=x,
                         direction=d,
                         towards=None,
-                        trains=[timetable_train(t, now) for t in found],
+                        trains=[
+                            timetable_train(
+                                t, now, "measured" if found[0].source == "measured" else "timetable"
+                            )
+                            for t in found
+                        ],
                         source="measured" if found[0].source == "measured" else "timetable",
                     )
                 )

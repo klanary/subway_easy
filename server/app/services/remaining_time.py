@@ -58,6 +58,12 @@ def _parse_recptn(value: object) -> datetime | None:
         return None
 
 
+def has_exact_seconds(item: dict) -> bool:
+    """도착 API가 초 단위 남은 시간(barvlDt > 0)을 주었는가. 코레일 원천은 대부분 0이다."""
+    barvl = _to_int(item.get("barvlDt"))
+    return barvl is not None and barvl > 0
+
+
 def compute_remaining_sec(item: dict, now: datetime) -> int | None:
     """서버 응답 시점(now) 기준 남은 초.
 

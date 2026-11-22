@@ -174,6 +174,10 @@ def evaluate(
                         "text": _first_at_or_after(text_etas, ask) if h == 0 else None,
                         "timetable": timetable_first(line, name, target, day, ask),
                     }
+                    # 서버가 보이는 것: 위치 계산, 없으면 시간표. 시간표와 같은 질문에서만 센다
+                    # (최종 리뷰 Important 3: 위치가 답한 쉬운 질문만 세면 견줄 수 없다).
+                    if h > 0 and predicted["timetable"] is not None:
+                        predicted["combined"] = predicted["position"] or predicted["timetable"]
                     for method, value in predicted.items():
                         if value is not None:
                             errors[line][(method, h)].append(value - actual)
@@ -187,7 +191,8 @@ def suggest(scores: Scores, *, min_n: int = MIN_N) -> tuple[list[str], list[str]
     """설계 §9의 켜기 기준.
 
     [지금]: 위치 MAE < 문구 MAE이고 ±60초 비율이 같거나 높다.
-    [시각 선택]: 건수가 충분한 모든 지평(5·15·30·60분)에서 위치 MAE < 시간표 MAE.
+    [시각 선택]: 건수가 충분한 모든 지평(5·15·30·60분)에서 서버가 보일 것(위치, 없으면 시간표)의
+    MAE < 시간표 MAE(같은 질문).
     """
     now_lines, at_lines = [], []
     for line in sorted(scores):
@@ -199,7 +204,7 @@ def suggest(scores: Scores, *, min_n: int = MIN_N) -> tuple[list[str], list[str]
         compared = 0
         wins = True
         for h in HORIZONS[1:]:
-            p, tt = cells.get(("position", h)), cells.get(("timetable", h))
+            p, tt = cells.get(("combined", h)), cells.get(("timetable", h))
             if p and tt and min(p["n"], tt["n"]) >= min_n:
                 compared += 1
                 wins = wins and p["mae"] < tt["mae"]
@@ -213,7 +218,7 @@ def render(scores: Scores, *, note: str) -> str:
     header = "| 호선 | 방법 | " + " | ".join(f"{h}분" for h in HORIZONS) + " |"
     lines += [header, "|---|---|" + "---|" * len(HORIZONS)]
     for line in sorted(scores):
-        for method in ("text", "position", "timetable"):
+        for method in ("text", "position", "combined", "timetable"):
             cells = []
             for h in HORIZONS:
                 m = scores[line].get((method, h))

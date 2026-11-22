@@ -110,3 +110,26 @@ async def test_at_in_past_means_now(at_client, respx_mock):
     now = (await at_client.get(URL)).json()
     past = (await at_client.get(URL, params={"at": "2026-11-03T07:55:00+09:00"})).json()
     assert up_trains(past) == up_trains(now)
+
+
+async def test_at_mode_survives_realtime_outage(at_client, respx_mock):
+    """실시간 도착 API가 죽어도 [시각 선택]은 시간표로 답한다(최종 리뷰 Important 1)."""
+    respx_mock.get(url__regex=r".*/realtimeStationArrival/.*").mock(
+        return_value=httpx.Response(500)
+    )
+    answer_positions(respx_mock, [])
+    timetable(respx_mock, ["08:10:00", "08:15:00"])
+    r = await at_client.get(URL, params={"at": "2026-11-03T08:05:00+09:00"})
+    assert r.status_code == 200
+    assert [t["message"] for t in up_trains(r.json())][:2] == ["08:10 출발", "08:15 출발"]
+
+
+async def test_timetable_train_between_live_trains_is_kept(at_client, respx_mock):
+    """위치 열차와 90초 넘게 떨어진 시간표 열차는 그 사이에 있어도 남긴다(최종 리뷰 Important 2)."""
+    answer_arrivals(respx_mock, [arrival()])
+    answer_positions(respx_mock, [position_row("0145"), position_row("0147", "남영")])
+    timetable(respx_mock, ["08:03:40", "08:06:50", "08:12:00"])
+    trains = up_trains(
+        (await at_client.get(URL, params={"at": "2026-11-03T08:01:00+09:00"})).json()
+    )
+    assert [t["basis"] for t in trains] == ["position", "timetable", "position", "timetable"]

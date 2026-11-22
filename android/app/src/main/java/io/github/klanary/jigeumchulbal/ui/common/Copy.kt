@@ -55,8 +55,14 @@ object Copy {
     // 구간별 열차 고르기(열차 고르기 설계 2026-11-18)
     const val PREV_TRAIN = "◀ 이전"
     const val NEXT_TRAIN = "다음 ▶"
-    const val PINNED = "📌 고정됨"
-    const val UNPIN = "고정 풀기"
+    // 즐겨찾는 역·최근 경로(수동 검토 2026-11-22). FAVORITE_STATIONS는 아래에 있다.
+    const val ADD_FAVORITE_STATION = "즐겨찾기에 추가"
+    const val REMOVE_FAVORITE_STATION = "즐겨찾기에서 빼기"
+    const val RECENT_ROUTES = "최근 경로"
+    const val FIND_STATION = "역 찾기"
+    const val NO_RECENT_ROUTES = "아직 찾아본 경로가 없어요. 출발·도착을 고르면 여기에 남아요."
+    const val PINNED = "📌 직접 고른 열차"
+    const val UNPIN = "가장 빠른 열차로"
     const val DEPARTED = "이미 떠남"
     const val LOAD_LATER = "더 늦은 열차 불러오기"
     const val NO_LATER_TRAIN = "이 시각 뒤 열차 정보가 없어요"

@@ -63,4 +63,40 @@ class RouteCardUiTest {
         assertEquals("을지로3가 환승 08:18 · 그다음 08:21", withTransfer.toCardUi(0, 0).transferText)
         assertNull(route.toCardUi(0, 0).transferText)
     }
+
+    // 경로 카드에 호선·환승 시간을 나눠 적고 합친다(수동 검토 2026-11-22)
+    private fun s(mode: StepMode, sec: Int, line: String? = null) = StepDto(mode = mode, durationSec = sec, distanceM = 0, lineName = line)
+
+    @Test fun breakdownSumsLinesAndTransfers() {
+        val r = route.copy(
+            totalSec = 1920,
+            legs = listOf(LegDto(steps = listOf(
+                s(StepMode.WALK, 120), s(StepMode.SUBWAY, 600, "2호선"), s(StepMode.WALK, 240),
+                s(StepMode.SUBWAY, 900, "5호선"), s(StepMode.WALK, 60),
+            ))),
+        )
+        val ui = r.toCardUi(0, 0)
+        assertEquals("도보 2분 + 2호선 10분 + 환승 4분 + 5호선 15분 + 도보 1분", ui.breakdownText)
+        assertEquals("32분", ui.totalText)
+    }
+
+    @Test fun waitingShownWhenTotalIsLonger() {
+        val r = route.copy(totalSec = 1500, legs = listOf(LegDto(steps = listOf(s(StepMode.SUBWAY, 900, "2호선")))))
+        assertEquals("2호선 15분 + 대기 10분", r.toCardUi(0, 0).breakdownText)
+        assertEquals("25분", r.toCardUi(0, 0).totalText)
+    }
+
+    /** 지하철끼리 걷기 단계 없이 이어지면, 앞 열차 도착 ~ 다음 열차 출발을 환승 시간으로 적는다. */
+    @Test fun transferGapFromTrainTimes() {
+        fun t(hhmm: String) = "2026-11-22T$hhmm:00+09:00"
+        val r = route.copy(
+            totalSec = 4380,
+            legs = listOf(LegDto(steps = listOf(
+                StepDto(mode = StepMode.SUBWAY, durationSec = 3060, distanceM = 0, lineName = "5호선", departsAt = t("17:16"), arrivesAt = t("18:07")),
+                StepDto(mode = StepMode.SUBWAY, durationSec = 1140, distanceM = 0, lineName = "1호선", departsAt = t("18:11"), arrivesAt = t("18:30")),
+            ))),
+        )
+        assertEquals("5호선 51분 + 환승 4분 + 1호선 19분", r.toCardUi(0, 0).breakdownText)
+        assertEquals("1시간 14분", r.toCardUi(0, 0).totalText)
+    }
 }

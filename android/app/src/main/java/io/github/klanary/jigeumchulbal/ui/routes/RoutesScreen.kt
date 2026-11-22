@@ -151,6 +151,10 @@ private fun RouteCard(ui: RouteCardUi, onClick: () -> Unit) {
                 Text(ui.totalText, style = MaterialTheme.typography.headlineMedium)
                 Text(ui.transfersText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            // 호선·환승 시간을 나눠 적는다(합이 위의 총 시간, 수동 검토 2026-11-22)
+            ui.breakdownText?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             // 탈 호선을 순서대로(Task 6 합의)
             if (ui.lines.isNotEmpty()) LineBadges(ui.lines, arrow = true)
             SegmentBar(ui.segments)

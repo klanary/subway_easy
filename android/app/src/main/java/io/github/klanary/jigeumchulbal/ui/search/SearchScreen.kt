@@ -1,5 +1,17 @@
 package io.github.klanary.jigeumchulbal.ui.search
 
+import io.github.klanary.jigeumchulbal.ui.SearchDest
+import io.github.klanary.jigeumchulbal.ui.toGraph
+import io.github.klanary.jigeumchulbal.ui.linemap.TripDraft
+import io.github.klanary.jigeumchulbal.ui.common.StarOutlineIcon
+import io.github.klanary.jigeumchulbal.data.local.RecentRouteEntity
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import io.github.klanary.jigeumchulbal.ui.theme.ButtonShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.TextFieldDefaults
@@ -58,7 +70,7 @@ fun SearchScreen(
     slot: Slot?,
     navController: NavController,
     viewModel: SearchViewModel = appViewModel {
-        SearchViewModel(slot, it.stationRepository, it.recentSearchRepository)
+        SearchViewModel(slot, it.stationRepository, it.recentSearchRepository, it.favoriteStationRepository, it.recentRouteRepository)
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,6 +90,16 @@ fun SearchScreen(
         onRetry = viewModel::retry,
         onPick = ::pick,
         focus = focus,
+        onToggleFavorite = viewModel::toggleFavorite,
+        onPickRoute = { r ->
+            // 최근 경로를 누르면 그 경로의 결과를 바로 연다(노선도에서 출발·도착을 고른 것과 같다).
+            val trip = TripDraft(
+                StationRef(r.fromId, r.fromName),
+                r.viaId.takeIf { it.isNotEmpty() }?.let { StationRef(it, r.viaName) },
+                StationRef(r.toId, r.toName),
+            )
+            navController.navigate(trip.toGraph()) { popUpTo<SearchDest> { inclusive = true } }
+        },
     )
 }
 
@@ -91,7 +113,25 @@ internal fun SearchContent(
     onRetry: () -> Unit = {},
     onPick: (StationRef) -> Unit = {},
     focus: FocusRequester = remember { FocusRequester() },
+    onToggleFavorite: ((StationRef) -> Unit)? = null,
+    onPickRoute: (RecentRouteEntity) -> Unit = {},
 ) {
+    // 왼쪽 아래 탭으로 "역 찾기" ↔ "최근 경로"를 바꾼다(수동 검토 2026-11-22)
+    var showRoutes by rememberSaveable { mutableStateOf(false) }
+    val favoriteIds = state.favorites.map { it.stationId }.toSet()
+
+    @Composable
+    fun Star(station: StationRef) {
+        val toggle = onToggleFavorite ?: return
+        val on = station.id in favoriteIds
+        IconButton(onClick = { toggle(station) }) {
+            Icon(
+                if (on) Icons.Filled.Star else StarOutlineIcon,
+                contentDescription = if (on) Copy.REMOVE_FAVORITE_STATION else Copy.ADD_FAVORITE_STATION,
+                tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,9 +142,12 @@ internal fun SearchContent(
                     }
                 },
                 title = {
+                    // 입력은 이 칸이 바로 들고 있는다: 상태(StateFlow)가 한 박자 늦게 돌아와 덮으면
+                    // 키보드가 조합 중인 글자가 깨진다("방이"가 조합되지 않음, 수동 검토 2026-11-22).
+                    var text by rememberSaveable { mutableStateOf(state.query) }
                     TextField(
-                        value = state.query,
-                        onValueChange = onQueryChange,
+                        value = text,
+                        onValueChange = { text = it; onQueryChange(it) },
                         placeholder = { Text(Copy.SEARCH_HINT) },
                         singleLine = true,
                         // 홈 검색 칸과 같은 모양(둥근 회색 칸 + 돋보기, 2차 다듬기 Task 4 합의)
@@ -121,9 +164,44 @@ internal fun SearchContent(
                 },
             )
         },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { showRoutes = !showRoutes },
+                icon = { Icon(if (showRoutes) Icons.Filled.Search else ClockIcon, contentDescription = null) },
+                text = { Text(if (showRoutes) Copy.FIND_STATION else Copy.RECENT_ROUTES) },
+            )
+        },
+        floatingActionButtonPosition = FabPosition.Start,
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            if (state.query.isBlank() && state.recents.isEmpty()) {
+        if (showRoutes) {
+            LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 88.dp)) {
+                if (state.recentRoutes.isEmpty()) {
+                    item { StateMessage(StateKind.Empty, Copy.NO_RECENT_ROUTES, StateSize.Inline, null, Modifier.padding(16.dp)) }
+                }
+                items(state.recentRoutes, key = { "route-${it.id}" }) { r ->
+                    ListItem(
+                        leadingContent = { Icon(ClockIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        headlineContent = { Text(listOf(r.fromName, r.viaName, r.toName).filter { it.isNotEmpty() }.joinToString(" → ")) },
+                        modifier = Modifier.clickable { onPickRoute(r) },
+                    )
+                }
+            }
+            return@Scaffold
+        }
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 88.dp)) {
+            if (state.query.isBlank() && state.favorites.isNotEmpty()) {
+                sectionHeader(Copy.FAVORITE_STATIONS)
+                items(state.favorites, key = { "fav-${it.stationId}" }) { fav ->
+                    val ref = StationRef(fav.stationId, fav.name)
+                    ListItem(
+                        leadingContent = { Icon(Icons.Filled.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                        headlineContent = { Text(fav.name) },
+                        trailingContent = { Star(ref) },
+                        modifier = Modifier.clickable { onPick(ref) },
+                    )
+                }
+            }
+            if (state.query.isBlank() && state.recents.isEmpty() && state.favorites.isEmpty()) {
                 // 처음 화면: 무엇을 입력하면 되는지 알려 준다(Task 5 합의).
                 item { StateMessage(StateKind.Empty, Copy.SEARCH_START, StateSize.Inline, null, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
             }
@@ -133,6 +211,7 @@ internal fun SearchContent(
                     ListItem(
                         leadingContent = { Icon(ClockIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         headlineContent = { Text(recent.name) },
+                        trailingContent = { Star(StationRef(recent.stationId, recent.name)) },
                         modifier = Modifier.clickable { onPick(StationRef(recent.stationId, recent.name)) },
                     )
                 }
@@ -144,6 +223,7 @@ internal fun SearchContent(
                         ListItem(
                             headlineContent = { Text(station.name) },
                             supportingContent = { LineBadges(station.lines) },
+                            trailingContent = { Star(station.toRef()) },
                             modifier = Modifier.clickable { onPick(station.toRef()) },
                         )
                     }

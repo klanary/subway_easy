@@ -172,7 +172,14 @@ internal fun RoutineEditContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(listOfNotNull(state.from?.name, state.via?.name, state.to?.name).joinToString(" → "), style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(state.name, onName, label = { Text(Copy.ROUTINE_NAME) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            // 입력은 이 칸이 바로 들고 있는다: 상태가 한 박자 늦게 돌아와 덮으면 한국어 조합이 깨진다(수동 검토 2026-11-22).
+            var name by remember { mutableStateOf(state.name) }
+            val sent = remember { mutableSetOf(state.name) } // 이 칸이 보낸 값들(늦게 돌아와도 무시)
+            if (state.name !in sent) {
+                name = state.name // 불러온 루틴처럼 밖에서 바뀐 이름만 받는다
+                sent += state.name
+            }
+            OutlinedTextField(name, { name = it; sent += it; onName(it) }, label = { Text(Copy.ROUTINE_NAME) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DayOfWeek.entries.forEachIndexed { i, day ->
                     FilterChip(state.days and dayBit(day) != 0, { onDay(day) }, { Text(DAY_LABELS[i]) })
@@ -182,8 +189,14 @@ internal fun RoutineEditContent(
                 Text(Copy.ROUTINE_TIME, Modifier.weight(1f))
                 OutlinedButton(onClick = onPickTime, shape = ButtonShape) { Text(minuteLabel(state.minuteOfDay)) }
             }
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("${Copy.ROUTINE_WALK} ${state.walkMin}분")
+                // 자주 쓰는 값은 바로 고르고, 그 밖은 막대로(수동 검토 2026-11-22)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WALK_CHOICES.forEach { min ->
+                        FilterChip(state.walkMin == min, { onWalk(min) }, { Text("${min}분") })
+                    }
+                }
                 Slider(
                     value = state.walkMin.toFloat(),
                     onValueChange = { onWalk(it.toInt()) },
@@ -337,3 +350,6 @@ fun nextRoutineLine(routines: List<RoutineEntity>, nowMinute: Int, today: DayOfW
     routines.filter { it.enabled && it.days and dayBit(today) != 0 && it.minuteOfDay > nowMinute }
         .minByOrNull { it.minuteOfDay }
         ?.let { "${minuteLabel(it.minuteOfDay)} ${it.title}" }
+
+/** 역까지 걷는 시간에서 바로 고르는 값(분). */
+private val WALK_CHOICES = listOf(0, 3, 5, 7, 10, 15, 20)

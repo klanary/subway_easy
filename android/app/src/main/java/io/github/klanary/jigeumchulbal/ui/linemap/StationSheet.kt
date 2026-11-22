@@ -1,5 +1,10 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import io.github.klanary.jigeumchulbal.ui.common.StarOutlineIcon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.Icons
 import io.github.klanary.jigeumchulbal.ui.common.lineColor
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -64,7 +69,10 @@ fun StationSheet(
     onRole: (TripRole, StationRef) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val viewModel = appViewModel(key = "sheet-$stationId") { StationSheetViewModel(stationId, it.stationRepository) }
+    val viewModel = appViewModel(key = "sheet-$stationId") {
+        StationSheetViewModel(stationId, it.stationRepository, favorites = it.favoriteStationRepository)
+    }
+    val favorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val lines by viewModel.lines.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -84,6 +92,8 @@ fun StationSheet(
             onTime = { viewModel.select(it) },
             onPickTime = { h, m -> viewModel.select(SheetTime.CUSTOM, pickedTime(h, m)) },
             onDismiss = onDismiss,
+            isFavorite = favorite,
+            onToggleFavorite = viewModel::toggleFavorite,
         )
     }
 }
@@ -105,6 +115,8 @@ internal fun StationSheetContent(
     nowTime: () -> LocalTime = { LocalTime.now(java.time.ZoneId.of("Asia/Seoul")) }, // 열차 시각은 늘 서울 시각
     onRetry: () -> Unit = {},
     onDismiss: () -> Unit = {},
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
 ) {
     val station = StationRef(stationId, stationId)
     val content = (state as? UiState.Content)?.data
@@ -116,7 +128,19 @@ internal fun StationSheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // 역 이름 아래에 호선 배지(줄바꿈). 한 줄에 몰면 호선이 많은 역·큰 글꼴에서 넘쳤다(최종 리뷰).
-        Text(stationId, style = MaterialTheme.typography.headlineSmall)
+        // 역 이름 옆 별: 즐겨찾는 역에 넣고 뺀다(수동 검토 2026-11-22)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stationId, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            if (onToggleFavorite != null) {
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        if (isFavorite) Icons.Filled.Star else StarOutlineIcon,
+                        contentDescription = if (isFavorite) Copy.REMOVE_FAVORITE_STATION else Copy.ADD_FAVORITE_STATION,
+                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
         if (lines.isNotEmpty()) LineBadges(lines)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onRole(TripRole.FROM) }, shape = ButtonShape, enabled = draft.canSet(TripRole.FROM, station)) {

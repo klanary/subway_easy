@@ -1,5 +1,11 @@
 package io.github.klanary.jigeumchulbal.ui.linemap
 
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.SharingStarted
+import io.github.klanary.jigeumchulbal.data.model.StationRef
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteStationRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.klanary.jigeumchulbal.data.remote.ApiResult
@@ -90,9 +96,20 @@ class StationSheetViewModel(
     private val stationId: String,
     private val stations: StationRepository,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val favorites: FavoriteStationRepository? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow<UiState<StationSheetUi>>(UiState.Loading)
     val state: StateFlow<UiState<StationSheetUi>> = _state.asStateFlow()
+
+    /** 이 역이 즐겨찾는 역인지(수동 검토 2026-11-22). */
+    val isFavorite: StateFlow<Boolean> =
+        (favorites?.favorites?.map { list -> list.any { it.stationId == stationId } } ?: flowOf(false))
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun toggleFavorite() {
+        val repo = favorites ?: return
+        viewModelScope.launch { repo.toggle(StationRef(stationId, stationId)) }
+    }
 
     private val _lines = MutableStateFlow<List<String>>(emptyList())
 

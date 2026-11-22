@@ -260,3 +260,13 @@ class FakeLauncher : SessionServiceLauncher {
     }
 }
 
+
+
+/** 최근 경로 기록(수동 검토 2026-11-22). */
+class FakeRecentRouteRepository : io.github.klanary.jigeumchulbal.data.repository.RecentRouteRepository {
+    val recorded = mutableListOf<Triple<String, String?, String>>()
+    override val recent = kotlinx.coroutines.flow.MutableStateFlow(emptyList<io.github.klanary.jigeumchulbal.data.local.RecentRouteEntity>())
+    override suspend fun record(from: StationRef, via: StationRef?, to: StationRef) {
+        recorded += Triple(from.id, via?.id, to.id)
+    }
+}

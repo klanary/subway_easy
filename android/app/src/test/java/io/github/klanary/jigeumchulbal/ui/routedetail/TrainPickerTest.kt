@@ -55,12 +55,13 @@ class TrainPickerTest {
     }
 
     @Test fun pinnedConflictShowsWarning() {
-        var choices = move(route, emptyList(), 1, 1) // 9501 고정
-        choices = move(route, choices, 1, -1) // 9101 고정
+        // 원래 열차로 돌아오면 고정이 풀리므로(2026-11-22) 더 늦은 열차를 고정해 겹치게 만든다.
+        var choices = move(route, emptyList(), 1, 1) // 9501(08:20 출발) 고정
         choices = move(route, choices, 0, 1) // 5303(08:20 도착) 고정
+        choices = move(route, choices, 0, 1) // 5305(08:29 도착) 고정
         val picks = pickTrains(route, choices)
-        assertEquals(listOf("5303", "9101"), numbers(picks))
-        assertEquals("앞 열차가 08:20에 도착해요. 이 열차는 08:10에 떠나요", picks[1].warning)
+        assertEquals(listOf("5305", "9501"), numbers(picks))
+        assertEquals("앞 열차가 08:29에 도착해요. 이 열차는 08:20에 떠나요", picks[1].warning)
     }
 
     @Test fun expressFilterSkipsLocals() {
@@ -114,5 +115,13 @@ class TrainPickerTest {
         val picks = pickTrains(old, emptyList())
         assertEquals(listOf("5301", "9101"), numbers(picks))
         assertFalse(picks[0].canPrev || picks[0].canNext)
+    }
+
+    /** 앞뒤로 옮기다 원래(자동) 열차로 돌아오면 고정이 풀린다(수동 검토 2026-11-22). */
+    @Test fun movingBackToAutoTrainUnpins() {
+        val later = move(route, emptyList(), 0, 1)
+        assertTrue(pickTrains(route, later)[0].pinned)
+        val back = move(route, later, 0, -1)
+        assertTrue(pickTrains(route, back).none { it.pinned })
     }
 }

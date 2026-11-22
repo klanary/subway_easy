@@ -43,10 +43,9 @@ fun TimeWheelDialog(initialHour: Int, initialMinute: Int, onConfirm: (hour: Int,
         onDismissRequest = onDismiss,
         title = { Text(Copy.PICK_TIME_TITLE) },
         text = {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Wheel(List(24) { "%02d".format(it) }, initialHour, { hour = it }, "wheel-hour")
-                Text(":", style = MaterialTheme.typography.headlineMedium)
-                Wheel(List(60) { "%02d".format(it) }, initialMinute, { minute = it }, "wheel-minute")
+            // 오전·오후 + 12시간(12, 1~11시) 휠: 역 시트와 같은 방식(수동 검토 2026-11-22)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                InlineTimeWheels(initialHour, initialMinute, onChange = { h, m -> hour = h; minute = m })
             }
         },
         confirmButton = { TextButton(onClick = { onConfirm(hour, minute) }) { Text(Copy.OK) } },

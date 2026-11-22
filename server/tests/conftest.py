@@ -36,6 +36,7 @@ def test_settings() -> Settings:
         seoul_openapi_key="TESTOPENAPIKEY",
         metrics_token="TESTMETRICSTOKEN",
         measured_base_url="",
+        official_snapshot_path="",  # 사본은 쓰는 테스트에서만 켠다
         upstream_retry_delay_sec=0,
     )
 

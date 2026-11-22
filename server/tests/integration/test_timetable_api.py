@@ -1,13 +1,21 @@
 """GET /v1/stations/{id}/timetable (재설계 스펙 6). 서울시 응답은 실제 샘플이다."""
 
 import httpx
+import pytest
 
 from app.clients.endpoints import SEOUL_OPENAPI_BASE
+from app.services.official_snapshot import OfficialSnapshot
 from tests.helpers import fixture_response
 
 URL = "/v1/stations/{}/timetable"
 SAMPLE = "seoul_timetable_yeongdeungpo_weekday_up.json"
 FRIDAY_8 = "2026-11-13T08:00:00+09:00"
+
+
+@pytest.fixture
+def with_snapshot(services):
+    """저장소에 든 1호선 공식 시간표 사본(data/official_snapshot.json.gz)을 켠다."""
+    services.timetable._snapshot = OfficialSnapshot.load("data/official_snapshot.json.gz")
 
 
 def mock_timetable(respx_mock, name=SAMPLE):
@@ -148,3 +156,22 @@ async def test_seoul_failure_does_not_block_measured(client, respx_mock, measure
     r = await client.get(URL.format("강남"), params=params)
     assert r.status_code == 200 and r.json()["source"] == "measured"
     assert route.call_count == 0
+
+
+async def test_empty_official_falls_back_to_snapshot(client, respx_mock, with_snapshot):
+    """서울시가 1호선을 비워 줄 때(2026-11-22 새벽부터 INFO-200) 받아 둔 사본으로 답한다."""
+    mock_timetable(respx_mock, "seoul_timetable_nodata.json")
+    params = {"line": "1호선", "direction": "상행", "from": FRIDAY_8, "count": 2}
+    body = (await client.get(URL.format("시청"), params=params)).json()
+    assert len(body["trains"]) == 2
+    assert body["trains"][0]["departsAt"] >= "2026-11-13T08:00:00"
+    assert body["trains"][0]["trainNo"][0] in "KS"  # 1호선 시간표 열차 번호(K802, S418)
+    assert body["trains"][0]["source"] == "official"
+
+
+async def test_real_official_rows_win_over_snapshot(client, respx_mock, with_snapshot):
+    """서울시가 행을 주면 사본은 쓰지 않는다(5호선 샘플은 방화행)."""
+    mock_timetable(respx_mock)
+    params = {"line": "1호선", "direction": "상행", "from": FRIDAY_8, "count": 1}
+    body = (await client.get(URL.format("시청"), params=params)).json()
+    assert body["trains"][0]["destination"] == "방화"

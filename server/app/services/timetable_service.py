@@ -11,6 +11,7 @@ from app.core.errors import InvalidRequest, NotFound, UpstreamError, UpstreamFai
 from app.models.schemas import TimetableTrain
 from app.services.measured_store import MeasuredStore
 from app.services.normalize import normalize_line
+from app.services.official_snapshot import OfficialSnapshot
 from app.services.station_index import StationIndex
 from app.services.timetable import OFFICIAL_LINES, departures, service_days, week_tag
 
@@ -34,12 +35,14 @@ class TimetableService:
         cache: TtlCache[list[dict]],
         clock: Callable[[], float] = time.time,
         measured: MeasuredStore | None = None,
+        snapshot: OfficialSnapshot | None = None,
     ):
         self._client = client
         self._index = index
         self._cache = cache
         self._clock = clock
         self._measured = measured
+        self._snapshot = snapshot
         self._failed_until: dict[str, float] = {}
 
     async def _rows(self, code: str, week: int, tag: int) -> tuple[list[dict], str]:
@@ -53,6 +56,11 @@ class TimetableService:
         except UpstreamFailure:
             self._failed_until[key] = self._clock() + FAILURE_MEMORY_SEC
             raise
+        if not cached.value and self._snapshot is not None:
+            # 서울시가 빈 응답(INFO-200)을 주면 받아 둔 사본으로 답한다(1호선, 2026-11-22)
+            fallback = self._snapshot.rows(code, week, tag)
+            if fallback:
+                return fallback, cached.status
         return cached.value, cached.status
 
     async def trains(

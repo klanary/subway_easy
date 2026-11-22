@@ -74,6 +74,18 @@ def build_services(
         OfficialSnapshot.load(settings.official_snapshot_path),
     )
     seoul_guard = quotas["seoulRealtime"]
+    # 열차 위치(설계 2026-11-22): 도착 API와 같은 키·한도를 쓴다.
+    positions = PositionService(
+        SeoulPositionClient(http, seoul_guard, settings),
+        stations,
+        TtlCache(
+            POSITIONS_TTL_SEC,
+            clock=clock,
+            metrics=metrics,
+            ttl_multiplier=seoul_guard.ttl_multiplier,
+        ),
+        clock,
+    )
     arrivals = ArrivalService(
         SeoulSubwayClient(http, seoul_guard, settings),
         stations,
@@ -86,18 +98,9 @@ def build_services(
         ),
         clock,
         timetable,
-    )
-    # 열차 위치(설계 2026-11-22): 도착 API와 같은 키·한도를 쓴다.
-    positions = PositionService(
-        SeoulPositionClient(http, seoul_guard, settings),
-        stations,
-        TtlCache(
-            POSITIONS_TTL_SEC,
-            clock=clock,
-            metrics=metrics,
-            ttl_multiplier=seoul_guard.ttl_multiplier,
-        ),
-        clock,
+        positions,
+        measured,
+        frozenset(settings.position_now_lines),
     )
     routes = RouteService(stations, measured, clock)
     return AppServices(

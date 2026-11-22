@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -58,6 +58,11 @@ class Train(ApiModel):
     train_no: str | None = None
     # 열차가 지금 있는 역 이름(arvlMsg3). 역 시트의 열차 위치 표시에 쓴다(수동 검토 2026-11-22).
     current_station: str | None = None
+    # 열차 시각의 근거(설계 2026-11-22): realtime 도착 API, position 열차 위치 계산,
+    # timetable 공식 시간표, measured 실측 시간표.
+    basis: Literal["realtime", "position", "timetable", "measured"] = "realtime"
+    # 도착 API가 초 단위 남은 시간(barvlDt > 0)을 주었는가. 응답에는 싣지 않는다.
+    exact: bool = Field(default=True, exclude=True)
 
 
 class ArrivalGroup(ApiModel):

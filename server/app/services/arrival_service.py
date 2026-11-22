@@ -33,7 +33,9 @@ ARRIVALS_TTL_SEC = 20
 TRAINS_PER_GROUP = 2
 AT_TRAINS_PER_GROUP = 4  # [시각 선택]은 시간표처럼 4대(설계 2026-11-22 §7)
 AT_POSITION_WINDOW = timedelta(minutes=60)  # 이보다 먼 시각은 시간표만
-AT_TIMETABLE_GAP_SEC = 60  # 시간표 열차는 마지막 실시간·위치 열차보다 이만큼 넘게 뒤인 것만
+# 시간표 열차가 실시간·위치 열차와 이만큼 안이면 같은 열차로 보고 뺀다.
+# 그 사이의 시간표 열차는 남긴다(최종 리뷰).
+AT_SAME_TRAIN_SEC = 90
 # (역, 호선) → 그 역을 지나지 않는 행선지. 서울시 관리자 안내: 경의중앙선 서울역·신촌 지선에
 # 덕소·팔당·용문·지평·청량리·용산행 본선 열차가 섞여 온다(2026-11-22 실제 응답으로도 확인).
 _GYEONGUI_MAINLINE = frozenset({"덕소", "팔당", "용문", "지평", "청량리", "용산"})
@@ -165,8 +167,14 @@ class ArrivalService:
         picked: dict[tuple[str, str], list[tuple[datetime, Train]]] = {}
         towards_of: dict[tuple[str, str], str | None] = {}
         if at - now <= AT_POSITION_WINDOW:
-            answers, cached = await self._fetch_answers(station)
-            status, stale, fetched_at = cached.status, cached.stale, cached.fetched_at
+            try:
+                answers, cached = await self._fetch_answers(station)
+            except UpstreamFailure as e:
+                # 실시간 도착 API가 죽어도 [시각 선택]은 위치 계산·시간표로 답한다(최종 리뷰)
+                logger.warning("시각 선택 실시간 실패 %s: %s", station.id, type(e).__name__)
+                answers, cached = [], None
+            if cached is not None:
+                status, stale, fetched_at = cached.status, cached.stale, cached.fetched_at
             for group in self._group(answers, station, limit=None):
                 if group.line not in lines or group.direction is None:
                     continue
@@ -252,21 +260,20 @@ class ArrivalService:
         if len(chosen) < AT_TRAINS_PER_GROUP and self._timetable is not None:
             try:
                 found = await self._timetable.trains(
-                    station.id, line, direction, at, AT_TRAINS_PER_GROUP
+                    station.id, line, direction, at, AT_TRAINS_PER_GROUP + len(chosen)
                 )
             except UpstreamFailure as e:
                 logger.warning("시간표 실패 %s %s: %s", line, direction, e)
-            last = chosen[-1][0] if chosen else None
+            live_times = [when for when, _ in chosen]
             for t in found:
-                if len(chosen) >= AT_TRAINS_PER_GROUP:
-                    break
-                if (
-                    last is not None
-                    and (t.departs_at - last).total_seconds() <= AT_TIMETABLE_GAP_SEC
+                if any(
+                    abs((t.departs_at - when).total_seconds()) <= AT_SAME_TRAIN_SEC
+                    for when in live_times
                 ):
-                    continue  # 같은 열차를 두 번 보이지 않게
+                    continue  # 실시간·위치 열차와 같은 열차
                 basis = "measured" if t.source == "measured" else "timetable"
                 chosen.append((t.departs_at, timetable_train(t, now, basis)))
+            chosen = sorted(chosen, key=lambda p: p[0])[:AT_TRAINS_PER_GROUP]
         if not chosen:
             return None
         live = any(t.basis in ("realtime", "position") for _, t in chosen)

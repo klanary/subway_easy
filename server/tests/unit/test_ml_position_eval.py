@@ -51,9 +51,24 @@ def test_report_suggests_lines():
 
     scores = {
         "1호선": {("position", 0): m(30, 0.9), ("text", 0): m(80, 0.5),
-                 ("position", 15): m(60, 0.6), ("timetable", 15): m(90, 0.4)},
+                 ("combined", 15): m(60, 0.6), ("timetable", 15): m(90, 0.4)},
         "2호선": {("position", 0): m(30, 0.9), ("text", 0): m(20, 0.95),
-                 ("position", 15): m(60, 0.6), ("timetable", 15): m(40, 0.7)},
+                 ("combined", 15): m(60, 0.6), ("timetable", 15): m(40, 0.7)},
     }  # fmt: skip
     now_lines, at_lines = suggest(scores)
     assert now_lines == ["1호선"] and at_lines == ["1호선"]
+
+
+def test_combined_scores_same_questions_as_timetable():
+    """[시각 선택] 비교는 서버가 보이는 것(위치, 없으면 시간표)을
+    시간표와 같은 질문에서 견준다(최종 리뷰)."""
+    train_day, test_day = weekdays(2)
+    train, test = _runs([train_day]), _runs([test_day])
+    statn = {("9호선", s): f"S-{s}" for s in "ABCD"}
+    scores = evaluate(
+        test, measured=measured_from_runs(train, statn), trips=_trips(), statn_to_station=statn,
+        timetable_first=lambda line, d, sid, day, ask: ask + 600, hours=(7, 9),
+    )  # fmt: skip
+    line = scores["9호선"]
+    for h in (5, 15):
+        assert line[("combined", h)]["n"] == line[("timetable", h)]["n"]

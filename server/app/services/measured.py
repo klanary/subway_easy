@@ -72,7 +72,12 @@ class MeasuredData:
             key for key, state in (b1.get("scopes") or {}).items() if state in _EXCLUDED_STATES
         }
         cells: dict[Key, list[_Entry]] = {}
+        # 칸이 없는 호선(1~9호선)도 구간 시간을 찾을 수 있게 역 연결은 stations 전체로 만든다.
         statn_of: dict[tuple[str, str], str] = {}
+        for station_key, station in stations.items():
+            line_name, statn = station_key.split("|", 1)
+            if station.get("station_id"):
+                statn_of[(line_name, station["station_id"])] = statn
         for key, entries in (b1.get("cells") or {}).items():
             day_type, line, code, statn_id = key.split("|")
             station = stations.get(f"{line}|{statn_id}") or {}

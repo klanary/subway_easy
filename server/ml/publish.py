@@ -96,11 +96,9 @@ def server_b1(b1: dict) -> dict:
             for key, scope in (b1.get("scopes") or {}).items()
             if _line_of(key) not in OFFICIAL_LINES and scope.get("state") in _SERVER_STATES
         },
-        "stations": {
-            key: value
-            for key, value in (b1.get("stations") or {}).items()
-            if key.split("|")[0] not in OFFICIAL_LINES
-        },
+        # 역 연결은 1~9호선도 보낸다: 서버가 열차 위치로 도착을 계산할 때 구간 시간을 찾는다
+        # (설계 2026-11-22 열차 위치 도착 계산 §4).
+        "stations": dict(b1.get("stations") or {}),
         "dests": dests,
         "cells": cells,
     }
@@ -164,9 +162,7 @@ def load_b1_for_publish(path: Path) -> dict:
     b1["cells"] = {
         k: v for k, v in (b1.get("cells") or {}).items() if _line_of(k) not in OFFICIAL_LINES
     }
-    b1["stations"] = {
-        k: v for k, v in (b1.get("stations") or {}).items() if k.split("|")[0] not in OFFICIAL_LINES
-    }
+    # 역 연결(stations)은 작으므로 1~9호선도 둔다: 서버가 구간 시간을 찾는 데 쓴다.
     b1["scopes"] = {
         k: v for k, v in (b1.get("scopes") or {}).items() if _line_of(k) not in OFFICIAL_LINES
     }

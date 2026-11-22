@@ -65,7 +65,7 @@ def test_server_b1_keeps_only_lines_without_official_timetable():
     assert out["kind"] == "b1-server" and out["version"] == 1 and out["as_of"] == "2026-11-17"
     assert list(out["cells"]) == ["1|신분당선|0|B"]
     assert out["modes"] == {"신분당선": "slots"}
-    assert list(out["stations"]) == ["신분당선|B"]
+    assert list(out["stations"]) == ["5호선|A", "신분당선|B"]  # 역 연결은 1~9호선도(위치 도착 계산)
     assert out["scopes"] == {"1|신분당선|0|7": "suspect"}  # 서버가 거르는 상태만
 
 
@@ -301,5 +301,23 @@ def test_load_b1_for_publish_drops_official_lines(tmp_path):
     path.write_text(json.dumps(RAW_B1, ensure_ascii=False), encoding="utf-8")
     b1 = load_b1_for_publish(path)
     assert list(b1["cells"]) == ["1|신분당선|0|B"]
-    assert list(b1["stations"]) == ["신분당선|B"]
+    assert list(b1["stations"]) == ["5호선|A", "신분당선|B"]  # 역 연결은 작아서 둔다
     assert server_b1(b1) == server_b1(RAW_B1)
+
+
+def test_server_b1_keeps_stations_of_official_lines():
+    """1~9호선도 역 연결은 서버에 보낸다(열차 위치로 도착 계산할 때 구간 시간을 찾는다)."""
+    from ml.publish import server_b1
+
+    b1 = {
+        "kind": "b1",
+        "version": 2,
+        "as_of": "2026-11-21",
+        "modes": {"2호선": "slots"},
+        "scopes": {},
+        "cells": {"1|2호선|0|1002000201": [{"secs": 30000, "n_days": 3, "dest_name": "성수"}]},
+        "stations": {"2호선|1002000201": {"station_id": "시청", "name": "시청"}},
+    }
+    out = server_b1(b1)
+    assert out["stations"]["2호선|1002000201"] == {"station_id": "시청", "name": "시청"}
+    assert not any("2호선" in key for key in out["cells"])

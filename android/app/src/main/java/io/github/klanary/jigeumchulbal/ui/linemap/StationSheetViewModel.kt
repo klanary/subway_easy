@@ -191,14 +191,17 @@ class StationSheetViewModel(
         val now = Instant.ofEpochMilli(clock())
         val unsupported = dto.groups.filter { it.source == "none" }.map { it.line } + lineNames.filter { it in NON_SEOUL_LINES }
         val groups = dto.groups.filter { it.source != "none" && it.trains.isNotEmpty() }.map { g ->
+            val trains = g.trains.take(TIMETABLE_COUNT).map { t ->
+                val time = t.remainingSec?.let { CLOCK.format(now.plusSeconds(it.toLong()).atZone(SEOUL)) } ?: "?"
+                TrainLine(t.destination, time, clock = true, isLast = t.isLast, isExpress = t.isExpress, basis = trainBasis(t.basis))
+            }
             DirectionTrains(
                 line = g.line,
                 direction = g.direction,
                 towards = g.towards,
-                trains = g.trains.take(TIMETABLE_COUNT).map { t ->
-                    val time = t.remainingSec?.let { CLOCK.format(now.plusSeconds(it.toLong()).atZone(SEOUL)) } ?: "?"
-                    TrainLine(t.destination, time, clock = true, isLast = t.isLast, isExpress = t.isExpress, basis = trainBasis(t.basis))
-                },
+                trains = trains,
+                // 모든 열차의 근거가 같으면 방향 줄에 한 번만 표시한다(열차마다 되풀이하지 않게)
+                basis = trains.map { it.basis }.distinct().singleOrNull(),
                 prevStation = g.prevStation,
                 nextStation = g.nextStation,
             )

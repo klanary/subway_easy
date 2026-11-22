@@ -276,4 +276,18 @@ class StationSheetViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(Copy.BY_POSITION, null), content(vm).groups.first().trains.map { it.basis })
     }
+
+    @Test fun allTimetableGroupTagsOnceOnGroup() = runTest { // 열차마다 같은 [시간표]를 되풀이하지 않게
+        stations.arrivalsResult = ApiResult.Ok(
+            ArrivalsDto(
+                "영등포구청", "2026-11-13T19:00:00+09:00",
+                groups = listOf(ArrivalGroupDto("5호선", "상행", null, listOf(TrainDto("방화", 1800, basis = "timetable"), TrainDto("방화", 2400, basis = "timetable")), source = "timetable")),
+            ),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        vm.select(SheetTime.CUSTOM, now.plusSeconds(1500))
+        advanceUntilIdle()
+        assertEquals(Copy.BY_TIMETABLE, content(vm).groups.first().basis)
+    }
 }

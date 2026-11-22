@@ -4,7 +4,7 @@ import asyncio
 import logging
 import re
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.cache.ttl_cache import TtlCache
 from app.clients.seoul_subway import SeoulSubwayClient
@@ -31,6 +31,9 @@ logger = logging.getLogger("app.arrivals")
 
 ARRIVALS_TTL_SEC = 20
 TRAINS_PER_GROUP = 2
+AT_TRAINS_PER_GROUP = 4  # [시각 선택]은 시간표처럼 4대(설계 2026-11-22 §7)
+AT_POSITION_WINDOW = timedelta(minutes=60)  # 이보다 먼 시각은 시간표만
+AT_TIMETABLE_GAP_SEC = 60  # 시간표 열차는 마지막 실시간·위치 열차보다 이만큼 넘게 뒤인 것만
 # (역, 호선) → 그 역을 지나지 않는 행선지. 서울시 관리자 안내: 경의중앙선 서울역·신촌 지선에
 # 덕소·팔당·용문·지평·청량리·용산행 본선 열차가 섞여 온다(2026-11-22 실제 응답으로도 확인).
 _GYEONGUI_MAINLINE = frozenset({"덕소", "팔당", "용문", "지평", "청량리", "용산"})
@@ -70,6 +73,10 @@ def _bare_no(train_no: str | None) -> str:
     return (train_no or "").lstrip("0")
 
 
+def _at_train(train: Train, when: datetime, basis: str) -> Train:
+    return train.model_copy(update={"message": f"{when:%H:%M} 도착 예정", "basis": basis})
+
+
 class ArrivalService:
     def __init__(
         self,
@@ -81,7 +88,9 @@ class ArrivalService:
         positions: PositionService | None = None,
         measured: MeasuredStore | None = None,
         now_lines: frozenset[str] = frozenset(),
+        at_lines: frozenset[str] = frozenset(),
     ):
+        self._at_lines = at_lines
         self._timetable = timetable
         # 열차 위치 계산(설계 2026-11-22): now_lines 노선의 barvlDt 0 열차만 위치로 바꾼다.
         self._positions = positions
@@ -93,12 +102,20 @@ class ArrivalService:
         self._clock = clock
 
     async def get_arrivals(
-        self, station_id: str, line: str | None = None, towards: str | None = None
+        self,
+        station_id: str,
+        line: str | None = None,
+        towards: str | None = None,
+        *,
+        at: datetime | None = None,
     ) -> tuple[ArrivalsResponse, str]:
-        """두 번째 값은 캐시 상태(hit·miss·stale)다."""
+        """두 번째 값은 캐시 상태(hit·miss·stale)다. `at`이 지금 이전이면 지금으로 본다."""
         station = self._index.get(station_id) or self._index.resolve(station_id)
         if station is None:
             raise NotFound()
+        now = kst_from_epoch(self._clock())
+        if at is not None and at > now:
+            return await self._arrivals_at(station, line, at, now)
         # 같은 조회 이름을 쓰는 역(양평)은 한 번만 부르도록 조회 이름을 캐시 키로 쓴다.
         queries = self._index.realtime_queries(station)
         base_name = queries[0][0]
@@ -134,8 +151,162 @@ class ArrivalService:
         )
         return response, cached.status
 
+    async def _arrivals_at(
+        self, station: Station, line: str | None, at: datetime, now: datetime
+    ) -> tuple[ArrivalsResponse, str]:
+        """[시각 선택](설계 2026-11-22 §7).
+
+        60분 안이면 방향마다 ① 도착 API의 초 단위 열차 ② 켠 노선의 열차 위치 계산
+        ③ 모자라면 시간표 순으로 4대. 60분 넘으면 시간표만.
+        """
+        wanted = normalize_line(line) if line else None
+        lines = [x for x in station.lines if wanted is None or x == wanted]
+        status, stale, fetched_at = "miss", False, self._clock()
+        picked: dict[tuple[str, str], list[tuple[datetime, Train]]] = {}
+        towards_of: dict[tuple[str, str], str | None] = {}
+        if at - now <= AT_POSITION_WINDOW:
+            answers, cached = await self._fetch_answers(station)
+            status, stale, fetched_at = cached.status, cached.stale, cached.fetched_at
+            for group in self._group(answers, station, limit=None):
+                if group.line not in lines or group.direction is None:
+                    continue
+                key = (group.line, group.direction)
+                towards_of.setdefault(key, group.towards)
+                for train in group.trains:
+                    if train.exact and train.remaining_sec is not None:
+                        when = now + timedelta(seconds=train.remaining_sec)
+                        if when >= at:
+                            picked.setdefault(key, []).append(
+                                (when, _at_train(train, when, "realtime"))
+                            )
+            await self._pick_positions(picked, station, lines, at, now)
+        groups = []
+        for x in lines:
+            if not StationIndex.realtime_supported(x):
+                groups.append(
+                    ArrivalGroup(line=x, direction=None, towards=None, trains=[], source="none")
+                )
+                continue
+            for d in directions(x):
+                group = await self._at_group(station, x, d, at, now, picked.get((x, d), []))
+                if group is not None:
+                    groups.append(group.model_copy(update={"towards": towards_of.get((x, d))}))
+        groups = [self._with_neighbors(g, station) for g in groups]
+        response = ArrivalsResponse(
+            station_id=station.id,
+            updated_at=kst_from_epoch(fetched_at),
+            stale=stale,
+            groups=groups,
+        )
+        return response, status
+
+    async def _pick_positions(
+        self,
+        picked: dict[tuple[str, str], list[tuple[datetime, Train]]],
+        station: Station,
+        lines: list[str],
+        at: datetime,
+        now: datetime,
+    ) -> None:
+        """켠 노선의 열차 위치로 계산한 도착(고른 시각 이후)을 더한다.
+
+        실시간 칸과 같은 열차는 뺀다.
+        """
+        if self._positions is None or self._measured is None:
+            return
+        data, trips = self._measured.current(), self._measured.current_trips()
+        if data is None or trips is None:
+            return
+        for x in lines:
+            if x not in self._at_lines:
+                continue
+            for pos in await self._positions.positions(x):
+                key = (x, pos.direction)
+                taken = {_bare_no(t.train_no) for _, t in picked.get(key, [])}
+                if _bare_no(pos.train_no) in taken:
+                    continue
+                when = estimate_arrival(pos, station.id, trips=trips, measured=data, now=now)
+                if when is None or when < at:
+                    continue
+                train = Train(
+                    destination=pos.dest_name,
+                    remaining_sec=int((when - now).total_seconds()),
+                    message="",
+                    is_last=False,
+                    is_express=pos.express,
+                    train_no=pos.train_no,
+                )
+                picked.setdefault(key, []).append((when, _at_train(train, when, "position")))
+
+    async def _at_group(
+        self,
+        station: Station,
+        line: str,
+        direction: str,
+        at: datetime,
+        now: datetime,
+        picked: list[tuple[datetime, Train]],
+    ) -> ArrivalGroup | None:
+        chosen = sorted(picked, key=lambda p: p[0])[:AT_TRAINS_PER_GROUP]
+        found: list[TimetableTrain] = []
+        if len(chosen) < AT_TRAINS_PER_GROUP and self._timetable is not None:
+            try:
+                found = await self._timetable.trains(
+                    station.id, line, direction, at, AT_TRAINS_PER_GROUP
+                )
+            except UpstreamFailure as e:
+                logger.warning("시간표 실패 %s %s: %s", line, direction, e)
+            last = chosen[-1][0] if chosen else None
+            for t in found:
+                if len(chosen) >= AT_TRAINS_PER_GROUP:
+                    break
+                if (
+                    last is not None
+                    and (t.departs_at - last).total_seconds() <= AT_TIMETABLE_GAP_SEC
+                ):
+                    continue  # 같은 열차를 두 번 보이지 않게
+                basis = "measured" if t.source == "measured" else "timetable"
+                chosen.append((t.departs_at, timetable_train(t, now, basis)))
+        if not chosen:
+            return None
+        live = any(t.basis in ("realtime", "position") for _, t in chosen)
+        source = (
+            "realtime"
+            if live
+            else ("measured" if found and found[0].source == "measured" else "timetable")
+        )
+        return ArrivalGroup(
+            line=line,
+            direction=direction,
+            towards=None,
+            trains=[t for _, t in chosen],
+            source=source,
+        )
+
+    async def _fetch_answers(self, station: Station):
+        """실시간 도착 응답(노선 전용 조회 이름 포함)과 기본 조회의 캐시 결과."""
+        queries = self._index.realtime_queries(station)
+        base_name = queries[0][0]
+        cached = await self._cache.get_or_fetch(
+            base_name, lambda: self._client.fetch_arrivals(base_name)
+        )
+        answers = [(base_name, queries[0][1], cached.value)]
+        for name, lines in queries[1:]:
+            try:
+                extra = await self._cache.get_or_fetch(
+                    name, lambda n=name: self._client.fetch_arrivals(n)
+                )
+            except UpstreamFailure as e:
+                logger.warning("노선 전용 조회 실패 %s: %s", name, e)
+                continue
+            answers.append((name, lines, extra.value))
+        return answers, cached
+
     def _group(
-        self, answers: list[tuple[str, frozenset[str] | None, list[dict]]], station: Station
+        self,
+        answers: list[tuple[str, frozenset[str] | None, list[dict]]],
+        station: Station,
+        limit: int | None = TRAINS_PER_GROUP,
     ) -> list[ArrivalGroup]:
         now = kst_from_epoch(self._clock())
         own_lines = set(station.lines) if self._index.shares_api_name(station) else None
@@ -198,7 +369,7 @@ class ArrivalService:
                         line=line,
                         direction=direction,
                         towards=towards,
-                        trains=trains[:TRAINS_PER_GROUP],
+                        trains=trains[:limit] if limit is not None else trains,
                     )
                 )
         return result

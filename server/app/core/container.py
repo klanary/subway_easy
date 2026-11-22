@@ -101,6 +101,7 @@ def build_services(
         positions,
         measured,
         frozenset(settings.position_now_lines),
+        frozenset(settings.position_at_lines),
     )
     routes = RouteService(stations, measured, clock)
     return AppServices(

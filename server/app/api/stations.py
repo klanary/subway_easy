@@ -66,9 +66,16 @@ async def station_arrivals(
     services: Annotated[AppServices, Depends(get_services)],
     line: str | None = None,
     towards: str | None = None,
+    at: str | None = None,
 ) -> ArrivalsResponse:
-    """호선·방향별 다음 열차 최대 2대(스펙 6.2). 서울시 응답은 20초 동안 캐시한다."""
-    response, cache_status = await services.arrivals.get_arrivals(station_id, line, towards)
+    """호선·방향별 다음 열차 최대 2대(스펙 6.2). 서울시 응답은 20초 동안 캐시한다.
+
+    `at`(ISO 시각)을 주면 그 시각 이후 열차다(설계 2026-11-22).
+    60분 안은 실시간·열차 위치 계산, 그 밖은 시간표.
+    """
+    response, cache_status = await services.arrivals.get_arrivals(
+        station_id, line, towards, at=parse_time(at)
+    )
     request.state.cache_status = cache_status
     return response
 

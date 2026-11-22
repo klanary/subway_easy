@@ -52,7 +52,7 @@
 ### 4.3 서버: 조회 함수 (작업 2·3도 씀)
 
 - `departures(station_id, line, direction, after, count)` → 실측 출발 목록. B1 키의 방향 0/1을 서버 방향 이름으로(2호선 내선·외선, 그 밖 상행·하행), statn_id를 `stations`로 우리 id에 맞춘다. 요일 구분은 서버의 `week_tag`와 같은 규칙(평일 1·토 2·일·공휴일 3). 05시 전 전날, 모자라면 다음 날(공식 시간표와 같은 규칙).
-- 거르기: `n_days`가 하한 미만인 항목, `scopes`에서 `suspect`·`retraining`인 단위, 종착역이 이 역인 항목을 뺀다.
+- 거르기: `n_days`가 하한 미만인 항목, `scopes`에서 `retraining`인 단위(2026-11-22부터 `suspect`는 거르지 않는다, `docs/ml/timetable-changes.md`), 종착역이 이 역인 항목을 뺀다.
 - `arrival_at(line, direction, train_no, station_id, day)` → 그 열차가 다른 역에 닿는 시각(`train_no` 방식 호선만). 없으면 None(서지 않는 급행이거나 관측 없음).
 - `hop_seconds(line, direction, from_id, to_id, express, day_type, hour)` → B2 중앙값(시간대 → 요일 → 전체 순으로 있는 것). 이웃 역이 아니면 사이 구간을 더한다(작업 2에서 쓰임).
 

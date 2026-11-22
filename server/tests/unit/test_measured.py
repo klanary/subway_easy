@@ -48,10 +48,13 @@ def test_unmapped_station_is_skipped(data):
         assert "07:06" not in hm(got)
 
 
-def test_suspect_scope_is_excluded(data):
-    # 평일 신분당선 하행 7시대는 변경 의심 중이라 07:10 칸을 내지 않는다.
+def test_suspect_scope_is_still_served(data):
+    """변경 의심은 확정 전이라 지난 실측 시각을 그대로 낸다(2026-11-22 결정).
+
+    11-20 하루 지연을 의심으로 잡아 GTX-A 평일 6~24시가 통째로 빠졌던 일 때문이다.
+    """
     got = data.departures("강남", "신분당선", "하행", at("2026-11-18T07:00"), 5)
-    assert hm(got)[0] == "09:00"
+    assert hm(got)[0] == "07:10"
 
 
 def test_trains_ending_here_are_dropped(data):
@@ -128,9 +131,15 @@ def _gtx_like(scopes: dict) -> MeasuredData:
     )
 
 
-def test_excluded_hours_ahead_mean_unknown_not_next_day():
-    data = _gtx_like({f"1|GTX-A|0|{h}": "suspect" for h in range(6, 25)})
+def test_retraining_hours_ahead_mean_unknown_not_next_day():
+    data = _gtx_like({f"1|GTX-A|0|{h}": "retraining" for h in range(6, 25)})
     assert data.departures("서울", "GTX-A", "상행", at("2026-11-18T11:00"), 2) == []
+
+
+def test_suspect_hours_keep_last_measured_times():
+    data = _gtx_like({f"1|GTX-A|0|{h}": "suspect" for h in range(6, 25)})
+    got = data.departures("서울", "GTX-A", "상행", at("2026-11-18T11:00"), 1)
+    assert hm(got) == ["12:00"]
 
 
 def test_after_last_train_next_day_first_trains_still_come():

@@ -5,7 +5,9 @@
 - B1 칸 키: `요일구분|호선|방향(0 상행·내선, 1 하행·외선)|statn_id`. 시각은 운행일 0시부터 초
   (24시를 넘으면 86400 이상).
 - statn_id는 결과물의 `stations`로 우리 역 id에 잇는다. 못 이은 칸은 버린다.
-- 변경 의심(`suspect`)·재학습 중(`retraining`)인 단위(요일|호선|방향|시간대)의 칸은 내지 않는다.
+- 재학습 중(`retraining`)인 단위(요일|호선|방향|시간대)의 칸은 내지 않는다.
+- 변경 의심(`suspect`)은 확정 전이므로 지난 실측 시각을 그대로 낸다(2026-11-22 결정:
+  11-20 하루 지연을 의심으로 잡아 GTX-A 평일 6~24시가 통째로 빠졌다).
 """
 
 import sys
@@ -21,7 +23,7 @@ from app.services.timetable import service_days, week_tag
 # (최종 리뷰 #1: 전체 B1을 그대로 올리면 Render 512MB를 넘는다).
 B1_KIND, B1_VERSION = "b1-server", 1
 B2_KIND, B2_VERSION = "b2-server", 1
-_EXCLUDED_STATES = frozenset({"suspect", "retraining"})
+_EXCLUDED_STATES = frozenset({"retraining"})
 _HOP_SERVICE_DAY_START_HOUR = 1  # 수집기는 01시 전 이벤트를 전날 운행일로 센다
 
 

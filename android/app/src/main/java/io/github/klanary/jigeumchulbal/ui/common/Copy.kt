@@ -38,4 +38,8 @@ object Copy {
     const val NO_STATION_NEARBY = "근처 2km 안에 역이 없어요"
     const val PIN_LABEL = "지도에서 선택한 위치"
     const val USE_THIS_PLACE = "이 위치로 지정"
+
+    // 경로 결과
+    const val NO_ROUTES = "경로가 없어요"
+    const val ROUTE_GONE = "경로 정보가 없어요. 경로를 다시 검색해 주세요."
 }

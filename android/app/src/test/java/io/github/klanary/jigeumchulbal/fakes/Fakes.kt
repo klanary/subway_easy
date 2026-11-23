@@ -25,6 +25,16 @@ import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.location.LocationProvider
+import io.github.klanary.jigeumchulbal.session.AlarmId
+import io.github.klanary.jigeumchulbal.session.AlarmScheduler
+import io.github.klanary.jigeumchulbal.session.AlertContent
+import io.github.klanary.jigeumchulbal.session.SessionNotifierPort
+import io.github.klanary.jigeumchulbal.session.SessionState
+import io.github.klanary.jigeumchulbal.session.SessionStore
+import io.github.klanary.jigeumchulbal.session.WaitingServiceLauncher
+import androidx.datastore.preferences.core.preferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -153,8 +163,8 @@ class FakeRouteRepository : RouteRepository {
  */
 fun fakeSettingsStore(): SettingsStore = SettingsStore(InMemoryPreferencesDataStore())
 
-class InMemoryPreferencesDataStore : DataStore<Preferences> {
-    private val state = MutableStateFlow(emptyPreferences())
+class InMemoryPreferencesDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
+    private val state = MutableStateFlow(initial)
     override val data: Flow<Preferences> = state
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
@@ -169,3 +179,61 @@ class FakeLocationProvider(var permission: Boolean, var point: GeoPoint?) : Loca
 
     override suspend fun current(): GeoPoint? = if (permission) point else null
 }
+
+/** 메모리 DataStore 위의 실제 SessionStore. [rawJson]을 주면 그 문자열이 저장돼 있는 상태로 시작한다. */
+fun testSessionStore(rawJson: String? = null): SessionStore {
+    val initial = if (rawJson == null) emptyPreferences() else preferencesOf(stringPreferencesKey("session_json") to rawJson)
+    return SessionStore(InMemoryPreferencesDataStore(initial), Json { ignoreUnknownKeys = true })
+}
+
+class FakeAlarmScheduler(var exact: Boolean = true) : AlarmScheduler {
+    val scheduled = mutableMapOf<AlarmId, Long>()
+    var cancelAllCalls = 0
+
+    override fun schedule(id: AlarmId, atMillis: Long) {
+        scheduled[id] = atMillis
+    }
+
+    override fun cancel(id: AlarmId) {
+        scheduled.remove(id)
+    }
+
+    override fun cancelAll() {
+        cancelAllCalls++
+        scheduled.clear()
+    }
+
+    override fun canScheduleExact(): Boolean = exact
+}
+
+class FakeNotifier : SessionNotifierPort {
+    val alerts = mutableListOf<AlertContent>()
+    var ongoingShown = 0
+    var ongoingCleared = 0
+
+    override fun showOngoing(state: SessionState, now: Long) {
+        ongoingShown++
+    }
+
+    override fun clearOngoing() {
+        ongoingCleared++
+    }
+
+    override fun alert(content: AlertContent) {
+        alerts += content
+    }
+}
+
+class FakeLauncher : WaitingServiceLauncher {
+    var starts = 0
+    var stops = 0
+
+    override fun start() {
+        starts++
+    }
+
+    override fun stop() {
+        stops++
+    }
+}
+

@@ -1,5 +1,10 @@
 package io.github.klanary.jigeumchulbal.fakes
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import io.github.klanary.jigeumchulbal.data.local.FavoriteStationEntity
+import io.github.klanary.jigeumchulbal.data.local.SettingsStore
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceEntity
 import io.github.klanary.jigeumchulbal.data.local.MyPlaceType
 import io.github.klanary.jigeumchulbal.data.local.RecentSearchEntity
@@ -11,15 +16,19 @@ import io.github.klanary.jigeumchulbal.data.remote.PlaceDto
 import io.github.klanary.jigeumchulbal.data.remote.ReverseDto
 import io.github.klanary.jigeumchulbal.data.remote.RoutesDto
 import io.github.klanary.jigeumchulbal.data.remote.StationDto
+import io.github.klanary.jigeumchulbal.data.repository.FavoriteRepository
 import io.github.klanary.jigeumchulbal.data.repository.MyPlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.PlaceRepository
 import io.github.klanary.jigeumchulbal.data.repository.RecentSearchRepository
 import io.github.klanary.jigeumchulbal.data.repository.RouteRepository
+import io.github.klanary.jigeumchulbal.data.repository.ServerRepository
 import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.fixtures.specRoute
 import io.github.klanary.jigeumchulbal.location.LocationProvider
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 // ViewModel 테스트용 가짜 저장소. 이후 작업이 필요한 가짜를 더한다.
 
@@ -27,15 +36,48 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeStationRepository : StationRepository {
     val searchCalls = mutableListOf<String>()
     var result: ApiResult<List<StationDto>>? = null
-    var arrivalsResult: ApiResult<ArrivalsDto>? = null
+    val arrivalCalls = mutableListOf<Triple<String, String?, String?>>()
+
+    /** 기본은 도착 정보가 없는 정상 응답. */
+    var arrivalsResult: ApiResult<ArrivalsDto> =
+        ApiResult.Ok(ArrivalsDto(stationId = "역", updatedAt = "2026-11-03T08:00:00+09:00", groups = emptyList()))
 
     override suspend fun search(q: String, limit: Int): ApiResult<List<StationDto>> {
         searchCalls += q
         return result ?: ApiResult.Ok(listOf(StationDto(q, q, listOf("2호선"), 37.5571, 126.9245)))
     }
 
-    override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> =
-        arrivalsResult ?: error("arrivalsResult를 먼저 정하세요")
+    /** 역별로 다른 응답을 줄 때. 없는 역은 [arrivalsResult]. */
+    var arrivalsByStation: Map<String, ApiResult<ArrivalsDto>> = emptyMap()
+
+    override suspend fun arrivals(stationId: String, line: String?, towards: String?): ApiResult<ArrivalsDto> {
+        arrivalCalls += Triple(stationId, line, towards)
+        return arrivalsByStation[stationId] ?: arrivalsResult
+    }
+}
+
+class FakeFavoriteRepository(stations: List<FavoriteStationEntity> = emptyList()) : FavoriteRepository {
+    override val stations = MutableStateFlow(stations)
+
+    override fun isFavorite(stationId: String): Flow<Boolean> = stations.map { list -> list.any { it.stationId == stationId } }
+
+    override suspend fun toggleStation(stationId: String) {
+        val list = stations.value
+        stations.value = if (list.any { it.stationId == stationId }) {
+            list.filterNot { it.stationId == stationId }
+        } else {
+            list + FavoriteStationEntity(stationId = stationId, createdAt = 0)
+        }
+    }
+}
+
+class FakeServerRepository : ServerRepository {
+    var wakeCalls = 0
+
+    override suspend fun wake(): Boolean {
+        wakeCalls++
+        return true
+    }
 }
 
 /** 검색어 q에 대해 PlaceDto("$q 결과")를 돌려준다. [delays]로 검색어별 응답 지연을 줄 수 있다. */
@@ -63,7 +105,11 @@ class FakeMyPlaceRepository(initial: List<MyPlaceEntity> = emptyList()) : MyPlac
     override val places = MutableStateFlow(initial)
     private var nextId = (initial.maxOfOrNull { it.id } ?: 0) + 1
 
+    /** save 호출 기록: (종류, 이름, 주소) */
+    val saved = mutableListOf<Triple<MyPlaceType, String, String?>>()
+
     override suspend fun save(type: MyPlaceType, label: String, endpoint: Endpoint, address: String?) {
+        saved += Triple(type, label, address)
         val kept = if (type == MyPlaceType.CUSTOM) places.value else places.value.filterNot { it.type == type }
         val entity = MyPlaceEntity(
             id = nextId++, type = type, label = label, lat = endpoint.point.lat, lng = endpoint.point.lng,
@@ -97,6 +143,24 @@ class FakeRouteRepository : RouteRepository {
     override suspend fun routes(origin: Endpoint, dest: Endpoint, via: Endpoint?): ApiResult<RoutesDto> {
         calls += Triple(origin, dest, via)
         return result
+    }
+}
+
+/**
+ * 메모리에만 저장하는 DataStore 위의 실제 SettingsStore.
+ * 파일 DataStore는 IO 스레드에서 늦게 값을 내보내, 테스트가 끝나 Main 디스패처를 되돌린 뒤
+ * ViewModel로 디스패치하다 다음 테스트를 실패시킨다. 파일 저장 자체는 SettingsStoreTest가 확인한다.
+ */
+fun fakeSettingsStore(): SettingsStore = SettingsStore(InMemoryPreferencesDataStore())
+
+class InMemoryPreferencesDataStore : DataStore<Preferences> {
+    private val state = MutableStateFlow(emptyPreferences())
+    override val data: Flow<Preferences> = state
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        val next = transform(state.value).toPreferences()
+        state.value = next
+        return next
     }
 }
 

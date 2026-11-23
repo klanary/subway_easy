@@ -42,4 +42,42 @@ object Copy {
     // 경로 결과
     const val NO_ROUTES = "경로가 없어요"
     const val ROUTE_GONE = "경로 정보가 없어요. 경로를 다시 검색해 주세요."
+
+    // 역 상세
+    const val NO_ARRIVALS = "도착 정보가 없어요"
+    const val FAVORITE = "즐겨찾기"
+    const val EXPRESS = "급행"
+    const val LAST_TRAIN = "막차"
+
+    // 홈
+    const val APP_NAME = "지금출발"
+    const val SETTINGS = "설정"
+    const val SEARCH_BAR = "어디로 갈까요?"
+    const val FAVORITE_STATIONS = "즐겨찾는 역"
+    const val HOME = "집"
+    const val SCHOOL = "학교"
+    const val WORK = "회사"
+    const val CUSTOM_PLACE = "직접 추가"
+
+    // 설정
+    const val ADD_CUSTOM_PLACE = "+ 직접 추가"
+    const val NOT_SET = "지정 안 됨"
+    const val SET_BY_SEARCH = "검색"
+    const val SET_ON_MAP = "지도"
+    const val DELETE = "삭제"
+    const val ALERT_TIMING = "알림 시점"
+    const val DEPART_MARGIN = "출발 여유 시간"
+    const val ALIGHT_LEAD = "하차·환승 알림"
+    const val STATION_LEAD = "역 상세 승차 전 알림"
+    const val MAX_WAIT = "최대 대기 시간"
+    const val PERMISSIONS = "권한"
+    const val PERMISSION_LOCATION = "위치"
+    const val PERMISSION_NOTIFICATIONS = "알림"
+    const val PERMISSION_EXACT_ALARM = "알람 및 리마인더"
+    const val GRANTED = "허용됨"
+    const val NOT_GRANTED = "허용 안 됨"
+    const val OPEN_SETTINGS = "설정 열기"
+    const val ABOUT = "정보"
+    const val ATTRIBUTION = "이 앱은 서울 열린데이터광장의 '서울시 지하철 실시간 도착정보'·'서울시 역사마스터 정보'와 " +
+        "카카오의 지도·로컬·길찾기 API를 사용합니다."
 }

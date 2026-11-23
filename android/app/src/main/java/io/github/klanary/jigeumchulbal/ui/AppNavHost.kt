@@ -21,12 +21,15 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
+import io.github.klanary.jigeumchulbal.ui.home.HomeScreen
 import io.github.klanary.jigeumchulbal.ui.mappick.MapPickScreen
 import io.github.klanary.jigeumchulbal.ui.routedetail.RouteDetailScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteEditScreen
 import io.github.klanary.jigeumchulbal.ui.routeedit.RouteFlowViewModel
 import io.github.klanary.jigeumchulbal.ui.routes.RoutesScreen
 import io.github.klanary.jigeumchulbal.ui.search.SearchScreen
+import io.github.klanary.jigeumchulbal.ui.settings.SettingsScreen
+import io.github.klanary.jigeumchulbal.ui.station.StationScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController = rememberNavController()) {
@@ -35,7 +38,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
 
 /** 앱의 모든 화면. 아직 만들지 않은 화면은 제목만 있는 자리 표시 화면이고, 각 작업이 바꾼다. */
 fun NavGraphBuilder.appGraph(navController: NavController) {
-    composable<HomeDest> { PlaceholderScreen("지금출발") }
+    composable<HomeDest> { HomeScreen(navController) }
     navigation<RouteFlowGraph>(startDestination = RouteEditDest) {
         composable<RouteEditDest> { entry ->
             val flow = routeFlowEntry(navController, entry)
@@ -56,8 +59,8 @@ fun NavGraphBuilder.appGraph(navController: NavController) {
     }
     composable<SearchDest> { entry -> SearchScreen(entry.toRoute<SearchDest>().slot, navController) }
     composable<MapPickDest> { entry -> MapPickScreen(entry.toRoute<MapPickDest>().slot, navController) }
-    composable<StationDest> { PlaceholderScreen("역 상세") }
-    composable<SettingsDest> { PlaceholderScreen("설정") }
+    composable<StationDest> { entry -> StationScreen(entry.toRoute<StationDest>().stationId, navController) }
+    composable<SettingsDest> { entry -> SettingsScreen(navController, entry) }
 }
 
 /** 경로 흐름(편집·결과·상세)이 공유하는 중첩 그래프의 back stack entry. */

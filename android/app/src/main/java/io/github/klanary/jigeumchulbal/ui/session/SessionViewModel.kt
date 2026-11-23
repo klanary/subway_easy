@@ -3,23 +3,30 @@ package io.github.klanary.jigeumchulbal.ui.session
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.klanary.jigeumchulbal.data.repository.StationRepository
 import io.github.klanary.jigeumchulbal.session.SessionController
 import io.github.klanary.jigeumchulbal.session.SessionEvent
 import io.github.klanary.jigeumchulbal.session.SessionState
 import io.github.klanary.jigeumchulbal.session.SessionUiEvent
 import io.github.klanary.jigeumchulbal.session.TrainPlan
 import io.github.klanary.jigeumchulbal.session.WaitMode
+import io.github.klanary.jigeumchulbal.session.WaitingPoller
 import io.github.klanary.jigeumchulbal.session.ceilMinutes
 import io.github.klanary.jigeumchulbal.session.currentPoint
+import io.github.klanary.jigeumchulbal.session.dueAlarms
 import io.github.klanary.jigeumchulbal.session.noPlanText
 import io.github.klanary.jigeumchulbal.session.stopLabel
 import io.github.klanary.jigeumchulbal.session.timeToAlight
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -27,6 +34,7 @@ import kotlinx.coroutines.launch
 class SessionViewModel(
     private val controller: SessionController,
     private val clock: () -> Long,
+    private val stations: StationRepository,
     exactAlarms: () -> Boolean = { true },
 ) : ViewModel() {
     private val readExactAlarms = exactAlarms
@@ -53,11 +61,36 @@ class SessionViewModel(
     fun cancel() {
         viewModelScope.launch { controller.dispatch(SessionEvent.Cancel) }
     }
+
+    /**
+     * 앱 안 모드(알림 권한 없음, 스펙 8.6): 알람과 대기 서비스 대신 이 화면이 보이는 동안 1초마다 울릴 알람을 확인하고,
+     * 대기 단계면 실시간 조회도 돌린다. 세션 화면이 STARTED인 동안, 앱 안 모드일 때만 부른다.
+     */
+    suspend fun runInAppLoop(): Unit = coroutineScope {
+        launch {
+            // 대기 단계에 들어설 때만 조회를 시작한다(조회 결과로 상태가 바뀔 때마다 다시 시작하지 않게 단계만 본다).
+            controller.state.map { it is SessionState.Waiting }.distinctUntilChanged().collectLatest { waiting ->
+                if (waiting) {
+                    WaitingPoller(
+                        fetch = { stations.arrivals(it.stationId, it.line, it.towards) },
+                        dispatch = controller::dispatch,
+                        state = { controller.state.value },
+                        clock = clock,
+                    ).run()
+                }
+            }
+        }
+        while (true) {
+            dueAlarms(controller.state.value, clock()).forEach { controller.dispatch(SessionEvent.AlarmFired(it)) }
+            delay(1_000)
+        }
+    }
 }
 
 @Composable
-fun sessionViewModel(): SessionViewModel =
-    appViewModel { SessionViewModel(it.sessionController, System::currentTimeMillis, it.alarmScheduler::canScheduleExact) }
+fun sessionViewModel(): SessionViewModel = appViewModel {
+    SessionViewModel(it.sessionController, System::currentTimeMillis, it.stationRepository, it.alarmScheduler::canScheduleExact)
+}
 
 /** 세션 화면 머리글과 홈 배너 문구(스펙 4.2). 세션이 없으면 null이다. */
 fun sessionHeadline(state: SessionState, now: Long): String? = when (state) {

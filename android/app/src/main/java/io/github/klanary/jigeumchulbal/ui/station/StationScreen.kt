@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,11 +35,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import io.github.klanary.jigeumchulbal.data.remote.ArrivalGroupDto
+import io.github.klanary.jigeumchulbal.session.SessionEvent
+import io.github.klanary.jigeumchulbal.session.waitStartFromGroup
+import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
 import io.github.klanary.jigeumchulbal.ui.common.StateContainer
 import io.github.klanary.jigeumchulbal.ui.common.appViewModel
 import io.github.klanary.jigeumchulbal.ui.common.formatRemaining
 import io.github.klanary.jigeumchulbal.ui.common.formatUpdatedAgo
+import io.github.klanary.jigeumchulbal.ui.session.rememberStartSession
 import kotlinx.coroutines.delay
 
 /** 역 상세. 화면이 보이는 동안만 30초마다 갱신하고 "n초 전 갱신"을 보여준다. */
@@ -62,6 +67,7 @@ fun StationScreen(
             value = System.currentTimeMillis()
         }
     }
+    val startSession = rememberStartSession(onStarted = { navController.navigate(SessionDest) })
 
     Scaffold(
         topBar = {
@@ -100,7 +106,12 @@ fun StationScreen(
             StateContainer(state.arrivals, onRetry = viewModel::refresh, emptyText = Copy.NO_ARRIVALS) { arrivals ->
                 LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(arrivals.groups, key = { "${it.line}-${it.direction}-${it.towards}" }) { group ->
-                        GroupCard(group, receivedAt = state.receivedAt ?: now, now = now)
+                        GroupCard(group, receivedAt = state.receivedAt ?: now, now = now) {
+                            val start = waitStartFromGroup(stationId, group)
+                            startSession { settings ->
+                                SessionEvent.StartWaiting(start.target, start.mode, null, start.travelSec, settings)
+                            }
+                        }
                     }
                 }
             }
@@ -108,11 +119,15 @@ fun StationScreen(
     }
 }
 
+/** 호선·방향 묶음 하나. [승차 전 알림]은 이 방향의 첫 열차가 설정한 시간 안으로 들어오면 알린다(⑦). */
 @Composable
-private fun GroupCard(group: ArrivalGroupDto, receivedAt: Long, now: Long) {
+private fun GroupCard(group: ArrivalGroupDto, receivedAt: Long, now: Long, onPreBoarding: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(groupTitle(group), style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(groupTitle(group), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = onPreBoarding) { Text(Copy.PRE_BOARDING_ALERT) }
+            }
             group.trains.take(2).forEach { train ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val destination = train.destination?.let { "${it}행 · " }.orEmpty()

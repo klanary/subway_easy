@@ -1,7 +1,9 @@
 package io.github.klanary.jigeumchulbal.ui.routedetail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -32,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import io.github.klanary.jigeumchulbal.data.local.AppSettings
 import io.github.klanary.jigeumchulbal.data.remote.RouteDto
 import io.github.klanary.jigeumchulbal.map.KakaoMapView
 import io.github.klanary.jigeumchulbal.map.SEOUL_CITY_HALL
@@ -39,6 +44,7 @@ import io.github.klanary.jigeumchulbal.map.buildOverlay
 import io.github.klanary.jigeumchulbal.map.render
 import io.github.klanary.jigeumchulbal.session.SessionEvent
 import io.github.klanary.jigeumchulbal.session.hasTransit
+import io.github.klanary.jigeumchulbal.session.waitStartFromRoute
 import io.github.klanary.jigeumchulbal.session.withoutPaths
 import io.github.klanary.jigeumchulbal.ui.SessionDest
 import io.github.klanary.jigeumchulbal.ui.common.Copy
@@ -50,7 +56,8 @@ import io.github.klanary.jigeumchulbal.ui.session.rememberStartSession
 
 /**
  * 경로 상세(스펙 3.1 ④): 위는 구간별 색 경로선과 출발·환승·도착 마커를 그린 지도, 아래는 끌어 올리는 단계 안내.
- * [출발(하차 알림)]은 지금 탄다고 보고 하차·환승 알림을 건다(⑤). [승차 전 알림]·[★]는 P4 Task 7·12가 더한다.
+ * [승차 전 알림]은 첫 탑승역의 실시간 도착으로 출발할 때를 알리고(⑦), [출발(하차 알림)]은 지금 탄다고 보고
+ * 하차·환승 알림을 건다(⑤). [★]는 P4 Task 12가 더한다.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,18 +92,39 @@ fun RouteDetailScreen(viewModel: RouteFlowViewModel, routeId: String, navControl
         },
         sheetPeekHeight = 220.dp,
         sheetContent = {
-            // 도보만인 경로는 내릴 곳이 없어 하차 알림을 걸지 않는다.
-            if (route.hasTransit()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Button(onClick = { startSession { settings -> SessionEvent.StartRiding(route.withoutPaths(), settings) } }) {
-                        Text(Copy.START_ALIGHT_ALERT)
-                    }
-                }
-            }
+            // 도보만인 경로는 탈 열차도 내릴 곳도 없어 알림을 걸지 않는다.
+            if (route.hasTransit()) SessionButtons(route, startSession)
             StepList(route)
         },
     ) { padding ->
         RouteMap(route, Modifier.padding(padding))
+    }
+}
+
+/** [승차 전 알림](⑦, 첫 탑승역의 실시간 정보가 있을 때만)과 [출발(하차 알림)](⑤). */
+@Composable
+private fun SessionButtons(route: RouteDto, startSession: ((AppSettings) -> SessionEvent) -> Unit) {
+    val waitStart = remember(route) { waitStartFromRoute(route) }
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                enabled = waitStart != null,
+                onClick = {
+                    waitStart?.let { start ->
+                        startSession { settings ->
+                            SessionEvent.StartWaiting(start.target, start.mode, route.withoutPaths(), start.travelSec, settings)
+                        }
+                    }
+                },
+            ) { Text(Copy.PRE_BOARDING_ALERT) }
+            Button(onClick = { startSession { settings -> SessionEvent.StartRiding(route.withoutPaths(), settings) } }) {
+                Text(Copy.START_ALIGHT_ALERT)
+            }
+        }
+        if (waitStart == null) Text(Copy.NO_REALTIME_FOR_ROUTE, style = MaterialTheme.typography.bodySmall)
     }
 }
 
